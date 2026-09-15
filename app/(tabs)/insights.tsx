@@ -14,6 +14,7 @@ import { track } from '../../services/analytics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { colors, spacing, radii } from '../../constants/theme';
 import { generateObservations } from '../../utils/insightsObservations';
+import { formatAmount } from '../../utils/formatNumber';
 
 type Period = 'week' | 'month' | '6months' | 'year';
 
@@ -72,10 +73,18 @@ export default function InsightsScreen() {
   const periodHistory = history.filter((entry) => entry.date >= cutoffDateString);
 
   // Calculate period averages
-  const totalCalories = periodHistory.reduce((sum, entry) => sum + entry.totals.calories, 0);
-  const totalProtein = periodHistory.reduce((sum, entry) => sum + entry.totals.protein, 0);
-  const avgCalories = periodHistory.length > 0 ? Math.round(totalCalories / periodHistory.length) : 0;
-  const avgProtein = periodHistory.length > 0 ? Math.round(totalProtein / periodHistory.length) : 0;
+  const average = (selector: (entry: DayEntry) => number): number =>
+    periodHistory.length > 0
+      ? periodHistory.reduce((sum, entry) => sum + selector(entry), 0) / periodHistory.length
+      : 0;
+
+  const avgCalories = Math.round(average((entry) => entry.totals.calories));
+  const avgProtein = formatAmount(average((entry) => entry.totals.protein));
+  const avgCarbohydrate = formatAmount(average((entry) => entry.totals.carbohydrate));
+  const avgFat = formatAmount(average((entry) => entry.totals.fat));
+  const avgFibre = formatAmount(average((entry) => entry.totals.fibre));
+  const avgSodium = formatAmount(average((entry) => entry.totals.sodium));
+  const avgSugar = formatAmount(average((entry) => entry.totals.sugar));
 
   // Calculate days within targets
   const daysWithinCalorieTarget = periodHistory.filter(
@@ -122,13 +131,35 @@ export default function InsightsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{activePeriod.sectionTitle}</Text>
-          <View style={styles.insightCard}>
-            <Text style={styles.insightLabel}>Average daily calories</Text>
-            <Text style={styles.insightValue}>{avgCalories} kcal</Text>
-          </View>
-          <View style={[styles.insightCard, styles.insightCardLast]}>
-            <Text style={styles.insightLabel}>Average daily protein</Text>
-            <Text style={styles.insightValue}>{avgProtein}g</Text>
+          <View style={styles.insightGrid}>
+            <View style={styles.insightSquare}>
+              <Text style={styles.insightSquareLabel}>Average daily calories</Text>
+              <Text style={styles.insightSquareValue}>{avgCalories} kcal</Text>
+            </View>
+            <View style={styles.insightSquare}>
+              <Text style={styles.insightSquareLabel}>Average daily protein</Text>
+              <Text style={styles.insightSquareValue}>{avgProtein}g</Text>
+            </View>
+            <View style={styles.insightSquare}>
+              <Text style={styles.insightSquareLabel}>Average daily carbs</Text>
+              <Text style={styles.insightSquareValue}>{avgCarbohydrate}g</Text>
+            </View>
+            <View style={styles.insightSquare}>
+              <Text style={styles.insightSquareLabel}>Average daily fat</Text>
+              <Text style={styles.insightSquareValue}>{avgFat}g</Text>
+            </View>
+            <View style={styles.insightSquare}>
+              <Text style={styles.insightSquareLabel}>Average daily fibre</Text>
+              <Text style={styles.insightSquareValue}>{avgFibre}g</Text>
+            </View>
+            <View style={styles.insightSquare}>
+              <Text style={styles.insightSquareLabel}>Average daily sodium</Text>
+              <Text style={styles.insightSquareValue}>{avgSodium}mg</Text>
+            </View>
+            <View style={styles.insightSquare}>
+              <Text style={styles.insightSquareLabel}>Average daily sugar</Text>
+              <Text style={styles.insightSquareValue}>{avgSugar}g</Text>
+            </View>
           </View>
         </View>
 
@@ -255,6 +286,32 @@ const styles = StyleSheet.create({
   },
   insightCardLast: {
     marginBottom: 0,
+  },
+  insightGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+  },
+  insightSquare: {
+    width: '48%',
+    aspectRatio: 1,
+    marginBottom: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
+    justifyContent: 'center',
+  },
+  insightSquareLabel: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  insightSquareValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   insightLabel: {
     fontSize: 16,
