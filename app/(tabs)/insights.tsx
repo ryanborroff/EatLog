@@ -300,7 +300,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     backgroundColor: colors.card,
     borderRadius: radii.card,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
   insightSquareLabel: {
     fontSize: 14,
