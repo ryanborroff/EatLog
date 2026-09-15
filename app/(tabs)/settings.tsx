@@ -13,9 +13,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { DailyGoals } from '../../types';
-import { getUserGoals, saveUserGoals } from '../../services/storageService';
+import { ActivityLevel, DailyGoals, Sex, UserProfile } from '../../types';
+import {
+  getUserGoals,
+  saveUserGoals,
+  getUserProfile,
+  saveUserProfile,
+} from '../../services/storageService';
 import { signOut } from '../../services/authService';
+import { ACTIVITY_LEVEL_LABELS, estimateMaintenanceCalories } from '../../services/calorieTarget';
 
 type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat';
 
@@ -36,16 +42,45 @@ const suggestedGrams = (macro: MacroKey, calorieTarget: number): number | null =
   return Math.round((calorieTarget * config.calorieShare) / config.caloriesPerGram);
 };
 
+type NumericProfileField = 'birthYear' | 'heightCm' | 'weightKg';
+type ChoiceProfileField = 'sex' | 'activityLevel';
+
+const NUMERIC_PROFILE_CONFIG: Record<
+  NumericProfileField,
+  { label: string; unit: string; placeholder: string }
+> = {
+  birthYear: { label: 'Birth year', unit: '', placeholder: 'e.g. 1990' },
+  heightCm: { label: 'Height', unit: 'cm', placeholder: 'e.g. 170' },
+  weightKg: { label: 'Weight', unit: 'kg', placeholder: 'e.g. 70' },
+};
+
+const SEX_OPTIONS: { value: Sex; label: string }[] = [
+  { value: 'female', label: 'Female' },
+  { value: 'male', label: 'Male' },
+];
+
+const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string }[] = (
+  Object.keys(ACTIVITY_LEVEL_LABELS) as ActivityLevel[]
+).map((value) => ({ value, label: ACTIVITY_LEVEL_LABELS[value] }));
+
 export default function SettingsScreen() {
   const router = useRouter();
   const [goals, setGoals] = useState<DailyGoals | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingMacro, setEditingMacro] = useState<MacroKey | null>(null);
   const [macroInput, setMacroInput] = useState('');
+  const [macroSuggestionOverride, setMacroSuggestionOverride] = useState<number | null>(null);
+  const [editingNumericField, setEditingNumericField] = useState<NumericProfileField | null>(
+    null
+  );
+  const [numericFieldInput, setNumericFieldInput] = useState('');
+  const [editingChoiceField, setEditingChoiceField] = useState<ChoiceProfileField | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadGoals();
+    loadProfile();
   }, []);
 
   const loadGoals = async () => {
@@ -59,11 +94,34 @@ export default function SettingsScreen() {
     }
   };
 
-  const openMacroEditor = (macro: MacroKey) => {
+  const loadProfile = async () => {
+    try {
+      const userProfile = await getUserProfile();
+      setProfile(userProfile);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
+
+  const openMacroEditor = (macro: MacroKey, suggestion?: number) => {
     if (!goals) return;
-    const currentValue = goals[macro];
+    const currentValue = suggestion ?? goals[macro];
     setMacroInput(currentValue ? String(currentValue) : '');
+    setMacroSuggestionOverride(suggestion ?? null);
     setEditingMacro(macro);
+  };
+
+  const openSuggestedCalories = () => {
+    if (!profile) return;
+    const suggestion = estimateMaintenanceCalories(profile, new Date().getFullYear());
+    if (suggestion === null) {
+      Alert.alert(
+        'Missing info',
+        'Add your sex, birth year, height, weight, and activity level in Profile first so we can suggest a calorie target.'
+      );
+      return;
+    }
+    openMacroEditor('calories', suggestion);
   };
 
   const handleSaveMacro = async () => {
@@ -86,6 +144,51 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error('Error saving target:', error);
       Alert.alert('Error', 'Failed to save your target.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openNumericFieldEditor = (field: NumericProfileField) => {
+    if (!profile) return;
+    const currentValue = profile[field];
+    setNumericFieldInput(currentValue ? String(currentValue) : '');
+    setEditingNumericField(field);
+  };
+
+  const handleSaveNumericField = async () => {
+    if (!profile || !editingNumericField) return;
+    const parsed = parseInt(numericFieldInput, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      Alert.alert('Invalid value', 'Enter a whole number greater than 0.');
+      return;
+    }
+
+    const updatedProfile = { ...profile, [editingNumericField]: parsed };
+    setSaving(true);
+    try {
+      await saveUserProfile(updatedProfile);
+      setProfile(updatedProfile);
+      setEditingNumericField(null);
+    } catch (error) {
+      console.error('Error saving profile field:', error);
+      Alert.alert('Error', 'Failed to save that value.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSelectChoiceField = async (field: ChoiceProfileField, value: string) => {
+    if (!profile) return;
+    const updatedProfile = { ...profile, [field]: value };
+    setSaving(true);
+    try {
+      await saveUserProfile(updatedProfile);
+      setProfile(updatedProfile);
+      setEditingChoiceField(null);
+    } catch (error) {
+      console.error('Error saving profile field:', error);
+      Alert.alert('Error', 'Failed to save that value.');
     } finally {
       setSaving(false);
     }
@@ -131,6 +234,46 @@ export default function SettingsScreen() {
             <Text style={styles.settingLabel}>Name</Text>
             <Text style={styles.settingValue}>John Doe</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => setEditingChoiceField('sex')}
+          >
+            <Text style={styles.settingLabel}>Sex</Text>
+            <Text style={styles.settingValue}>
+              {profile?.sex ? SEX_OPTIONS.find((o) => o.value === profile.sex)?.label : 'Not set'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={() => openNumericFieldEditor('birthYear')}>
+            <Text style={styles.settingLabel}>Birth year</Text>
+            <Text style={styles.settingValue}>{profile?.birthYear ?? 'Not set'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={() => openNumericFieldEditor('heightCm')}>
+            <Text style={styles.settingLabel}>Height</Text>
+            <Text style={styles.settingValue}>
+              {profile?.heightCm ? `${profile.heightCm} cm` : 'Not set'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={() => openNumericFieldEditor('weightKg')}>
+            <Text style={styles.settingLabel}>Weight</Text>
+            <Text style={styles.settingValue}>
+              {profile?.weightKg ? `${profile.weightKg} kg` : 'Not set'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => setEditingChoiceField('activityLevel')}
+          >
+            <Text style={styles.settingLabel}>Activity level</Text>
+            <Text style={styles.settingValue}>
+              {profile?.activityLevel
+                ? ACTIVITY_LEVEL_LABELS[profile.activityLevel].split(' (')[0]
+                : 'Not set'}
+            </Text>
+          </TouchableOpacity>
+          <Text style={styles.disclaimer}>
+            Optional. Used only to suggest a starting daily calorie target — never shared or used
+            for anything else.
+          </Text>
         </View>
 
         <View style={styles.section}>
@@ -138,6 +281,9 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.settingItem} onPress={() => openMacroEditor('calories')}>
             <Text style={styles.settingLabel}>Calories</Text>
             <Text style={styles.settingValue}>{goals.calories} kcal</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={openSuggestedCalories}>
+            <Text style={styles.settingLabelLink}>Suggest my calorie target</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={() => openMacroEditor('protein')}>
             <Text style={styles.settingLabel}>Protein</Text>
@@ -223,7 +369,14 @@ export default function SettingsScreen() {
                 placeholder={`e.g. ${suggestedGrams(editingMacro, goals.calories) ?? 2000}`}
                 autoFocus
               />
-              {suggestedGrams(editingMacro, goals.calories) !== null && (
+              {macroSuggestionOverride !== null && (
+                <Text style={styles.suggestion}>
+                  Suggested: {macroSuggestionOverride} kcal to maintain your current weight,
+                  estimated from your profile (Mifflin-St Jeor formula). Adjust up or down
+                  depending on your goal, then confirm below.
+                </Text>
+              )}
+              {macroSuggestionOverride === null && suggestedGrams(editingMacro, goals.calories) !== null && (
                 <Text style={styles.suggestion}>
                   Suggested: {suggestedGrams(editingMacro, goals.calories)}
                   {MACRO_CONFIG[editingMacro].unit} based on a standard 30/40/30
@@ -238,14 +391,20 @@ export default function SettingsScreen() {
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonSecondary]}
-                  onPress={() => setEditingMacro(null)}
+                  onPress={() => {
+                    setEditingMacro(null);
+                    setMacroSuggestionOverride(null);
+                  }}
                   disabled={saving}
                 >
                   <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonPrimary]}
-                  onPress={handleSaveMacro}
+                  onPress={async () => {
+                    await handleSaveMacro();
+                    setMacroSuggestionOverride(null);
+                  }}
                   disabled={saving}
                 >
                   <Text style={styles.modalButtonPrimaryText}>
@@ -256,6 +415,86 @@ export default function SettingsScreen() {
             </View>
           )}
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={editingNumericField !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditingNumericField(null)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {editingNumericField && (
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>
+                {NUMERIC_PROFILE_CONFIG[editingNumericField].label}
+              </Text>
+              <TextInput
+                style={styles.modalInput}
+                value={numericFieldInput}
+                onChangeText={setNumericFieldInput}
+                keyboardType="number-pad"
+                placeholder={NUMERIC_PROFILE_CONFIG[editingNumericField].placeholder}
+                autoFocus
+              />
+              <Text style={styles.disclaimer}>
+                Optional and only used to suggest a starting calorie target — not medical advice.
+              </Text>
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonSecondary]}
+                  onPress={() => setEditingNumericField(null)}
+                  disabled={saving}
+                >
+                  <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  onPress={handleSaveNumericField}
+                  disabled={saving}
+                >
+                  <Text style={styles.modalButtonPrimaryText}>
+                    {saving ? 'Saving...' : 'Save'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={editingChoiceField !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditingChoiceField(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {editingChoiceField === 'sex' ? 'Sex' : 'Activity level'}
+            </Text>
+            {(editingChoiceField === 'sex' ? SEX_OPTIONS : ACTIVITY_OPTIONS).map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={styles.optionRow}
+                onPress={() => editingChoiceField && handleSelectChoiceField(editingChoiceField, option.value)}
+                disabled={saving}
+              >
+                <Text style={styles.optionRowText}>{option.label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonSecondary, styles.optionCancelButton]}
+              onPress={() => setEditingChoiceField(null)}
+            >
+              <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -308,6 +547,22 @@ const styles = StyleSheet.create({
   settingArrow: {
     fontSize: 20,
     color: '#666666',
+  },
+  settingLabelLink: {
+    fontSize: 16,
+    color: '#007AFF',
+  },
+  optionRow: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  optionRowText: {
+    fontSize: 16,
+    color: '#000000',
+  },
+  optionCancelButton: {
+    marginTop: 16,
   },
   dangerItem: {
     marginTop: 8,

@@ -36,6 +36,18 @@ export interface DailyGoals {
   fat?: number;
 }
 
+export type Sex = 'male' | 'female';
+
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+
+export interface UserProfile {
+  sex?: Sex;
+  birthYear?: number;
+  heightCm?: number;
+  weightKg?: number;
+  activityLevel?: ActivityLevel;
+}
+
 export interface DayEntry {
   date: string;
   meals: Meal[];

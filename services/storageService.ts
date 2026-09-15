@@ -8,6 +8,7 @@ import {
   UserDefault,
   DefaultItem,
   NutritionReference,
+  UserProfile,
 } from '../types';
 import { ParsedFoodResult } from '../types/foodParser';
 import { supabase, withClockSkewRetry } from './supabaseClient';
@@ -52,6 +53,43 @@ export const saveUserGoals = async (goals: DailyGoals): Promise<void> => {
       updated_at: new Date().toISOString(),
     })
     .eq('user_id', userId);
+
+  if (error) throw error;
+};
+
+// User Profile (biometrics, used to suggest a calorie target)
+
+export const getUserProfile = async (): Promise<UserProfile> => withClockSkewRetry(async () => {
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from('users')
+    .select('sex, birth_year, height_cm, weight_kg, activity_level')
+    .eq('id', userId)
+    .single();
+
+  if (error) throw error;
+
+  return {
+    sex: data.sex ?? undefined,
+    birthYear: data.birth_year ?? undefined,
+    heightCm: data.height_cm ?? undefined,
+    weightKg: data.weight_kg ?? undefined,
+    activityLevel: data.activity_level ?? undefined,
+  };
+});
+
+export const saveUserProfile = async (profile: UserProfile): Promise<void> => {
+  const userId = await getUserId();
+  const { error } = await supabase
+    .from('users')
+    .update({
+      sex: profile.sex ?? null,
+      birth_year: profile.birthYear ?? null,
+      height_cm: profile.heightCm ?? null,
+      weight_kg: profile.weightKg ?? null,
+      activity_level: profile.activityLevel ?? null,
+    })
+    .eq('id', userId);
 
   if (error) throw error;
 };
