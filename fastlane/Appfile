@@ -1,0 +1,3 @@
+app_identifier("com.ryanfborroff.EatLog")
+apple_id("ryanfborroff@gmail.com")
+# team_id("YOUR_TEAM_ID") # set this if your Apple ID belongs to more than one team

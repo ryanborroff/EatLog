@@ -1,0 +1,33 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build a release .ipa and upload it to TestFlight"
+  lane :beta do
+    # Regenerate the native project from app.json/plugins before building,
+    # same as EAS does — keeps this lane in sync without a second source of truth.
+    sh("cd .. && npx expo prebuild -p ios")
+    cocoapods(podfile: "ios/Podfile")
+
+    increment_build_number(xcodeproj: "ios/EatLog.xcodeproj")
+
+    build_app(
+      workspace: "ios/EatLog.xcworkspace",
+      scheme: "EatLog",
+      export_method: "app-store",
+      configuration: "Release"
+    )
+
+    upload_to_testflight(
+      # Prefers an App Store Connect API key (set ASC_KEY_ID / ASC_ISSUER_ID /
+      # ASC_KEY_CONTENT below) to avoid the Apple-ID 2FA prompt entirely.
+      # Falls back to interactive Apple ID login if those aren't set.
+      api_key: ENV["ASC_KEY_ID"] ? app_store_connect_api_key(
+        key_id: ENV["ASC_KEY_ID"],
+        issuer_id: ENV["ASC_ISSUER_ID"],
+        key_content: ENV["ASC_KEY_CONTENT"],
+        is_key_content_base64: true
+      ) : nil,
+      skip_waiting_for_build_processing: true
+    )
+  end
+end
