@@ -10,7 +10,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "EatLog uses your microphone to log food by voice.",
-        "NSSpeechRecognitionUsageDescription": "EatLog transcribes your voice to log the food you describe."
+        "NSSpeechRecognitionUsageDescription": "EatLog transcribes your voice to log the food you describe.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.ryanfborroff.EatLog"
     },
