@@ -22,6 +22,7 @@ import {
 } from '../../services/storageService';
 import { signOut } from '../../services/authService';
 import { ACTIVITY_LEVEL_LABELS, estimateMaintenanceCalories } from '../../services/calorieTarget';
+import { ACCENT_COLORS, useTheme } from '../../contexts/ThemeContext';
 
 type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat';
 
@@ -65,6 +66,7 @@ const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string }[] = (
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { accentColor, accentColorId, setAccentColorId } = useTheme();
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -283,7 +285,9 @@ export default function SettingsScreen() {
             <Text style={styles.settingValue}>{goals.calories} kcal</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={openSuggestedCalories}>
-            <Text style={styles.settingLabelLink}>Suggest my calorie target</Text>
+            <Text style={[styles.settingLabelLink, { color: accentColor }]}>
+              Suggest my calorie target
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={() => openMacroEditor('protein')}>
             <Text style={styles.settingLabel}>Protein</Text>
@@ -305,6 +309,30 @@ export default function SettingsScreen() {
             vary by age, sex, weight, height, and activity level — consult a doctor or registered
             dietitian before changing your target, especially if you have a health condition.
           </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <View style={styles.colorSwatchRow}>
+            {ACCENT_COLORS.map((color) => (
+              <TouchableOpacity
+                key={color.id}
+                style={styles.colorSwatchWrapper}
+                onPress={() => setAccentColorId(color.id)}
+                accessibilityLabel={`${color.label} accent color`}
+                accessibilityRole="button"
+              >
+                <View
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: color.value },
+                    accentColorId === color.id && styles.colorSwatchSelected,
+                  ]}
+                />
+                <Text style={styles.colorSwatchLabel}>{color.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -400,7 +428,7 @@ export default function SettingsScreen() {
                   <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: accentColor }]}
                   onPress={async () => {
                     await handleSaveMacro();
                     setMacroSuggestionOverride(null);
@@ -452,7 +480,7 @@ export default function SettingsScreen() {
                   <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: accentColor }]}
                   onPress={handleSaveNumericField}
                   disabled={saving}
                 >
@@ -645,5 +673,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#FFFFFF',
+  },
+  colorSwatchRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+    gap: 20,
+  },
+  colorSwatchWrapper: {
+    alignItems: 'center',
+  },
+  colorSwatch: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  colorSwatchSelected: {
+    borderColor: '#000000',
+  },
+  colorSwatchLabel: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 6,
   },
 });

@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function TabLayout() {
+  const { accentColor } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
@@ -15,7 +18,7 @@ export default function TabLayout() {
           paddingTop: 8,
           height: 60,
         },
-        tabBarActiveTintColor: '#000000',
+        tabBarActiveTintColor: accentColor,
         tabBarInactiveTintColor: '#999999',
         tabBarLabelStyle: {
           fontSize: 12,

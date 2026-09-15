@@ -5,6 +5,7 @@ import { Session } from '@supabase/supabase-js';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { getSession, onAuthStateChange } from '../services/authService';
 import { track } from '../services/analytics';
+import { ThemeProvider } from '../contexts/ThemeContext';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -31,7 +32,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <ThemeProvider>
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Protected guard={!!session}>
@@ -57,7 +58,7 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack.Protected>
       </Stack>
-    </>
+    </ThemeProvider>
   );
 }
 

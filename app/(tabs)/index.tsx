@@ -14,11 +14,13 @@ import {
   getMealsForDate,
   createDayEntry,
 } from '../../services/storageService';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'clarification' | 'complete';
 
 export default function TodayScreen() {
   const router = useRouter();
+  const { accentColor } = useTheme();
   const [todayEntry, setTodayEntry] = useState<DayEntry | null>(null);
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,7 +95,7 @@ export default function TodayScreen() {
             accessibilityLabel="Ask about your diary"
             accessibilityRole="button"
           >
-            <Text style={styles.askButton}>Ask</Text>
+            <Text style={[styles.askButton, { color: accentColor }]}>Ask</Text>
           </TouchableOpacity>
         </View>
 
@@ -158,7 +160,10 @@ export default function TodayScreen() {
         ))}
 
         <View style={styles.voiceButtonContainer}>
-          <TouchableOpacity style={styles.voiceButton} onPress={handleVoiceLog}>
+          <TouchableOpacity
+            style={[styles.voiceButton, { backgroundColor: accentColor }]}
+            onPress={handleVoiceLog}
+          >
             <Text style={styles.voiceButtonText}>LOG FOOD</Text>
           </TouchableOpacity>
         </View>
