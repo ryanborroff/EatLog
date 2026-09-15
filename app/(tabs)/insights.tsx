@@ -123,11 +123,11 @@ export default function InsightsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{activePeriod.sectionTitle}</Text>
           <View style={styles.insightCard}>
-            <Text style={styles.insightLabel}>Average calories</Text>
+            <Text style={styles.insightLabel}>Average daily calories</Text>
             <Text style={styles.insightValue}>{avgCalories} kcal</Text>
           </View>
           <View style={[styles.insightCard, styles.insightCardLast]}>
-            <Text style={styles.insightLabel}>Average protein</Text>
+            <Text style={styles.insightLabel}>Average daily protein</Text>
             <Text style={styles.insightValue}>{avgProtein}g</Text>
           </View>
         </View>
