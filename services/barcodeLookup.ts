@@ -42,6 +42,8 @@ export const lookupBarcode = async (barcode: string): Promise<BarcodeProduct | n
       carbohydrate: nutriments['carbohydrates_100g'] ?? 0,
       fat: nutriments['fat_100g'] ?? 0,
       fibre: nutriments['fiber_100g'] ?? undefined,
+      sodium: nutriments['sodium_100g'] ?? undefined,
+      sugar: nutriments['sugars_100g'] ?? undefined,
     },
   };
 };

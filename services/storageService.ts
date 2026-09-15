@@ -99,6 +99,7 @@ export const saveUserProfile = async (profile: UserProfile): Promise<void> => {
 interface MealRow {
   id: string;
   meal_type: Meal['type'];
+  created_at: string;
   meal_items: MealItemRow[];
 }
 
@@ -112,6 +113,8 @@ interface MealItemRow {
   carbohydrate: number;
   fat: number;
   fibre: number | null;
+  sodium: number | null;
+  sugar: number | null;
   confidence: FoodItem['confidence'];
   estimated: boolean;
 }
@@ -126,12 +129,14 @@ const toFoodItem = (row: MealItemRow): FoodItem => ({
   carbohydrate: row.carbohydrate,
   fat: row.fat,
   fibre: row.fibre ?? undefined,
+  sodium: row.sodium ?? undefined,
+  sugar: row.sugar ?? undefined,
   confidence: row.confidence,
   estimated: row.estimated,
 });
 
-const sumBy = (items: FoodItem[], key: keyof Pick<FoodItem, 'calories' | 'protein' | 'carbohydrate' | 'fat'>) =>
-  items.reduce((sum, item) => sum + item[key], 0);
+const sumBy = (items: FoodItem[], key: keyof Pick<FoodItem, 'calories' | 'protein' | 'carbohydrate' | 'fat' | 'fibre' | 'sodium' | 'sugar'>) =>
+  items.reduce((sum, item) => sum + (item[key] ?? 0), 0);
 
 const toMeal = (row: MealRow): Meal => {
   const items = row.meal_items.map(toFoodItem);
@@ -143,6 +148,10 @@ const toMeal = (row: MealRow): Meal => {
     totalProtein: sumBy(items, 'protein'),
     totalCarbohydrate: sumBy(items, 'carbohydrate'),
     totalFat: sumBy(items, 'fat'),
+    totalFibre: sumBy(items, 'fibre'),
+    totalSodium: sumBy(items, 'sodium'),
+    totalSugar: sumBy(items, 'sugar'),
+    loggedAt: row.created_at,
   };
 };
 
@@ -150,7 +159,7 @@ export const getMealsForDate = async (date: string): Promise<Meal[]> => withCloc
   const userId = await getUserId();
   const { data, error } = await supabase
     .from('meals')
-    .select('id, meal_type, meal_items(*)')
+    .select('id, meal_type, created_at, meal_items(*)')
     .eq('user_id', userId)
     .eq('date', date);
 
@@ -180,6 +189,8 @@ export const saveMealForDate = async (date: string, meal: Meal): Promise<void> =
     carbohydrate: item.carbohydrate,
     fat: item.fat,
     fibre: item.fibre ?? null,
+    sodium: item.sodium ?? null,
+    sugar: item.sugar ?? null,
     confidence: item.confidence,
     estimated: item.estimated,
   }));
@@ -211,6 +222,8 @@ export const updateMeal = async (date: string, mealId: string, updatedMeal: Meal
     carbohydrate: item.carbohydrate,
     fat: item.fat,
     fibre: item.fibre ?? null,
+    sodium: item.sodium ?? null,
+    sugar: item.sugar ?? null,
     confidence: item.confidence,
     estimated: item.estimated,
   }));
@@ -231,7 +244,7 @@ export const getMostRecentMeal = async (date: string): Promise<Meal | null> => w
   const userId = await getUserId();
   const { data, error } = await supabase
     .from('meals')
-    .select('id, meal_type, meal_items(*)')
+    .select('id, meal_type, created_at, meal_items(*)')
     .eq('user_id', userId)
     .eq('date', date)
     .order('created_at', { ascending: false })
@@ -250,7 +263,7 @@ export const getHistory = async (): Promise<DayEntry[]> => withClockSkewRetry(as
   const userId = await getUserId();
   const { data, error } = await supabase
     .from('meals')
-    .select('id, date, meal_type, meal_items(*)')
+    .select('id, date, meal_type, created_at, meal_items(*)')
     .eq('user_id', userId)
     .order('date', { ascending: false });
 
@@ -285,22 +298,50 @@ export const saveVoiceLog = async (transcription: string, parsedResult: ParsedFo
 export const calculateTotals = (meals: Meal[]): DailyTotals => {
   return meals.reduce(
     (totals, meal) => ({
+      ...totals,
       calories: totals.calories + meal.totalCalories,
       protein: totals.protein + meal.totalProtein,
       carbohydrate: totals.carbohydrate + meal.totalCarbohydrate,
       fat: totals.fat + meal.totalFat,
+      fibre: totals.fibre + meal.totalFibre,
+      sodium: totals.sodium + meal.totalSodium,
+      sugar: totals.sugar + meal.totalSugar,
     }),
-    { calories: 0, protein: 0, carbohydrate: 0, fat: 0 }
+    { calories: 0, protein: 0, carbohydrate: 0, fat: 0, fibre: 0, sodium: 0, sugar: 0, water: 0 }
   );
 };
 
 // Create a complete day entry from meals
 
 export const createDayEntry = async (date: string): Promise<DayEntry> => {
-  const meals = await getMealsForDate(date);
-  const totals = calculateTotals(meals);
+  const [meals, water] = await Promise.all([getMealsForDate(date), getWaterForDate(date)]);
+  const totals = { ...calculateTotals(meals), water };
 
   return { date, meals, totals };
+};
+
+// Water intake
+
+export const getWaterForDate = async (date: string): Promise<number> => withClockSkewRetry(async () => {
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from('water_logs')
+    .select('amount_ml')
+    .eq('user_id', userId)
+    .eq('date', date);
+
+  if (error) throw error;
+
+  return (data as { amount_ml: number }[]).reduce((sum, row) => sum + row.amount_ml, 0);
+});
+
+export const addWater = async (date: string, amountMl: number): Promise<void> => {
+  const userId = await getUserId();
+  const { error } = await supabase
+    .from('water_logs')
+    .insert({ user_id: userId, date, amount_ml: amountMl });
+
+  if (error) throw error;
 };
 
 // Personal foods (spec §19)

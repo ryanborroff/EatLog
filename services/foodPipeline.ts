@@ -140,6 +140,10 @@ export const processTranscript = async (
     totalProtein: resolvedItems.reduce((sum, i) => sum + i.protein, 0),
     totalCarbohydrate: resolvedItems.reduce((sum, i) => sum + i.carbohydrate, 0),
     totalFat: resolvedItems.reduce((sum, i) => sum + i.fat, 0),
+    totalFibre: resolvedItems.reduce((sum, i) => sum + (i.fibre ?? 0), 0),
+    totalSodium: resolvedItems.reduce((sum, i) => sum + (i.sodium ?? 0), 0),
+    totalSugar: resolvedItems.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
+    loggedAt: new Date().toISOString(),
   };
 
   await saveMealForDate(date, meal);
@@ -179,6 +183,10 @@ export const logBarcodeItem = async (
     totalProtein: calculated.protein,
     totalCarbohydrate: calculated.carbohydrate,
     totalFat: calculated.fat,
+    totalFibre: calculated.fibre ?? 0,
+    totalSodium: calculated.sodium ?? 0,
+    totalSugar: calculated.sugar ?? 0,
+    loggedAt: new Date().toISOString(),
   };
 
   await saveMealForDate(date, meal);

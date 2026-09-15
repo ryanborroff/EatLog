@@ -13,9 +13,12 @@ import {
   getUserGoals,
   getMealsForDate,
   createDayEntry,
+  addWater,
 } from '../../services/storageService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
+import { formatAmount } from '../../utils/formatNumber';
+import { formatLoggedTime } from '../../utils/formatTime';
 import { colors, spacing, radii } from '../../constants/theme';
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'clarification' | 'complete';
@@ -74,6 +77,15 @@ export default function TodayScreen() {
     router.push('/ask');
   };
 
+  const handleAddWater = async (amountMl: number) => {
+    try {
+      await addWater(todayDate, amountMl);
+      await loadData();
+    } catch (error) {
+      console.error('Error adding water:', error);
+    }
+  };
+
   if (loading || !todayEntry || !goals) {
     return (
       <SafeAreaView style={styles.container}>
@@ -105,8 +117,8 @@ export default function TodayScreen() {
 
         <View style={styles.totalsCard}>
           <View style={styles.calorieSection}>
-            <Text style={styles.calorieValue}>{todayEntry.totals.calories} kcal</Text>
-            <Text style={styles.calorieTarget}>of {goals.calories} kcal</Text>
+            <Text style={styles.calorieValue}>{formatAmount(todayEntry.totals.calories)} kcal</Text>
+            <Text style={styles.calorieTarget}>of {formatAmount(goals.calories)} kcal</Text>
           </View>
 
           <View style={styles.divider} />
@@ -114,40 +126,78 @@ export default function TodayScreen() {
           <View style={styles.macroSection}>
             <Text style={styles.macroLabel}>Protein</Text>
             <Text style={styles.macroValue}>
-              {todayEntry.totals.protein}g / {goals.protein}g
+              {formatAmount(todayEntry.totals.protein)}g / {formatAmount(goals.protein)}g
             </Text>
           </View>
 
           <View style={styles.macroSection}>
             <Text style={styles.macroLabel}>Carbohydrates</Text>
-            <Text style={styles.macroValue}>{todayEntry.totals.carbohydrate}g</Text>
+            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.carbohydrate)}g</Text>
+          </View>
+
+          <View style={styles.macroSection}>
+            <Text style={styles.macroLabel}>Fat</Text>
+            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.fat)}g</Text>
+          </View>
+
+          <View style={styles.macroSection}>
+            <Text style={styles.macroLabel}>Fibre</Text>
+            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.fibre)}g</Text>
+          </View>
+
+          <View style={styles.macroSection}>
+            <Text style={styles.macroLabel}>Sodium</Text>
+            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.sodium)}mg</Text>
           </View>
 
           <View style={[styles.macroSection, styles.macroSectionLast]}>
-            <Text style={styles.macroLabel}>Fat</Text>
-            <Text style={styles.macroValue}>{todayEntry.totals.fat}g</Text>
+            <Text style={styles.macroLabel}>Sugar</Text>
+            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.sugar)}g</Text>
+          </View>
+        </View>
+
+        <View style={styles.totalsCard}>
+          <View style={styles.waterHeader}>
+            <Text style={styles.macroLabel}>Water</Text>
+            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.water)}ml</Text>
+          </View>
+          <View style={styles.waterButtonRow}>
+            {[250, 500].map((amount) => (
+              <TouchableOpacity
+                key={amount}
+                style={[styles.waterButton, { backgroundColor: accentColor }]}
+                onPress={() => handleAddWater(amount)}
+                accessibilityLabel={`Add ${amount}ml of water`}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.waterButtonText, { color: accentTextColor }]}>+{amount}ml</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
         <View style={styles.remainingSection}>
           <Text style={styles.remainingLabel}>Calories remaining</Text>
           <Text style={styles.remainingValue}>
-            {remainingCalories >= 0 ? remainingCalories : `+${Math.abs(remainingCalories)}`} kcal
+            {remainingCalories >= 0 ? formatAmount(remainingCalories) : `+${formatAmount(Math.abs(remainingCalories))}`} kcal
           </Text>
         </View>
 
         <View style={[styles.remainingSection, styles.remainingSectionLast]}>
           <Text style={styles.remainingLabel}>Protein remaining</Text>
           <Text style={styles.remainingValue}>
-            {remainingProtein >= 0 ? remainingProtein : `+${Math.abs(remainingProtein)}`}g
+            {remainingProtein >= 0 ? formatAmount(remainingProtein) : `+${formatAmount(Math.abs(remainingProtein))}`}g
           </Text>
         </View>
 
         {todayEntry.meals.map((meal) => (
           <View key={meal.id} style={styles.mealCard}>
             <View style={styles.mealHeader}>
-              <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
-              <Text style={styles.mealCalories}>{meal.totalCalories} kcal</Text>
+              <View>
+                <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
+                <Text style={styles.mealTime}>{formatLoggedTime(meal.loggedAt)}</Text>
+              </View>
+              <Text style={styles.mealCalories}>{formatAmount(meal.totalCalories)} kcal</Text>
             </View>
             {meal.items.map((item) => (
               <View key={item.id} style={styles.foodItem}>
@@ -254,6 +304,23 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginTop: 4,
   },
+  waterHeader: {
+    marginBottom: spacing.md,
+  },
+  waterButtonRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  waterButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.card,
+    alignItems: 'center',
+  },
+  waterButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
   remainingSection: {
     marginHorizontal: spacing.lg,
     marginBottom: spacing.sm,
@@ -285,13 +352,18 @@ const styles = StyleSheet.create({
   mealHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: spacing.sm,
   },
   mealType: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  mealTime: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   mealCalories: {
     fontSize: 16,

@@ -11,6 +11,8 @@ import { useFocusEffect } from 'expo-router';
 import { DayEntry } from '../../types';
 import { getHistory } from '../../services/storageService';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
+import { formatAmount } from '../../utils/formatNumber';
+import { formatLoggedTime } from '../../utils/formatTime';
 import { colors, spacing, radii } from '../../constants/theme';
 
 export default function HistoryScreen() {
@@ -81,19 +83,22 @@ export default function HistoryScreen() {
           <View style={styles.totalsCard}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Calories</Text>
-              <Text style={styles.totalValue}>{selectedEntry.totals.calories} kcal</Text>
+              <Text style={styles.totalValue}>{formatAmount(selectedEntry.totals.calories)} kcal</Text>
             </View>
             <View style={[styles.totalRow, styles.totalRowLast]}>
               <Text style={styles.totalLabel}>Protein</Text>
-              <Text style={styles.totalValue}>{selectedEntry.totals.protein}g</Text>
+              <Text style={styles.totalValue}>{formatAmount(selectedEntry.totals.protein)}g</Text>
             </View>
           </View>
 
           {selectedEntry.meals.map((meal) => (
             <View key={meal.id} style={styles.mealCard}>
               <View style={styles.mealHeader}>
-                <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
-                <Text style={styles.mealCalories}>{meal.totalCalories} kcal</Text>
+                <View>
+                  <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
+                  <Text style={styles.mealTime}>{formatLoggedTime(meal.loggedAt)}</Text>
+                </View>
+                <Text style={styles.mealCalories}>{formatAmount(meal.totalCalories)} kcal</Text>
               </View>
               {meal.items.map((item) => (
                 <View key={item.id} style={styles.foodItem}>
@@ -123,17 +128,19 @@ export default function HistoryScreen() {
             onPress={() => setSelectedDate(entry.date)}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`${formatDate(entry.date)}, ${entry.totals.calories} kcal, ${entry.totals.protein}g protein`}
+            accessibilityLabel={`${formatDate(entry.date)}, ${formatAmount(entry.totals.calories)} kcal, ${formatAmount(entry.totals.protein)}g protein`}
           >
             <Text style={styles.dayDate}>{formatDate(entry.date)}</Text>
             <View style={styles.dayTotals}>
-              <Text style={styles.dayCalories}>{entry.totals.calories} kcal</Text>
-              <Text style={styles.dayProtein}>{entry.totals.protein}g protein</Text>
+              <Text style={styles.dayCalories}>{formatAmount(entry.totals.calories)} kcal</Text>
+              <Text style={styles.dayProtein}>{formatAmount(entry.totals.protein)}g protein</Text>
             </View>
             {entry.meals.map((meal) => (
               <View key={meal.id} style={styles.dayMeal}>
-                <Text style={styles.dayMealType}>{formatMealType(meal.type)}</Text>
-                <Text style={styles.dayMealCalories}>{meal.totalCalories}</Text>
+                <Text style={styles.dayMealType}>
+                  {formatMealType(meal.type)} · {formatLoggedTime(meal.loggedAt)}
+                </Text>
+                <Text style={styles.dayMealCalories}>{formatAmount(meal.totalCalories)}</Text>
               </View>
             ))}
           </TouchableOpacity>
@@ -217,13 +224,18 @@ const styles = StyleSheet.create({
   mealHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: spacing.sm,
   },
   mealType: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  mealTime: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   mealCalories: {
     fontSize: 16,

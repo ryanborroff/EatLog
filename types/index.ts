@@ -8,6 +8,8 @@ export interface FoodItem {
   carbohydrate: number;
   fat: number;
   fibre?: number;
+  sodium?: number;
+  sugar?: number;
   confidence: 'high' | 'medium' | 'low';
   estimated: boolean;
 }
@@ -20,6 +22,11 @@ export interface Meal {
   totalProtein: number;
   totalCarbohydrate: number;
   totalFat: number;
+  totalFibre: number;
+  totalSodium: number;
+  totalSugar: number;
+  /** ISO timestamp of when this meal was logged — set automatically by the database. */
+  loggedAt: string;
 }
 
 export interface DailyTotals {
@@ -27,6 +34,10 @@ export interface DailyTotals {
   protein: number;
   carbohydrate: number;
   fat: number;
+  fibre: number;
+  sodium: number;
+  sugar: number;
+  water: number;
 }
 
 export interface DailyGoals {
@@ -60,6 +71,8 @@ export interface NutritionReference {
   carbohydrate: number;
   fat: number;
   fibre?: number;
+  sodium?: number;
+  sugar?: number;
 }
 
 export interface PersonalFood extends NutritionReference {

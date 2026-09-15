@@ -16,6 +16,8 @@ interface FoodRow {
   carbohydrate: number;
   fat: number;
   fibre: number | null;
+  sodium: number | null;
+  sugar: number | null;
 }
 
 const normalize = (text: string): string => text.trim().toLowerCase();
@@ -33,7 +35,7 @@ const findPersonalFood = async (description: string, userId: string): Promise<Fo
 
   const { data } = await supabase
     .from('user_foods')
-    .select('nickname, foods!inner(id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre)')
+    .select('nickname, foods!inner(id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar)')
     .eq('user_id', userId)
     .ilike('nickname', query)
     .limit(1)
@@ -51,7 +53,7 @@ const findFoodDefault = async (
 
   const { data } = await supabase
     .from('user_defaults')
-    .select('quantity, unit, foods!inner(id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre)')
+    .select('quantity, unit, foods!inner(id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar)')
     .eq('user_id', userId)
     .eq('type', 'food')
     .ilike('name', query)
@@ -71,7 +73,7 @@ const findReferenceFood = async (description: string): Promise<FoodRow | null> =
 
   const { data: exactMatch } = await supabase
     .from('foods')
-    .select('id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre')
+    .select('id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar')
     .ilike('name', query)
     .limit(1)
     .maybeSingle();
@@ -80,7 +82,7 @@ const findReferenceFood = async (description: string): Promise<FoodRow | null> =
 
   const { data: aliasMatch } = await supabase
     .from('food_aliases')
-    .select('foods!inner(id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre)')
+    .select('foods!inner(id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar)')
     .ilike('alias', query)
     .limit(1)
     .maybeSingle();
@@ -97,6 +99,8 @@ const fromFoodRow = (food: FoodRow, quantity: number, unit: string, confidence: 
     carbohydrate: food.carbohydrate,
     fat: food.fat,
     fibre: food.fibre ?? undefined,
+    sodium: food.sodium ?? undefined,
+    sugar: food.sugar ?? undefined,
   };
 
   return {
@@ -137,6 +141,8 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
       carbohydrate: referenceFood.carbohydrate,
       fat: referenceFood.fat,
       fibre: referenceFood.fibre ?? undefined,
+      sodium: referenceFood.sodium ?? undefined,
+      sugar: referenceFood.sugar ?? undefined,
     };
     const calculated = calculateNutrition(reference, item.quantity);
 
@@ -175,6 +181,8 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
         carbohydrate: est.carbohydrate,
         fat: est.fat,
         fibre: est.fibre ?? undefined,
+        sodium: est.sodium ?? undefined,
+        sugar: est.sugar ?? undefined,
       };
       const calculated = calculateNutrition(reference, item.quantity);
 

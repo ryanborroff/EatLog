@@ -9,6 +9,8 @@ export interface ReferenceNutrition {
   carbohydrate: number;
   fat: number;
   fibre?: number;
+  sodium?: number;
+  sugar?: number;
 }
 
 export interface CalculatedNutrition {
@@ -17,6 +19,8 @@ export interface CalculatedNutrition {
   carbohydrate: number;
   fat: number;
   fibre?: number;
+  sodium?: number;
+  sugar?: number;
 }
 
 const round = (value: number): number => Math.ceil(value * 10) / 10;
@@ -38,5 +42,7 @@ export const calculateNutrition = (
     carbohydrate: round(reference.carbohydrate * scale),
     fat: round(reference.fat * scale),
     fibre: reference.fibre !== undefined ? round(reference.fibre * scale) : undefined,
+    sodium: reference.sodium !== undefined ? round(reference.sodium * scale) : undefined,
+    sugar: reference.sugar !== undefined ? round(reference.sugar * scale) : undefined,
   };
 };

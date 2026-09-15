@@ -36,6 +36,8 @@ export interface ParsedFoodItem {
     carbohydrate: number;
     fat: number;
     fibre: number | null;
+    sodium: number | null;
+    sugar: number | null;
   } | null;
 }
 
@@ -95,6 +97,8 @@ function validateItem(raw: unknown, path: string): ParsedFoodItem {
       carbohydrate: n.carbohydrate as number,
       fat: n.fat as number,
       fibre: typeof n.fibre === 'number' ? n.fibre : null,
+      sodium: typeof n.sodium === 'number' ? n.sodium : null,
+      sugar: typeof n.sugar === 'number' ? n.sugar : null,
     };
   }
 

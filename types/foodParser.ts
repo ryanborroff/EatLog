@@ -12,6 +12,8 @@ export interface EstimatedNutrition {
   carbohydrate: number;
   fat: number;
   fibre: number | null;
+  sodium: number | null;
+  sugar: number | null;
 }
 
 export interface ParsedFoodItem {
@@ -73,6 +75,8 @@ export interface ResolvedFoodItem {
   carbohydrate: number;
   fat: number;
   fibre?: number;
+  sodium?: number;
+  sugar?: number;
   confidence: ConfidenceLevel;
   estimated: boolean;
   /** True when nothing—reference DB, personal food, nor a usable AI estimate—could identify this item. */

@@ -13,6 +13,7 @@ export const mockTodayEntry: DayEntry = {
     {
       id: '1',
       type: 'breakfast',
+      loggedAt: '2024-01-15T08:15:00.000Z',
       items: [
         {
           id: '1-1',
@@ -23,6 +24,7 @@ export const mockTodayEntry: DayEntry = {
           protein: 13,
           carbohydrate: 1,
           fat: 11,
+          fibre: 0,
           confidence: 'high',
           estimated: false,
         },
@@ -35,6 +37,7 @@ export const mockTodayEntry: DayEntry = {
           protein: 7,
           carbohydrate: 35,
           fat: 3,
+          fibre: 2,
           confidence: 'high',
           estimated: false,
         },
@@ -47,6 +50,7 @@ export const mockTodayEntry: DayEntry = {
           protein: 0,
           carbohydrate: 0,
           fat: 8,
+          fibre: 0,
           confidence: 'medium',
           estimated: true,
         },
@@ -59,6 +63,7 @@ export const mockTodayEntry: DayEntry = {
           protein: 6,
           carbohydrate: 10,
           fat: 5,
+          fibre: 0,
           confidence: 'high',
           estimated: false,
         },
@@ -67,10 +72,14 @@ export const mockTodayEntry: DayEntry = {
       totalProtein: 26,
       totalCarbohydrate: 46,
       totalFat: 27,
+      totalFibre: 2,
+      totalSodium: 0,
+      totalSugar: 0,
     },
     {
       id: '2',
       type: 'lunch',
+      loggedAt: '2024-01-15T12:45:00.000Z',
       items: [
         {
           id: '2-1',
@@ -81,6 +90,7 @@ export const mockTodayEntry: DayEntry = {
           protein: 35,
           carbohydrate: 15,
           fat: 18,
+          fibre: 3,
           confidence: 'medium',
           estimated: true,
         },
@@ -93,6 +103,7 @@ export const mockTodayEntry: DayEntry = {
           protein: 0,
           carbohydrate: 25,
           fat: 0,
+          fibre: 4,
           confidence: 'high',
           estimated: false,
         },
@@ -101,10 +112,14 @@ export const mockTodayEntry: DayEntry = {
       totalProtein: 35,
       totalCarbohydrate: 40,
       totalFat: 18,
+      totalFibre: 7,
+      totalSodium: 0,
+      totalSugar: 0,
     },
     {
       id: '3',
       type: 'snack',
+      loggedAt: '2024-01-15T15:30:00.000Z',
       items: [
         {
           id: '3-1',
@@ -115,6 +130,7 @@ export const mockTodayEntry: DayEntry = {
           protein: 10,
           carbohydrate: 4,
           fat: 5,
+          fibre: 0,
           confidence: 'high',
           estimated: false,
         },
@@ -127,6 +143,7 @@ export const mockTodayEntry: DayEntry = {
           protein: 6,
           carbohydrate: 6,
           fat: 15,
+          fibre: 3,
           confidence: 'medium',
           estimated: true,
         },
@@ -135,6 +152,9 @@ export const mockTodayEntry: DayEntry = {
       totalProtein: 16,
       totalCarbohydrate: 10,
       totalFat: 20,
+      totalFibre: 3,
+      totalSodium: 0,
+      totalSugar: 0,
     },
   ],
   totals: {
@@ -142,6 +162,10 @@ export const mockTodayEntry: DayEntry = {
     protein: 77,
     carbohydrate: 96,
     fat: 65,
+    fibre: 12,
+    sodium: 0,
+    sugar: 0,
+    water: 0,
   },
 };
 
@@ -152,6 +176,7 @@ export const mockHistory: DayEntry[] = [
       {
         id: '1',
         type: 'breakfast',
+        loggedAt: '2024-01-15T08:15:00.000Z',
         items: [
           {
             id: '1-1',
@@ -162,6 +187,7 @@ export const mockHistory: DayEntry[] = [
             protein: 8,
             carbohydrate: 55,
             fat: 6,
+            fibre: 6,
             confidence: 'medium',
             estimated: true,
           },
@@ -170,10 +196,14 @@ export const mockHistory: DayEntry[] = [
         totalProtein: 8,
         totalCarbohydrate: 55,
         totalFat: 6,
+        totalFibre: 6,
+        totalSodium: 0,
+        totalSugar: 0,
       },
       {
         id: '2',
         type: 'lunch',
+        loggedAt: '2024-01-15T12:45:00.000Z',
         items: [
           {
             id: '2-1',
@@ -184,6 +214,7 @@ export const mockHistory: DayEntry[] = [
             protein: 28,
             carbohydrate: 40,
             fat: 18,
+            fibre: 3,
             confidence: 'medium',
             estimated: true,
           },
@@ -192,10 +223,14 @@ export const mockHistory: DayEntry[] = [
         totalProtein: 28,
         totalCarbohydrate: 40,
         totalFat: 18,
+        totalFibre: 3,
+        totalSodium: 0,
+        totalSugar: 0,
       },
       {
         id: '3',
         type: 'dinner',
+        loggedAt: '2024-01-15T19:00:00.000Z',
         items: [
           {
             id: '3-1',
@@ -206,6 +241,7 @@ export const mockHistory: DayEntry[] = [
             protein: 25,
             carbohydrate: 75,
             fat: 22,
+            fibre: 5,
             confidence: 'medium',
             estimated: true,
           },
@@ -214,6 +250,9 @@ export const mockHistory: DayEntry[] = [
         totalProtein: 25,
         totalCarbohydrate: 75,
         totalFat: 22,
+        totalFibre: 5,
+        totalSodium: 0,
+        totalSugar: 0,
       },
     ],
     totals: {
@@ -221,7 +260,11 @@ export const mockHistory: DayEntry[] = [
       protein: 61,
       carbohydrate: 170,
       fat: 46,
-    },
+      fibre: 14,
+    sodium: 0,
+      sugar: 0,
+      water: 0,
+},
   },
   {
     date: '2026-09-12',
@@ -229,6 +272,7 @@ export const mockHistory: DayEntry[] = [
       {
         id: '1',
         type: 'breakfast',
+        loggedAt: '2024-01-15T08:15:00.000Z',
         items: [
           {
             id: '1-1',
@@ -239,6 +283,7 @@ export const mockHistory: DayEntry[] = [
             protein: 18,
             carbohydrate: 30,
             fat: 20,
+            fibre: 3,
             confidence: 'medium',
             estimated: true,
           },
@@ -247,10 +292,14 @@ export const mockHistory: DayEntry[] = [
         totalProtein: 18,
         totalCarbohydrate: 30,
         totalFat: 20,
+        totalFibre: 3,
+        totalSodium: 0,
+        totalSugar: 0,
       },
       {
         id: '2',
         type: 'lunch',
+        loggedAt: '2024-01-15T12:45:00.000Z',
         items: [
           {
             id: '2-1',
@@ -261,6 +310,7 @@ export const mockHistory: DayEntry[] = [
             protein: 12,
             carbohydrate: 45,
             fat: 10,
+            fibre: 4,
             confidence: 'medium',
             estimated: true,
           },
@@ -269,10 +319,14 @@ export const mockHistory: DayEntry[] = [
         totalProtein: 12,
         totalCarbohydrate: 45,
         totalFat: 10,
+        totalFibre: 4,
+        totalSodium: 0,
+        totalSugar: 0,
       },
       {
         id: '3',
         type: 'dinner',
+        loggedAt: '2024-01-15T19:00:00.000Z',
         items: [
           {
             id: '3-1',
@@ -283,6 +337,7 @@ export const mockHistory: DayEntry[] = [
             protein: 35,
             carbohydrate: 15,
             fat: 28,
+            fibre: 5,
             confidence: 'medium',
             estimated: true,
           },
@@ -291,6 +346,9 @@ export const mockHistory: DayEntry[] = [
         totalProtein: 35,
         totalCarbohydrate: 15,
         totalFat: 28,
+        totalFibre: 5,
+        totalSodium: 0,
+        totalSugar: 0,
       },
     ],
     totals: {
@@ -298,6 +356,10 @@ export const mockHistory: DayEntry[] = [
       protein: 65,
       carbohydrate: 90,
       fat: 58,
-    },
+      fibre: 12,
+    sodium: 0,
+      sugar: 0,
+      water: 0,
+},
   },
 ];

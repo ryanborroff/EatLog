@@ -22,7 +22,7 @@ const JSON_SHAPE_DESCRIPTION = `Respond with a single JSON object, no prose, mat
 {
   "intent": "log_food" | "correction",
   "meal_type": "breakfast" | "lunch" | "dinner" | "snack" | null,
-  "items": [{ "description": string, "brand": string | null, "quantity": number, "unit": string, "preparation": string | null, "confidence": "high" | "medium" | "low", "estimated_nutrition": { "serving_size": number, "serving_unit": string, "calories": number, "protein": number, "carbohydrate": number, "fat": number, "fibre": number | null } | null }] | null,
+  "items": [{ "description": string, "brand": string | null, "quantity": number, "unit": string, "preparation": string | null, "confidence": "high" | "medium" | "low", "estimated_nutrition": { "serving_size": number, "serving_unit": string, "calories": number, "protein": number, "carbohydrate": number, "fat": number, "fibre": number | null, "sodium": number | null, "sugar": number | null } | null }] | null,
   "operations": [{ "type": "replace_item" | "remove_item" | "add_item" | "update_quantity" | "change_meal_type", "target_description": string | null, "item": <same item shape as above> | null, "new_quantity": number | null, "new_unit": string | null, "meal_type": "breakfast" | "lunch" | "dinner" | "snack" | null }] | null,
   "needs_clarification": boolean,
   "clarification_question": string | null,

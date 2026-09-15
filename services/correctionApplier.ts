@@ -62,6 +62,8 @@ export const applyCorrections = async (meal: Meal, operations: CorrectionOperati
             carbohydrate: Math.ceil(existing.carbohydrate * scale * 10) / 10,
             fat: Math.ceil(existing.fat * scale * 10) / 10,
             fibre: existing.fibre !== undefined ? Math.ceil(existing.fibre * scale * 10) / 10 : undefined,
+            sodium: existing.sodium !== undefined ? Math.ceil(existing.sodium * scale * 10) / 10 : undefined,
+            sugar: existing.sugar !== undefined ? Math.ceil(existing.sugar * scale * 10) / 10 : undefined,
           };
         }
         break;
@@ -82,5 +84,8 @@ export const applyCorrections = async (meal: Meal, operations: CorrectionOperati
     totalProtein: items.reduce((sum, i) => sum + i.protein, 0),
     totalCarbohydrate: items.reduce((sum, i) => sum + i.carbohydrate, 0),
     totalFat: items.reduce((sum, i) => sum + i.fat, 0),
+    totalFibre: items.reduce((sum, i) => sum + (i.fibre ?? 0), 0),
+    totalSodium: items.reduce((sum, i) => sum + (i.sodium ?? 0), 0),
+    totalSugar: items.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
   };
 };
