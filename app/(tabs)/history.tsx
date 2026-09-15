@@ -128,13 +128,16 @@ export default function HistoryScreen() {
             onPress={() => setSelectedDate(entry.date)}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`${formatDate(entry.date)}, ${formatAmount(entry.totals.calories)} kcal, ${formatAmount(entry.totals.protein)}g protein`}
+            accessibilityLabel={`${formatDate(entry.date)}, ${formatAmount(entry.totals.calories)} kcal, ${formatAmount(entry.totals.protein)}g protein, ${formatAmount(entry.totals.carbohydrate)}g carbs, ${formatAmount(entry.totals.fat)}g fat, ${formatAmount(entry.totals.fibre)}g fibre`}
           >
             <Text style={styles.dayDate}>{formatDate(entry.date)}</Text>
-            <View style={styles.dayTotalsLast}>
+            <View style={styles.dayTotals}>
               <Text style={styles.dayCalories}>{formatAmount(entry.totals.calories)} kcal</Text>
               <Text style={styles.dayProtein}>{formatAmount(entry.totals.protein)}g protein</Text>
             </View>
+            <Text style={styles.daySecondaryTotals}>
+              {formatAmount(entry.totals.carbohydrate)}g carbs · {formatAmount(entry.totals.fat)}g fat · {formatAmount(entry.totals.fibre)}g fibre
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -255,8 +258,9 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
-  dayTotalsLast: {
+  dayTotals: {
     flexDirection: 'row',
+    marginBottom: spacing.xs,
   },
   dayCalories: {
     fontSize: 18,
@@ -267,6 +271,10 @@ const styles = StyleSheet.create({
   dayProtein: {
     fontSize: 18,
     color: colors.textSecondary,
+  },
+  daySecondaryTotals: {
+    fontSize: 14,
+    color: colors.textMuted,
   },
   loadingContainer: {
     flex: 1,
