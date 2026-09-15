@@ -128,16 +128,36 @@ export default function HistoryScreen() {
             onPress={() => setSelectedDate(entry.date)}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`${formatDate(entry.date)}, ${formatAmount(entry.totals.calories)} kcal, ${formatAmount(entry.totals.protein)}g protein, ${formatAmount(entry.totals.carbohydrate)}g carbs, ${formatAmount(entry.totals.fat)}g fat, ${formatAmount(entry.totals.fibre)}g fibre`}
+            accessibilityLabel={`${formatDate(entry.date)}, ${formatAmount(entry.totals.calories)} kcal, ${formatAmount(entry.totals.protein)}g protein, ${formatAmount(entry.totals.carbohydrate)}g carbs, ${formatAmount(entry.totals.fat)}g fat, ${formatAmount(entry.totals.fibre)}g fibre, ${formatAmount(entry.totals.sodium)}mg sodium, ${formatAmount(entry.totals.sugar)}g sugar`}
           >
             <Text style={styles.dayDate}>{formatDate(entry.date)}</Text>
-            <View style={styles.dayTotals}>
-              <Text style={styles.dayCalories}>{formatAmount(entry.totals.calories)} kcal</Text>
-              <Text style={styles.dayProtein}>{formatAmount(entry.totals.protein)}g protein</Text>
+            <Text style={styles.dayCalories}>{formatAmount(entry.totals.calories)} kcal</Text>
+            <View style={styles.dayMacroList}>
+              <View style={styles.dayMacroRow}>
+                <Text style={styles.dayMacroLabel}>Protein</Text>
+                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.protein)}g</Text>
+              </View>
+              <View style={styles.dayMacroRow}>
+                <Text style={styles.dayMacroLabel}>Carbs</Text>
+                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.carbohydrate)}g</Text>
+              </View>
+              <View style={styles.dayMacroRow}>
+                <Text style={styles.dayMacroLabel}>Fat</Text>
+                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.fat)}g</Text>
+              </View>
+              <View style={styles.dayMacroRow}>
+                <Text style={styles.dayMacroLabel}>Fibre</Text>
+                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.fibre)}g</Text>
+              </View>
+              <View style={styles.dayMacroRow}>
+                <Text style={styles.dayMacroLabel}>Sodium</Text>
+                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.sodium)}mg</Text>
+              </View>
+              <View style={[styles.dayMacroRow, styles.dayMacroRowLast]}>
+                <Text style={styles.dayMacroLabel}>Sugar</Text>
+                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.sugar)}g</Text>
+              </View>
             </View>
-            <Text style={styles.daySecondaryTotals}>
-              {formatAmount(entry.totals.carbohydrate)}g carbs · {formatAmount(entry.totals.fat)}g fat · {formatAmount(entry.totals.fibre)}g fibre
-            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -258,23 +278,33 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
-  dayTotals: {
-    flexDirection: 'row',
-    marginBottom: spacing.xs,
-  },
   dayCalories: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginRight: spacing.md,
+    marginBottom: spacing.sm,
   },
-  dayProtein: {
-    fontSize: 18,
+  dayMacroList: {
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingTop: spacing.sm,
+  },
+  dayMacroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  dayMacroRowLast: {
+    marginBottom: 0,
+  },
+  dayMacroLabel: {
+    fontSize: 15,
     color: colors.textSecondary,
   },
-  daySecondaryTotals: {
-    fontSize: 14,
-    color: colors.textMuted,
+  dayMacroValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   loadingContainer: {
     flex: 1,
