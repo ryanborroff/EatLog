@@ -23,7 +23,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -47,6 +48,12 @@
       ],
       "expo-font"
     ],
-    "scheme": "eatlog"
+    "scheme": "eatlog",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "039b5e9d-340c-4f6a-99e0-c0c5ca882c55"
+      }
+    }
   }
 }
