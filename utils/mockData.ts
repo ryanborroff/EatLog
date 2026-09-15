@@ -9,6 +9,7 @@ export const mockDailyGoals: DailyGoals = {
 
 export const mockTodayEntry: DayEntry = {
   date: new Date().toISOString().split('T')[0],
+  waterLogs: [],
   meals: [
     {
       id: '1',
@@ -172,6 +173,7 @@ export const mockTodayEntry: DayEntry = {
 export const mockHistory: DayEntry[] = [
   {
     date: '2026-09-13',
+    waterLogs: [],
     meals: [
       {
         id: '1',
@@ -268,6 +270,7 @@ export const mockHistory: DayEntry[] = [
   },
   {
     date: '2026-09-12',
+    waterLogs: [],
     meals: [
       {
         id: '1',

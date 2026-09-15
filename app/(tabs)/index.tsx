@@ -160,6 +160,11 @@ export default function TodayScreen() {
           <View style={styles.waterHeader}>
             <Text style={styles.macroLabel}>Water</Text>
             <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.water)}ml</Text>
+            {todayEntry.waterLogs.length > 0 && (
+              <Text style={styles.waterLastLogged}>
+                Last logged {formatLoggedTime(todayEntry.waterLogs[todayEntry.waterLogs.length - 1].loggedAt)}
+              </Text>
+            )}
           </View>
           <View style={styles.waterButtonRow}>
             {[250, 500].map((amount) => (
@@ -308,6 +313,11 @@ const styles = StyleSheet.create({
   },
   waterHeader: {
     marginBottom: spacing.md,
+  },
+  waterLastLogged: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   waterButtonRow: {
     flexDirection: 'row',

@@ -59,10 +59,17 @@ export interface UserProfile {
   activityLevel?: ActivityLevel;
 }
 
+export interface WaterLog {
+  amountMl: number;
+  /** ISO timestamp of when this water entry was logged — set automatically by the database. */
+  loggedAt: string;
+}
+
 export interface DayEntry {
   date: string;
   meals: Meal[];
   totals: DailyTotals;
+  waterLogs: WaterLog[];
 }
 
 export interface NutritionReference {

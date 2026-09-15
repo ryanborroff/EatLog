@@ -9,6 +9,7 @@ import {
   DefaultItem,
   NutritionReference,
   UserProfile,
+  WaterLog,
 } from '../types';
 import { ParsedFoodResult } from '../types/foodParser';
 import { supabase, withClockSkewRetry } from './supabaseClient';
@@ -278,7 +279,9 @@ export const getHistory = async (): Promise<DayEntry[]> => withClockSkewRetry(as
 
   return Array.from(byDate.entries()).map(([date, rows]) => {
     const meals = rows.map(toMeal);
-    return { date, meals, totals: calculateTotals(meals) };
+    // History doesn't surface water logs (only Today does), so this is
+    // always empty here rather than an extra query per historical day.
+    return { date, meals, totals: calculateTotals(meals), waterLogs: [] };
   });
 });
 
@@ -314,25 +317,35 @@ export const calculateTotals = (meals: Meal[]): DailyTotals => {
 // Create a complete day entry from meals
 
 export const createDayEntry = async (date: string): Promise<DayEntry> => {
-  const [meals, water] = await Promise.all([getMealsForDate(date), getWaterForDate(date)]);
+  const [meals, waterLogs] = await Promise.all([getMealsForDate(date), getWaterLogsForDate(date)]);
+  const water = waterLogs.reduce((sum, log) => sum + log.amountMl, 0);
   const totals = { ...calculateTotals(meals), water };
 
-  return { date, meals, totals };
+  return { date, meals, totals, waterLogs };
 };
 
 // Water intake
 
-export const getWaterForDate = async (date: string): Promise<number> => withClockSkewRetry(async () => {
+interface WaterLogRow {
+  amount_ml: number;
+  created_at: string;
+}
+
+export const getWaterLogsForDate = async (date: string): Promise<WaterLog[]> => withClockSkewRetry(async () => {
   const userId = await getUserId();
   const { data, error } = await supabase
     .from('water_logs')
-    .select('amount_ml')
+    .select('amount_ml, created_at')
     .eq('user_id', userId)
-    .eq('date', date);
+    .eq('date', date)
+    .order('created_at', { ascending: true });
 
   if (error) throw error;
 
-  return (data as { amount_ml: number }[]).reduce((sum, row) => sum + row.amount_ml, 0);
+  return (data as WaterLogRow[]).map((row) => ({
+    amountMl: row.amount_ml,
+    loggedAt: row.created_at,
+  }));
 });
 
 export const addWater = async (date: string, amountMl: number): Promise<void> => {
