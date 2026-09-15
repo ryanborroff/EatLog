@@ -5,7 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { colors } from '../../constants/theme';
 
 export default function TabLayout() {
-  const { accentColor } = useTheme();
+  const { accentTextColor } = useTheme();
 
   return (
     <Tabs
@@ -15,11 +15,12 @@ export default function TabLayout() {
           backgroundColor: colors.background,
           borderTopWidth: 1,
           borderTopColor: '#E0E0E0',
-          paddingBottom: 12,
           paddingTop: 10,
-          height: 80,
         },
-        tabBarActiveTintColor: accentColor,
+        // Darkened variant, not the raw accent swatch: the active tab's icon
+        // AND its label text share this color, and the label needs WCAG AA
+        // 4.5:1 against the white tab bar (see docs/accessibility-audit.md).
+        tabBarActiveTintColor: accentTextColor,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarIconStyle: {
           width: 24,
