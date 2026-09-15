@@ -16,8 +16,20 @@ export class FoodParseError extends Error {
   }
 }
 
+const todayDate = (): string => new Date().toISOString().split('T')[0];
+
+/**
+ * For a backdated entry, using the real current time would bias meal-type
+ * classification (e.g. logging breakfast in the evening would get read as
+ * dinner). Anchor to midday on the target date instead so the AI relies on
+ * explicit language ("I had breakfast...") rather than the wrong clock.
+ */
+const localTimeFor = (date: string): string =>
+  date === todayDate() ? new Date().toISOString() : `${date}T12:00:00.000Z`;
+
 const parseTranscript = async (
   transcript: string,
+  date: string,
   mealHint: string | undefined,
   recentMeal: RecentMealContext | null
 ): Promise<ParsedFoodResult> => {
@@ -25,7 +37,7 @@ const parseTranscript = async (
     body: {
       transcript,
       mealHint,
-      localTime: new Date().toISOString(),
+      localTime: localTimeFor(date),
       recentMeal,
     },
   });
@@ -89,7 +101,7 @@ export const processTranscript = async (
   }
 
   const recentMeal = await getMostRecentMeal(date);
-  const parsed = await parseTranscript(transcript, mealHint, toRecentMealContext(recentMeal));
+  const parsed = await parseTranscript(transcript, date, mealHint, toRecentMealContext(recentMeal));
 
   await saveVoiceLog(transcript, parsed);
 

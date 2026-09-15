@@ -40,7 +40,7 @@ export default function SignInScreen() {
       >
         <View style={styles.content}>
           <Text style={styles.title}>EatLog</Text>
-          <Text style={styles.subtitle}>Sign in to your food diary</Text>
+          <Text style={styles.subtitle}>Say what you ate. We'll do the maths.</Text>
 
           <TextInput
             style={styles.input}

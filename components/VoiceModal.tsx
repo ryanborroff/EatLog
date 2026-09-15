@@ -14,6 +14,7 @@ import {
 } from 'expo-speech-recognition';
 import { processTranscript, FoodParseError } from '../services/foodPipeline';
 import { Meal } from '../types';
+import CalendarPicker from './CalendarPicker';
 
 type VoiceState =
   | 'idle'
@@ -24,6 +25,18 @@ type VoiceState =
   | 'error';
 
 const todayDate = (): string => new Date().toISOString().split('T')[0];
+
+const formatLogDate = (date: string): string => {
+  if (date === todayDate()) return 'Today';
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date === yesterday.toISOString().split('T')[0]) return 'Yesterday';
+  return new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+};
 
 const ERROR_COPY = {
   stt: "I didn't catch that.\nTry again or type what you ate.",
@@ -43,6 +56,8 @@ const VoiceModal: React.FC = () => {
   );
   const [loggedMeal, setLoggedMeal] = useState<Meal | null>(null);
   const [wasCorrection, setWasCorrection] = useState(false);
+  const [targetDate, setTargetDate] = useState(todayDate());
+  const [showCalendar, setShowCalendar] = useState(false);
 
   useSpeechRecognitionEvent('result', (event) => {
     const text = event.results[0]?.transcript ?? '';
@@ -90,7 +105,7 @@ const VoiceModal: React.FC = () => {
   const submitTranscript = async (text: string, mealHint?: string) => {
     setState('processing');
     try {
-      const result = await processTranscript(text, todayDate(), mealHint);
+      const result = await processTranscript(text, targetDate, mealHint);
       if (result.status === 'needs_clarification') {
         setClarification({ question: result.question, options: result.options });
         setState('clarification');
@@ -127,6 +142,15 @@ const VoiceModal: React.FC = () => {
       case 'idle':
         return (
           <View style={styles.content}>
+            <TouchableOpacity
+              style={styles.dateSelector}
+              onPress={() => setShowCalendar(true)}
+              accessibilityLabel="Change log date"
+              accessibilityRole="button"
+            >
+              <Text style={styles.dateSelectorText}>Logging for {formatLogDate(targetDate)}</Text>
+              <Text style={styles.dateSelectorChevron}>▾</Text>
+            </TouchableOpacity>
             {showTextInput ? (
               <>
                 <Text style={styles.instruction}>What did you eat?</Text>
@@ -266,6 +290,12 @@ const VoiceModal: React.FC = () => {
         </TouchableOpacity>
       </View>
       <View style={styles.body}>{renderContent()}</View>
+      <CalendarPicker
+        visible={showCalendar}
+        selectedDate={targetDate}
+        onSelect={setTargetDate}
+        onClose={() => setShowCalendar(false)}
+      />
     </View>
   );
 };
@@ -293,6 +323,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 40,
     width: '100%',
+  },
+  dateSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    marginBottom: 32,
+  },
+  dateSelectorText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000000',
+    marginRight: 6,
+  },
+  dateSelectorChevron: {
+    fontSize: 12,
+    color: '#666666',
   },
   micButton: {
     width: 120,
