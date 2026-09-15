@@ -13,13 +13,14 @@ import { getHistory, getUserGoals } from '../../services/storageService';
 import { track } from '../../services/analytics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { colors, spacing, radii } from '../../constants/theme';
+import { generateObservations } from '../../utils/insightsObservations';
 
 type Period = 'week' | 'month' | '6months';
 
-const PERIOD_OPTIONS: { id: Period; label: string; days: number; sectionTitle: string }[] = [
-  { id: 'week', label: 'Week', days: 7, sectionTitle: 'This week' },
-  { id: 'month', label: 'Month', days: 30, sectionTitle: 'This month' },
-  { id: '6months', label: '6 Months', days: 182, sectionTitle: 'Last 6 months' },
+const PERIOD_OPTIONS: { id: Period; label: string; days: number; sectionTitle: string; observationLabel: string }[] = [
+  { id: 'week', label: 'Week', days: 7, sectionTitle: 'This week', observationLabel: 'this week' },
+  { id: 'month', label: 'Month', days: 30, sectionTitle: 'This month', observationLabel: 'this month' },
+  { id: '6months', label: '6 Months', days: 182, sectionTitle: 'Last 6 months', observationLabel: 'in the last 6 months' },
 ];
 
 export default function InsightsScreen() {
@@ -85,6 +86,8 @@ export default function InsightsScreen() {
 
   const calorieProgressRatio = periodHistory.length > 0 ? daysWithinCalorieTarget / periodHistory.length : 0;
   const proteinProgressRatio = periodHistory.length > 0 ? daysHittingProteinTarget / periodHistory.length : 0;
+
+  const observations = generateObservations(periodHistory, activePeriod.observationLabel);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -159,16 +162,17 @@ export default function InsightsScreen() {
 
         <View style={[styles.section, styles.sectionLast]}>
           <Text style={styles.sectionTitle}>Observations</Text>
-          <View style={styles.observationCard}>
-            <Text style={styles.observationText}>
-              Your protein intake has been fairly consistent this week.
-            </Text>
-          </View>
-          <View style={[styles.observationCard, styles.observationCardLast]}>
-            <Text style={styles.observationText}>
-              Most of your calorie variation is coming from evening meals.
-            </Text>
-          </View>
+          {observations.map((observation, index) => (
+            <View
+              key={observation}
+              style={[
+                styles.observationCard,
+                index === observations.length - 1 && styles.observationCardLast,
+              ]}
+            >
+              <Text style={styles.observationText}>{observation}</Text>
+            </View>
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>
