@@ -15,6 +15,7 @@ import {
   createDayEntry,
 } from '../../services/storageService';
 import { useTheme } from '../../contexts/ThemeContext';
+import { formatFoodItemLine } from '../../utils/formatFoodItem';
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'clarification' | 'complete';
 
@@ -148,8 +149,7 @@ export default function TodayScreen() {
             {meal.items.map((item) => (
               <View key={item.id} style={styles.foodItem}>
                 <Text style={styles.foodDescription}>
-                  {item.quantity > 1 ? `${item.quantity} ` : ''}
-                  {item.description}
+                  {formatFoodItemLine(item)}
                   {item.estimated && (
                     <Text style={styles.estimatedText}> (Estimated)</Text>
                   )}

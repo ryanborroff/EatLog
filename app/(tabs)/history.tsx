@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { DayEntry } from '../../types';
 import { getHistory } from '../../services/storageService';
+import { formatFoodItemLine } from '../../utils/formatFoodItem';
 
 export default function HistoryScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -95,8 +96,7 @@ export default function HistoryScreen() {
               {meal.items.map((item) => (
                 <View key={item.id} style={styles.foodItem}>
                   <Text style={styles.foodDescription}>
-                    {item.quantity > 1 ? `${item.quantity} ` : ''}
-                    {item.description}
+                    {formatFoodItemLine(item)}
                   </Text>
                 </View>
               ))}
