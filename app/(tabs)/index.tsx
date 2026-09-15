@@ -203,9 +203,6 @@ export default function TodayScreen() {
               <View key={item.id} style={styles.foodItem}>
                 <Text style={styles.foodDescription}>
                   {formatFoodItemLine(item)}
-                  {item.estimated && (
-                    <Text style={styles.estimatedText}> (Estimated)</Text>
-                  )}
                 </Text>
               </View>
             ))}
@@ -375,11 +372,6 @@ const styles = StyleSheet.create({
   foodDescription: {
     fontSize: 16,
     color: colors.textPrimary,
-  },
-  estimatedText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
   },
   voiceButtonContainer: {
     paddingHorizontal: spacing.lg,
