@@ -140,7 +140,7 @@ export default function HistoryScreen() {
                 <Text style={styles.dayMealType}>
                   {formatMealType(meal.type)} · {formatLoggedTime(meal.loggedAt)}
                 </Text>
-                <Text style={styles.dayMealCalories}>{formatAmount(meal.totalCalories)}</Text>
+                <Text style={styles.dayMealCalories}>{formatAmount(meal.totalCalories)} kcal</Text>
               </View>
             ))}
           </TouchableOpacity>
