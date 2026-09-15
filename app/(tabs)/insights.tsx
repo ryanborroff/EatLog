@@ -4,18 +4,30 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { DayEntry } from '../../types';
 import { getHistory, getUserGoals } from '../../services/storageService';
 import { track } from '../../services/analytics';
+import { useTheme } from '../../contexts/ThemeContext';
 import { colors, spacing, radii } from '../../constants/theme';
 
+type Period = 'week' | 'month' | '6months';
+
+const PERIOD_OPTIONS: { id: Period; label: string; days: number; sectionTitle: string }[] = [
+  { id: 'week', label: 'Week', days: 7, sectionTitle: 'This week' },
+  { id: 'month', label: 'Month', days: 30, sectionTitle: 'This month' },
+  { id: '6months', label: '6 Months', days: 182, sectionTitle: 'Last 6 months' },
+];
+
 export default function InsightsScreen() {
+  const { accentColor } = useTheme();
   const [history, setHistory] = useState<DayEntry[]>([]);
   const [goals, setGoals] = useState<{ calories: number; protein: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<Period>('week');
 
   useFocusEffect(
     useCallback(() => {
@@ -50,22 +62,29 @@ export default function InsightsScreen() {
     );
   }
 
-  // Calculate weekly averages
-  const totalCalories = history.reduce((sum, entry) => sum + entry.totals.calories, 0);
-  const totalProtein = history.reduce((sum, entry) => sum + entry.totals.protein, 0);
-  const avgCalories = history.length > 0 ? Math.round(totalCalories / history.length) : 0;
-  const avgProtein = history.length > 0 ? Math.round(totalProtein / history.length) : 0;
+  const activePeriod = PERIOD_OPTIONS.find((option) => option.id === period)!;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - activePeriod.days);
+  const cutoffDateString = cutoff.toISOString().split('T')[0];
+
+  const periodHistory = history.filter((entry) => entry.date >= cutoffDateString);
+
+  // Calculate period averages
+  const totalCalories = periodHistory.reduce((sum, entry) => sum + entry.totals.calories, 0);
+  const totalProtein = periodHistory.reduce((sum, entry) => sum + entry.totals.protein, 0);
+  const avgCalories = periodHistory.length > 0 ? Math.round(totalCalories / periodHistory.length) : 0;
+  const avgProtein = periodHistory.length > 0 ? Math.round(totalProtein / periodHistory.length) : 0;
 
   // Calculate days within targets
-  const daysWithinCalorieTarget = history.filter(
+  const daysWithinCalorieTarget = periodHistory.filter(
     (entry) => entry.totals.calories <= goals.calories
   ).length;
-  const daysHittingProteinTarget = history.filter(
+  const daysHittingProteinTarget = periodHistory.filter(
     (entry) => entry.totals.protein >= goals.protein
   ).length;
 
-  const calorieProgressRatio = history.length > 0 ? daysWithinCalorieTarget / history.length : 0;
-  const proteinProgressRatio = history.length > 0 ? daysHittingProteinTarget / history.length : 0;
+  const calorieProgressRatio = periodHistory.length > 0 ? daysWithinCalorieTarget / periodHistory.length : 0;
+  const proteinProgressRatio = periodHistory.length > 0 ? daysHittingProteinTarget / periodHistory.length : 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -74,8 +93,28 @@ export default function InsightsScreen() {
           <Text style={styles.title}>Insights</Text>
         </View>
 
+        <View style={styles.segmentedControl}>
+          {PERIOD_OPTIONS.map((option) => {
+            const isActive = option.id === period;
+            return (
+              <TouchableOpacity
+                key={option.id}
+                style={[styles.segment, isActive && { backgroundColor: accentColor }]}
+                onPress={() => setPeriod(option.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`${option.label} view`}
+                accessibilityState={{ selected: isActive }}
+              >
+                <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>This week</Text>
+          <Text style={styles.sectionTitle}>{activePeriod.sectionTitle}</Text>
           <View style={styles.insightCard}>
             <Text style={styles.insightLabel}>Average calories</Text>
             <Text style={styles.insightValue}>{avgCalories} kcal</Text>
@@ -91,7 +130,7 @@ export default function InsightsScreen() {
           <View style={styles.insightCard}>
             <Text style={styles.insightLabel}>Days within calorie target</Text>
             <Text style={styles.insightValue}>
-              {daysWithinCalorieTarget} / {history.length}
+              {daysWithinCalorieTarget} / {periodHistory.length}
             </Text>
             <View style={styles.progressTrack}>
               <View
@@ -105,7 +144,7 @@ export default function InsightsScreen() {
           <View style={[styles.insightCard, styles.insightCardLast]}>
             <Text style={styles.insightLabel}>Days hitting protein target</Text>
             <Text style={styles.insightValue}>
-              {daysHittingProteinTarget} / {history.length}
+              {daysHittingProteinTarget} / {periodHistory.length}
             </Text>
             <View style={styles.progressTrack}>
               <View
@@ -157,6 +196,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 38,
     color: colors.textPrimary,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
+    padding: 4,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radii.card - 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  segmentTextActive: {
+    color: '#FFFFFF',
   },
   section: {
     marginBottom: spacing.xl,
