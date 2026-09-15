@@ -122,6 +122,8 @@ export default function HistoryScreen() {
             style={styles.dayCard}
             onPress={() => setSelectedDate(entry.date)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${formatDate(entry.date)}, ${entry.totals.calories} kcal, ${entry.totals.protein}g protein`}
           >
             <Text style={styles.dayDate}>{formatDate(entry.date)}</Text>
             <View style={styles.dayTotals}>

@@ -62,11 +62,21 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({ visible, selectedDate, 
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity activeOpacity={1} style={styles.sheet}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={goToPreviousMonth} hitSlop={12}>
+            <TouchableOpacity
+              onPress={goToPreviousMonth}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Previous month"
+            >
               <Text style={styles.navArrow}>‹</Text>
             </TouchableOpacity>
             <Text style={styles.monthLabel}>{monthLabel}</Text>
-            <TouchableOpacity onPress={goToNextMonth} hitSlop={12}>
+            <TouchableOpacity
+              onPress={goToNextMonth}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Next month"
+            >
               <Text style={styles.navArrow}>›</Text>
             </TouchableOpacity>
           </View>
@@ -86,12 +96,21 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({ visible, selectedDate, 
               const isSelected = dateString === selectedDate;
               const isToday = dateString === today;
               const isFuture = dateString > today;
+              const fullDateLabel = new Date(viewYear, viewMonth, day).toLocaleDateString('en-GB', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              });
               return (
                 <TouchableOpacity
                   key={index}
                   style={[styles.cell, isSelected && styles.cellSelected]}
                   onPress={() => handleSelectDay(day)}
                   disabled={isFuture}
+                  accessibilityRole="button"
+                  accessibilityLabel={fullDateLabel}
+                  accessibilityState={{ selected: isSelected, disabled: isFuture }}
                 >
                   <Text
                     style={[

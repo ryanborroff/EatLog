@@ -67,7 +67,7 @@ const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string }[] = (
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { accentColor, accentColorId, setAccentColorId } = useTheme();
+  const { accentColor, accentTextColor, accentColorId, setAccentColorId } = useTheme();
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -286,7 +286,7 @@ export default function SettingsScreen() {
             <Text style={styles.settingValue}>{goals.calories} kcal</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={openSuggestedCalories}>
-            <Text style={[styles.settingLabelLink, { color: accentColor }]}>
+            <Text style={[styles.settingLabelLink, { color: accentTextColor }]}>
               Suggest my calorie target
             </Text>
           </TouchableOpacity>
@@ -681,7 +681,10 @@ const styles = StyleSheet.create({
   modalButtonPrimaryText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    // Black, not white: this button's background is sometimes an accent
+    // color, and white text on the light accent swatches fails WCAG AA
+    // contrast (see docs/accessibility-audit.md).
+    color: '#000000',
   },
   colorSwatchRow: {
     flexDirection: 'row',

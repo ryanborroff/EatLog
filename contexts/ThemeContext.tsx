@@ -3,12 +3,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type AccentColorId = 'sage' | 'terracotta' | 'sky' | 'lavender' | 'honey';
 
-export const ACCENT_COLORS: { id: AccentColorId; label: string; value: string }[] = [
-  { id: 'sage', label: 'Sage', value: '#7A9B7E' },
-  { id: 'terracotta', label: 'Terracotta', value: '#C97B5E' },
-  { id: 'sky', label: 'Sky', value: '#6E9CC4' },
-  { id: 'lavender', label: 'Lavender', value: '#9884B8' },
-  { id: 'honey', label: 'Honey', value: '#D4A24C' },
+// `value` is the light swatch used for backgrounds (buttons, tab icons,
+// selection dots) — those only need ~3:1 contrast against white as UI
+// components, which all five already clear. `textOnLight` is a darkened
+// variant of the same hue for when the color is used AS text on a white
+// background (links, active tab label) — those need WCAG AA's 4.5:1 for
+// normal text, which none of the light swatches reach on their own.
+export const ACCENT_COLORS: { id: AccentColorId; label: string; value: string; textOnLight: string }[] = [
+  { id: 'sage', label: 'Sage', value: '#7A9B7E', textOnLight: '#4F7154' },
+  { id: 'terracotta', label: 'Terracotta', value: '#C97B5E', textOnLight: '#A85436' },
+  { id: 'sky', label: 'Sky', value: '#6E9CC4', textOnLight: '#3D6D9E' },
+  { id: 'lavender', label: 'Lavender', value: '#9884B8', textOnLight: '#6F5A94' },
+  { id: 'honey', label: 'Honey', value: '#D4A24C', textOnLight: '#8C6318' },
 ];
 
 const DEFAULT_ACCENT: AccentColorId = 'sage';
@@ -17,12 +23,15 @@ const STORAGE_KEY = 'eatlog.accentColor';
 interface ThemeContextValue {
   accentColorId: AccentColorId;
   accentColor: string;
+  /** Darkened accent variant for text-on-white use (meets WCAG AA 4.5:1); use `accentColor` for backgrounds instead. */
+  accentTextColor: string;
   setAccentColorId: (id: AccentColorId) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
   accentColorId: DEFAULT_ACCENT,
   accentColor: ACCENT_COLORS.find((c) => c.id === DEFAULT_ACCENT)!.value,
+  accentTextColor: ACCENT_COLORS.find((c) => c.id === DEFAULT_ACCENT)!.textOnLight,
   setAccentColorId: () => {},
 });
 
@@ -44,10 +53,12 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
-  const accentColor = ACCENT_COLORS.find((c) => c.id === accentColorId)!.value;
+  const accent = ACCENT_COLORS.find((c) => c.id === accentColorId)!;
+  const accentColor = accent.value;
+  const accentTextColor = accent.textOnLight;
 
   return (
-    <ThemeContext.Provider value={{ accentColorId, accentColor, setAccentColorId }}>
+    <ThemeContext.Provider value={{ accentColorId, accentColor, accentTextColor, setAccentColorId }}>
       {children}
     </ThemeContext.Provider>
   );

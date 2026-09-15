@@ -22,7 +22,7 @@ type VoiceState = 'idle' | 'listening' | 'processing' | 'clarification' | 'compl
 
 export default function TodayScreen() {
   const router = useRouter();
-  const { accentColor } = useTheme();
+  const { accentColor, accentTextColor } = useTheme();
   const [todayEntry, setTodayEntry] = useState<DayEntry | null>(null);
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,7 +99,7 @@ export default function TodayScreen() {
             accessibilityRole="button"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={[styles.askButton, { color: accentColor }]}>Ask</Text>
+            <Text style={[styles.askButton, { color: accentTextColor }]}>Ask</Text>
           </TouchableOpacity>
         </View>
 
@@ -317,14 +317,17 @@ const styles = StyleSheet.create({
   },
   voiceButton: {
     borderRadius: radii.pill,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xl,
     minWidth: 240,
     alignItems: 'center',
     justifyContent: 'center',
   },
   voiceButtonText: {
-    color: '#FFFFFF',
+    // Black, not white: white text on any of the light accent backgrounds
+    // fails WCAG AA contrast (see docs/accessibility-audit.md).
+    color: '#000000',
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 1,
