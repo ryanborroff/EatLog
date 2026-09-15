@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 
@@ -27,6 +28,9 @@ export default function TabLayout() {
         options={{
           title: 'Today',
           tabBarLabel: 'Today',
+          tabBarIcon: ({ color, focused, size }) => (
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -34,6 +38,9 @@ export default function TabLayout() {
         options={{
           title: 'History',
           tabBarLabel: 'History',
+          tabBarIcon: ({ color, focused, size }) => (
+            <Ionicons name={focused ? 'time' : 'time-outline'} size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -41,6 +48,13 @@ export default function TabLayout() {
         options={{
           title: 'Insights',
           tabBarLabel: 'Insights',
+          tabBarIcon: ({ color, focused, size }) => (
+            <Ionicons
+              name={focused ? 'stats-chart' : 'stats-chart-outline'}
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen
@@ -48,6 +62,9 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           tabBarLabel: 'Settings',
+          tabBarIcon: ({ color, focused, size }) => (
+            <Ionicons name={focused ? 'settings' : 'settings-outline'} size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
