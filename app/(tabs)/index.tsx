@@ -101,7 +101,7 @@ export default function TodayScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.fixedSection}>
         <View style={styles.header}>
           <Text style={styles.date}>{formatDate(todayEntry.date)}</Text>
           <TouchableOpacity
@@ -189,7 +189,9 @@ export default function TodayScreen() {
             {remainingProtein >= 0 ? formatAmount(remainingProtein) : `+${formatAmount(Math.abs(remainingProtein))}`}g
           </Text>
         </View>
+      </View>
 
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {todayEntry.meals.map((meal) => (
           <View key={meal.id} style={styles.mealCard}>
             <View style={styles.mealHeader}>
@@ -228,11 +230,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  fixedSection: {
+    paddingTop: spacing.lg,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xs,
   },
   header: {
     paddingHorizontal: spacing.lg,
