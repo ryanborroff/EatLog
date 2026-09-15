@@ -5,10 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
-import { DayEntry } from '../../types';
+import { DayEntry, DailyGoals } from '../../types';
 import { getHistory, getUserGoals } from '../../services/storageService';
 import { track } from '../../services/analytics';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -28,7 +30,7 @@ const PERIOD_OPTIONS: { id: Period; label: string; days: number; sectionTitle: s
 export default function InsightsScreen() {
   const { accentColor } = useTheme();
   const [history, setHistory] = useState<DayEntry[]>([]);
-  const [goals, setGoals] = useState<{ calories: number; protein: number } | null>(null);
+  const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('week');
 
@@ -99,6 +101,55 @@ export default function InsightsScreen() {
 
   const observations = generateObservations(periodHistory, activePeriod.observationLabel);
 
+  const macroSquares: { label: string; value: string; infoTitle: string; infoMessage: string }[] = [
+    {
+      label: 'Average daily calories',
+      value: `${avgCalories} kcal`,
+      infoTitle: 'Recommended daily calories',
+      infoMessage: `Your target is ${goals.calories} kcal/day, set in Settings.`,
+    },
+    {
+      label: 'Average daily protein',
+      value: `${avgProtein}g`,
+      infoTitle: 'Recommended daily protein',
+      infoMessage: `Your target is ${goals.protein}g/day, set in Settings.`,
+    },
+    {
+      label: 'Average daily carbs',
+      value: `${avgCarbohydrate}g`,
+      infoTitle: 'Recommended daily carbs',
+      infoMessage: goals.carbohydrate
+        ? `Your target is ${goals.carbohydrate}g/day, set in Settings.`
+        : 'About 260g/day (45-65% of calories) is a common general guideline. Not medical advice.',
+    },
+    {
+      label: 'Average daily fat',
+      value: `${avgFat}g`,
+      infoTitle: 'Recommended daily fat',
+      infoMessage: goals.fat
+        ? `Your target is ${goals.fat}g/day, set in Settings.`
+        : 'About 70g/day (20-35% of calories) is a common general guideline. Not medical advice.',
+    },
+    {
+      label: 'Average daily fibre',
+      value: `${avgFibre}g`,
+      infoTitle: 'Recommended daily fibre',
+      infoMessage: '25-30g/day is a common general guideline. Not medical advice.',
+    },
+    {
+      label: 'Average daily sodium',
+      value: `${avgSodium}mg`,
+      infoTitle: 'Recommended daily sodium',
+      infoMessage: 'Under 2,300mg/day is a common general guideline. Not medical advice.',
+    },
+    {
+      label: 'Average daily sugar',
+      value: `${avgSugar}g`,
+      infoTitle: 'Recommended daily sugar',
+      infoMessage: 'Under 50g/day (ideally under 25g) is a common general guideline. Not medical advice.',
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -132,34 +183,22 @@ export default function InsightsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{activePeriod.sectionTitle}</Text>
           <View style={styles.insightGrid}>
-            <View style={styles.insightSquare}>
-              <Text style={styles.insightSquareLabel}>Average daily calories</Text>
-              <Text style={styles.insightSquareValue}>{avgCalories} kcal</Text>
-            </View>
-            <View style={styles.insightSquare}>
-              <Text style={styles.insightSquareLabel}>Average daily protein</Text>
-              <Text style={styles.insightSquareValue}>{avgProtein}g</Text>
-            </View>
-            <View style={styles.insightSquare}>
-              <Text style={styles.insightSquareLabel}>Average daily carbs</Text>
-              <Text style={styles.insightSquareValue}>{avgCarbohydrate}g</Text>
-            </View>
-            <View style={styles.insightSquare}>
-              <Text style={styles.insightSquareLabel}>Average daily fat</Text>
-              <Text style={styles.insightSquareValue}>{avgFat}g</Text>
-            </View>
-            <View style={styles.insightSquare}>
-              <Text style={styles.insightSquareLabel}>Average daily fibre</Text>
-              <Text style={styles.insightSquareValue}>{avgFibre}g</Text>
-            </View>
-            <View style={styles.insightSquare}>
-              <Text style={styles.insightSquareLabel}>Average daily sodium</Text>
-              <Text style={styles.insightSquareValue}>{avgSodium}mg</Text>
-            </View>
-            <View style={styles.insightSquare}>
-              <Text style={styles.insightSquareLabel}>Average daily sugar</Text>
-              <Text style={styles.insightSquareValue}>{avgSugar}g</Text>
-            </View>
+            {macroSquares.map((square) => (
+              <View key={square.label} style={styles.insightSquare}>
+                <View style={styles.insightSquareHeader}>
+                  <Text style={styles.insightSquareLabel}>{square.label}</Text>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert(square.infoTitle, square.infoMessage)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${square.infoTitle} info`}
+                  >
+                    <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.insightSquareValue}>{square.value}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -301,18 +340,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radii.card,
     justifyContent: 'flex-start',
+  },
+  insightSquareHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 4,
   },
   insightSquareLabel: {
+    flex: 1,
     fontSize: 14,
     fontWeight: '400',
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginRight: spacing.xs,
   },
   insightSquareValue: {
     fontSize: 22,
     fontWeight: '700',
     color: colors.textPrimary,
+    textAlign: 'left',
   },
   insightLabel: {
     fontSize: 16,
