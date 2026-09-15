@@ -6,16 +6,20 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
-import { processTranscript, FoodParseError } from '../services/foodPipeline';
+import { processTranscript, logBarcodeItem, FoodParseError } from '../services/foodPipeline';
+import { lookupBarcode, BarcodeProduct } from '../services/barcodeLookup';
 import { track } from '../services/analytics';
 import { Meal } from '../types';
 import CalendarPicker from './CalendarPicker';
+import BarcodeScanner from './BarcodeScanner';
 
 type VoiceState =
   | 'idle'
@@ -23,7 +27,10 @@ type VoiceState =
   | 'processing'
   | 'clarification'
   | 'complete'
-  | 'error';
+  | 'error'
+  | 'barcode_scanning'
+  | 'barcode_result'
+  | 'barcode_not_found';
 
 const todayDate = (): string => new Date().toISOString().split('T')[0];
 
@@ -60,6 +67,8 @@ const VoiceModal: React.FC = () => {
   const [targetDate, setTargetDate] = useState(todayDate());
   const [showCalendar, setShowCalendar] = useState(false);
   const [lastSource, setLastSource] = useState<'voice' | 'text'>('text');
+  const [scannedProduct, setScannedProduct] = useState<BarcodeProduct | null>(null);
+  const [gramsValue, setGramsValue] = useState('100');
 
   useSpeechRecognitionEvent('result', (event) => {
     const text = event.results[0]?.transcript ?? '';
@@ -151,6 +160,31 @@ const VoiceModal: React.FC = () => {
     if (!value) return;
     setTranscript(value);
     void submitTranscript(value, 'text');
+  };
+
+  const handleBarcodeScanned = async (barcode: string) => {
+    track('barcode_scanned');
+    const product = await lookupBarcode(barcode).catch(() => null);
+    if (!product) {
+      setState('barcode_not_found');
+      return;
+    }
+    setScannedProduct(product);
+    setGramsValue(String(product.reference.servingSize));
+    setState('barcode_result');
+  };
+
+  const handleBarcodeConfirm = async () => {
+    if (!scannedProduct) return;
+    const grams = parseFloat(gramsValue);
+    if (!grams || grams <= 0) return;
+
+    setState('processing');
+    const meal = await logBarcodeItem(targetDate, 'snack', scannedProduct.name, scannedProduct.reference, grams);
+    track('food_logged', { source: 'barcode', mealType: meal.type, itemCount: meal.items.length });
+    setLoggedMeal(meal);
+    setWasCorrection(false);
+    setState('complete');
   };
 
   const renderContent = () => {
@@ -271,6 +305,51 @@ const VoiceModal: React.FC = () => {
             >
               <Text style={styles.primaryButtonText}>Try again</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => setState('barcode_scanning')}>
+              <Text style={styles.linkText}>Scan barcode instead</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      case 'barcode_not_found':
+        return (
+          <View style={styles.content}>
+            <View style={[styles.successIcon, styles.errorIcon]}>
+              <Text style={styles.successText}>!</Text>
+            </View>
+            <Text style={styles.errorMessage}>{"Couldn't find that product.\nTry again or type what you ate."}</Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => setState('barcode_scanning')}>
+              <Text style={styles.primaryButtonText}>Scan again</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setState('idle');
+                setShowTextInput(true);
+              }}
+            >
+              <Text style={styles.linkText}>Type it instead</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      case 'barcode_result':
+        return (
+          <View style={styles.content}>
+            <Text style={styles.clarificationTitle}>{scannedProduct?.name}</Text>
+            <Text style={styles.instruction}>How many grams did you have?</Text>
+            <TextInput
+              style={styles.textInput}
+              value={gramsValue}
+              onChangeText={setGramsValue}
+              keyboardType="numeric"
+              autoFocus
+            />
+            <TouchableOpacity style={styles.primaryButton} onPress={handleBarcodeConfirm}>
+              <Text style={styles.primaryButtonText}>Log it</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setState('barcode_scanning')}>
+              <Text style={styles.linkText}>Scan a different item</Text>
+            </TouchableOpacity>
           </View>
         );
 
@@ -298,6 +377,15 @@ const VoiceModal: React.FC = () => {
     }
   };
 
+  if (state === 'barcode_scanning') {
+    return (
+      <BarcodeScanner
+        onScanned={(barcode) => void handleBarcodeScanned(barcode)}
+        onClose={() => setState('error')}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -305,7 +393,12 @@ const VoiceModal: React.FC = () => {
           <Text style={styles.closeButton}>✕</Text>
         </TouchableOpacity>
       </View>
-      <View style={styles.body}>{renderContent()}</View>
+      <KeyboardAvoidingView
+        style={styles.body}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {renderContent()}
+      </KeyboardAvoidingView>
       <CalendarPicker
         visible={showCalendar}
         selectedDate={targetDate}

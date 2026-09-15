@@ -37,6 +37,13 @@
           "microphonePermission": "EatLog uses your microphone to log food by voice.",
           "speechRecognitionPermission": "EatLog transcribes your voice to log the food you describe."
         }
+      ],
+      "expo-asset",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "EatLog uses your camera to scan a food barcode."
+        }
       ]
     ],
     "scheme": "eatlog"

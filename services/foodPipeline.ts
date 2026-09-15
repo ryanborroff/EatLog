@@ -7,6 +7,7 @@ import { ParsedFoodResult, RecentMealContext } from '../types/foodParser';
 import { applyCorrections } from './correctionApplier';
 import { matchDefault } from './defaultsMatcher';
 import { resolveFoodItems } from './foodResolver';
+import { calculateNutrition, ReferenceNutrition } from './nutritionCalculator';
 import { getMostRecentMeal, saveMealForDate, saveVoiceLog, updateMeal } from './storageService';
 import { supabase } from './supabaseClient';
 
@@ -137,4 +138,42 @@ export const processTranscript = async (
   await saveMealForDate(date, meal);
 
   return { status: 'logged', meal };
+};
+
+/**
+ * Barcode fallback (used when parsing fails on a packaged food): the lookup
+ * already gives exact nutrition, so this skips resolveFoodItems/AI entirely
+ * and logs directly.
+ */
+export const logBarcodeItem = async (
+  date: string,
+  mealType: Meal['type'],
+  name: string,
+  reference: ReferenceNutrition,
+  quantity: number
+): Promise<Meal> => {
+  const calculated = calculateNutrition(reference, quantity);
+
+  const meal: Meal = {
+    id: '',
+    type: mealType,
+    items: [
+      {
+        id: '0',
+        description: name,
+        quantity,
+        unit: reference.servingUnit,
+        ...calculated,
+        confidence: 'high',
+        estimated: false,
+      },
+    ],
+    totalCalories: calculated.calories,
+    totalProtein: calculated.protein,
+    totalCarbohydrate: calculated.carbohydrate,
+    totalFat: calculated.fat,
+  };
+
+  await saveMealForDate(date, meal);
+  return meal;
 };
