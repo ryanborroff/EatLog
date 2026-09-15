@@ -3,7 +3,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Session } from '@supabase/supabase-js';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { getSession, onAuthStateChange } from '../services/authService';
+import * as Linking from 'expo-linking';
+import { getSession, onAuthStateChange, handleAuthRedirectUrl } from '../services/authService';
 import { track } from '../services/analytics';
 import { ThemeProvider } from '../contexts/ThemeContext';
 
@@ -20,7 +21,18 @@ export default function RootLayout() {
       .finally(() => setLoading(false));
 
     const subscription = onAuthStateChange(setSession);
-    return () => subscription.unsubscribe();
+
+    Linking.getInitialURL().then((url) => {
+      if (url) handleAuthRedirectUrl(url).catch(() => {});
+    });
+    const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
+      handleAuthRedirectUrl(url).catch(() => {});
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      linkingSubscription.remove();
+    };
   }, []);
 
   if (loading) {
