@@ -20,7 +20,7 @@ type Period = 'week' | 'month' | '6months' | 'year';
 const PERIOD_OPTIONS: { id: Period; label: string; days: number; sectionTitle: string; observationLabel: string }[] = [
   { id: 'week', label: 'Week', days: 7, sectionTitle: 'This week', observationLabel: 'this week' },
   { id: 'month', label: 'Month', days: 30, sectionTitle: 'This month', observationLabel: 'this month' },
-  { id: '6months', label: '6 Mo', days: 182, sectionTitle: 'Last 6 months', observationLabel: 'in the last 6 months' },
+  { id: '6months', label: '6 Months', days: 182, sectionTitle: 'Last 6 months', observationLabel: 'in the last 6 months' },
   { id: 'year', label: 'Year', days: 365, sectionTitle: 'Last year', observationLabel: 'in the last year' },
 ];
 
