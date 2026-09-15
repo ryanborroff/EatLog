@@ -10,17 +10,17 @@
 - [ ] All migrations applied to the target project (`supabase db push`)
 - [ ] Both Edge Functions deployed (`supabase functions deploy parse-food`,
       `supabase functions deploy ask-diary`)
-- [ ] `app.json` version/build number bumped
-- [ ] Xcode signing set up (Apple Developer account, provisioning profile —
-      `eas build` handles this automatically if using EAS; manual builds via
-      `npx expo run:ios --configuration Release` need it set up in Xcode)
+- [ ] Xcode signing set up (Apple Developer account, automatic signing —
+      handled by the Fastlane lane below)
+- [ ] `ASC_KEY_ID` / `ASC_ISSUER_ID` / `ASC_KEY_CONTENT` env vars set for the
+      App Store Connect API key used to upload to TestFlight
 
 ## Build & upload
 
-Using EAS (recommended — handles signing and upload):
+Using Fastlane (handles prebuild, signing, archive, and upload; also bumps
+the build number):
 ```bash
-npx eas build --platform ios --profile production
-npx eas submit --platform ios
+cd fastlane && bundle exec fastlane beta
 ```
 
 Or manually via Xcode: `npx expo prebuild`, open `ios/EatLog.xcworkspace`,

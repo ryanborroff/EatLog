@@ -10,11 +10,23 @@ platform :ios do
 
     increment_build_number(xcodeproj: "ios/EatLog.xcodeproj")
 
+    update_code_signing_settings(
+      use_automatic_signing: true,
+      team_id: "SWVSGRAP86",
+      path: "ios/EatLog.xcodeproj"
+    )
+
     build_app(
       workspace: "ios/EatLog.xcworkspace",
       scheme: "EatLog",
       export_method: "app-store",
-      configuration: "Release"
+      configuration: "Release",
+      export_options: {
+        method: "app-store",
+        signingStyle: "automatic",
+        teamID: "SWVSGRAP86"
+      },
+      export_xcargs: "-allowProvisioningUpdates"
     )
 
     upload_to_testflight(
