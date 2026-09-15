@@ -16,6 +16,7 @@ export default function TabLayout() {
           borderTopWidth: 1,
           borderTopColor: '#E0E0E0',
           paddingTop: 10,
+          paddingBottom: 8,
         },
         // Darkened variant, not the raw accent swatch: the active tab's icon
         // AND its label text share this color, and the label needs WCAG AA
