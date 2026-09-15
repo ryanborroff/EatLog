@@ -123,76 +123,76 @@ export default function TodayScreen() {
 
           <View style={styles.divider} />
 
-          <View style={styles.macroSection}>
-            <Text style={styles.macroLabel}>Protein</Text>
-            <Text style={styles.macroValue}>
-              {formatAmount(todayEntry.totals.protein)}g / {formatAmount(goals.protein)}g
-            </Text>
-          </View>
-
-          <View style={styles.macroSection}>
-            <Text style={styles.macroLabel}>Carbohydrates</Text>
-            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.carbohydrate)}g</Text>
-          </View>
-
-          <View style={styles.macroSection}>
-            <Text style={styles.macroLabel}>Fat</Text>
-            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.fat)}g</Text>
-          </View>
-
-          <View style={styles.macroSection}>
-            <Text style={styles.macroLabel}>Fibre</Text>
-            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.fibre)}g</Text>
-          </View>
-
-          <View style={styles.macroSection}>
-            <Text style={styles.macroLabel}>Sodium</Text>
-            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.sodium)}mg</Text>
-          </View>
-
-          <View style={[styles.macroSection, styles.macroSectionLast]}>
-            <Text style={styles.macroLabel}>Sugar</Text>
-            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.sugar)}g</Text>
-          </View>
-        </View>
-
-        <View style={styles.totalsCard}>
-          <View style={styles.waterHeader}>
-            <Text style={styles.macroLabel}>Water</Text>
-            <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.water)}ml</Text>
-            {todayEntry.waterLogs.length > 0 && (
-              <Text style={styles.waterLastLogged}>
-                Last logged {formatLoggedTime(todayEntry.waterLogs[todayEntry.waterLogs.length - 1].loggedAt)}
+          <View style={styles.macroGrid}>
+            <View style={styles.macroCell}>
+              <Text style={styles.macroLabel}>Protein</Text>
+              <Text style={styles.macroValue}>
+                {formatAmount(todayEntry.totals.protein)}g / {formatAmount(goals.protein)}g
               </Text>
-            )}
-          </View>
-          <View style={styles.waterButtonRow}>
-            {[250, 500].map((amount) => (
-              <TouchableOpacity
-                key={amount}
-                style={[styles.waterButton, { backgroundColor: accentColor }]}
-                onPress={() => handleAddWater(amount)}
-                accessibilityLabel={`Add ${amount}ml of water`}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.waterButtonText, { color: accentTextColor }]}>+{amount}ml</Text>
-              </TouchableOpacity>
-            ))}
+            </View>
+            <View style={styles.macroCell}>
+              <Text style={styles.macroLabel}>Carbs</Text>
+              <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.carbohydrate)}g</Text>
+            </View>
+            <View style={styles.macroCell}>
+              <Text style={styles.macroLabel}>Fat</Text>
+              <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.fat)}g</Text>
+            </View>
+            <View style={styles.macroCell}>
+              <Text style={styles.macroLabel}>Fibre</Text>
+              <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.fibre)}g</Text>
+            </View>
+            <View style={styles.macroCell}>
+              <Text style={styles.macroLabel}>Sodium</Text>
+              <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.sodium)}mg</Text>
+            </View>
+            <View style={styles.macroCell}>
+              <Text style={styles.macroLabel}>Sugar</Text>
+              <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.sugar)}g</Text>
+            </View>
           </View>
         </View>
 
-        <View style={styles.remainingSection}>
-          <Text style={styles.remainingLabel}>Calories remaining</Text>
-          <Text style={styles.remainingValue}>
-            {remainingCalories >= 0 ? formatAmount(remainingCalories) : `+${formatAmount(Math.abs(remainingCalories))}`} kcal
-          </Text>
-        </View>
+        <View style={styles.compactCardRow}>
+          <View style={[styles.totalsCard, styles.compactCard]}>
+            <View style={styles.waterHeader}>
+              <Text style={styles.macroLabel}>Water</Text>
+              <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.water)}ml</Text>
+              {todayEntry.waterLogs.length > 0 && (
+                <Text style={styles.waterLastLogged}>
+                  Last {formatLoggedTime(todayEntry.waterLogs[todayEntry.waterLogs.length - 1].loggedAt)}
+                </Text>
+              )}
+            </View>
+            <View style={styles.waterButtonRow}>
+              {[250, 500].map((amount) => (
+                <TouchableOpacity
+                  key={amount}
+                  style={[styles.waterButton, { backgroundColor: accentColor }]}
+                  onPress={() => handleAddWater(amount)}
+                  accessibilityLabel={`Add ${amount}ml of water`}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.waterButtonText, { color: accentTextColor }]}>+{amount}ml</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
-        <View style={[styles.remainingSection, styles.remainingSectionLast]}>
-          <Text style={styles.remainingLabel}>Protein remaining</Text>
-          <Text style={styles.remainingValue}>
-            {remainingProtein >= 0 ? formatAmount(remainingProtein) : `+${formatAmount(Math.abs(remainingProtein))}`}g
-          </Text>
+          <View style={[styles.totalsCard, styles.compactCard]}>
+            <View style={styles.remainingRow}>
+              <Text style={styles.remainingLabel}>Calories left</Text>
+              <Text style={styles.remainingValue}>
+                {remainingCalories >= 0 ? formatAmount(remainingCalories) : `+${formatAmount(Math.abs(remainingCalories))}`}
+              </Text>
+            </View>
+            <View style={styles.remainingRow}>
+              <Text style={styles.remainingLabel}>Protein left</Text>
+              <Text style={styles.remainingValue}>
+                {remainingProtein >= 0 ? formatAmount(remainingProtein) : `+${formatAmount(Math.abs(remainingProtein))}`}g
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -236,7 +236,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   fixedSection: {
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
   },
   scrollView: {
     flex: 1,
@@ -246,13 +247,13 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   date: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.textPrimary,
     flexShrink: 1,
@@ -269,86 +270,94 @@ const styles = StyleSheet.create({
   },
   totalsCard: {
     marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
+    marginBottom: spacing.sm,
+    padding: spacing.md,
     backgroundColor: colors.card,
     borderRadius: radii.card,
   },
   calorieSection: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   calorieValue: {
-    fontSize: 40,
+    fontSize: 32,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   calorieTarget: {
-    fontSize: 18,
+    fontSize: 15,
     color: colors.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   divider: {
     height: 1,
     backgroundColor: colors.divider,
-    marginBottom: spacing.md,
-  },
-  macroSection: {
     marginBottom: spacing.sm,
   },
-  macroSectionLast: {
-    marginBottom: 0,
+  macroGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  macroCell: {
+    width: '50%',
+    marginBottom: spacing.xs,
   },
   macroLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   macroValue: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginTop: 4,
+    marginTop: 2,
+  },
+  compactCardRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  compactCard: {
+    flex: 1,
+    marginHorizontal: 0,
+    justifyContent: 'center',
   },
   waterHeader: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   waterLastLogged: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   waterButtonRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   waterButton: {
     flex: 1,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: radii.card,
     alignItems: 'center',
   },
   waterButtonText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
   },
-  remainingSection: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
+  remainingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  remainingSectionLast: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
   },
   remainingLabel: {
-    fontSize: 16,
+    fontSize: 13,
     color: colors.textSecondary,
   },
   remainingValue: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.textPrimary,
   },
