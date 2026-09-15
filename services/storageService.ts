@@ -10,7 +10,7 @@ import {
   NutritionReference,
 } from '../types';
 import { ParsedFoodResult } from '../types/foodParser';
-import { supabase } from './supabaseClient';
+import { supabase, withClockSkewRetry } from './supabaseClient';
 
 const getUserId = async (): Promise<string> => {
   const {
@@ -22,7 +22,7 @@ const getUserId = async (): Promise<string> => {
 
 // User Goals
 
-export const getUserGoals = async (): Promise<DailyGoals> => {
+export const getUserGoals = async (): Promise<DailyGoals> => withClockSkewRetry(async () => {
   const userId = await getUserId();
   const { data, error } = await supabase
     .from('user_goals')
@@ -38,7 +38,7 @@ export const getUserGoals = async (): Promise<DailyGoals> => {
     carbohydrate: data.daily_carbs ?? undefined,
     fat: data.daily_fat ?? undefined,
   };
-};
+});
 
 export const saveUserGoals = async (goals: DailyGoals): Promise<void> => {
   const userId = await getUserId();
@@ -108,7 +108,7 @@ const toMeal = (row: MealRow): Meal => {
   };
 };
 
-export const getMealsForDate = async (date: string): Promise<Meal[]> => {
+export const getMealsForDate = async (date: string): Promise<Meal[]> => withClockSkewRetry(async () => {
   const userId = await getUserId();
   const { data, error } = await supabase
     .from('meals')
@@ -119,7 +119,7 @@ export const getMealsForDate = async (date: string): Promise<Meal[]> => {
   if (error) throw error;
 
   return (data as MealRow[]).map(toMeal);
-};
+});
 
 export const saveMealForDate = async (date: string, meal: Meal): Promise<void> => {
   const userId = await getUserId();
@@ -189,7 +189,7 @@ export const deleteMeal = async (date: string, mealId: string): Promise<void> =>
 };
 
 /** Most recently logged meal for a date, or null if none — used to target corrections. */
-export const getMostRecentMeal = async (date: string): Promise<Meal | null> => {
+export const getMostRecentMeal = async (date: string): Promise<Meal | null> => withClockSkewRetry(async () => {
   const userId = await getUserId();
   const { data, error } = await supabase
     .from('meals')
@@ -204,11 +204,11 @@ export const getMostRecentMeal = async (date: string): Promise<Meal | null> => {
   if (!data) return null;
 
   return toMeal(data as MealRow);
-};
+});
 
 // History
 
-export const getHistory = async (): Promise<DayEntry[]> => {
+export const getHistory = async (): Promise<DayEntry[]> => withClockSkewRetry(async () => {
   const userId = await getUserId();
   const { data, error } = await supabase
     .from('meals')
@@ -229,7 +229,7 @@ export const getHistory = async (): Promise<DayEntry[]> => {
     const meals = rows.map(toMeal);
     return { date, meals, totals: calculateTotals(meals) };
   });
-};
+});
 
 // Voice logs
 

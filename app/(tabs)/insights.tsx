@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { DayEntry } from '../../types';
 import { getHistory, getUserGoals } from '../../services/storageService';
 
@@ -14,9 +15,11 @@ export default function InsightsScreen() {
   const [goals, setGoals] = useState<{ calories: number; protein: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadInsights();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadInsights();
+    }, [])
+  );
 
   const loadInsights = async () => {
     try {
