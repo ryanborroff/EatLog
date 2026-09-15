@@ -13,6 +13,7 @@ import {
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
 import { processTranscript, FoodParseError } from '../services/foodPipeline';
+import { track } from '../services/analytics';
 import { Meal } from '../types';
 import CalendarPicker from './CalendarPicker';
 
@@ -58,12 +59,13 @@ const VoiceModal: React.FC = () => {
   const [wasCorrection, setWasCorrection] = useState(false);
   const [targetDate, setTargetDate] = useState(todayDate());
   const [showCalendar, setShowCalendar] = useState(false);
+  const [lastSource, setLastSource] = useState<'voice' | 'text'>('text');
 
   useSpeechRecognitionEvent('result', (event) => {
     const text = event.results[0]?.transcript ?? '';
     setTranscript(text);
     if (event.isFinal && text.trim().length > 0) {
-      void submitTranscript(text);
+      void submitTranscript(text, 'voice');
     }
   });
 
@@ -91,6 +93,7 @@ const VoiceModal: React.FC = () => {
 
     setTranscript('');
     setState('listening');
+    track('voice_log_started');
     ExpoSpeechRecognitionModule.start({
       lang: 'en-GB',
       interimResults: true,
@@ -102,17 +105,25 @@ const VoiceModal: React.FC = () => {
     ExpoSpeechRecognitionModule.stop();
   };
 
-  const submitTranscript = async (text: string, mealHint?: string) => {
+  const submitTranscript = async (text: string, source: 'voice' | 'text', mealHint?: string) => {
+    setLastSource(source);
     setState('processing');
     try {
       const result = await processTranscript(text, targetDate, mealHint);
       if (result.status === 'needs_clarification') {
         setClarification({ question: result.question, options: result.options });
         setState('clarification');
+        track('clarification_requested');
       } else {
         setLoggedMeal(result.meal);
         setWasCorrection(result.status === 'updated');
         setState('complete');
+        if (source === 'voice') track('voice_log_completed');
+        if (result.status === 'logged') {
+          track('food_logged', { source, mealType: result.meal.type, itemCount: result.meal.items.length });
+        } else {
+          track('food_edited', { source });
+        }
       }
     } catch (err) {
       if (err instanceof FoodParseError && err.message === 'Nothing to correct') {
@@ -122,19 +133,24 @@ const VoiceModal: React.FC = () => {
       } else {
         setErrorMessage(ERROR_COPY.ai);
       }
+      if (source === 'voice') track('voice_log_failed');
+      // Preserve what the user said/typed so "Try again" doesn't force retyping.
+      setTextValue(text);
+      setShowTextInput(true);
       setState('error');
     }
   };
 
   const handleClarificationOption = (option: string) => {
-    void submitTranscript(`${transcript} (${option})`);
+    track('clarification_answered');
+    void submitTranscript(`${transcript} (${option})`, lastSource);
   };
 
   const handleTextSubmit = () => {
     const value = textValue.trim();
     if (!value) return;
     setTranscript(value);
-    void submitTranscript(value);
+    void submitTranscript(value, 'text');
   };
 
   const renderContent = () => {

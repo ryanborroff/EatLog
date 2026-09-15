@@ -18,6 +18,7 @@ import {
   createMealDefault,
   deleteUserDefault,
 } from '../../services/storageService';
+import { track } from '../../services/analytics';
 
 interface DraftItem {
   food: PersonalFood;
@@ -78,6 +79,7 @@ export default function UsualFoodsScreen() {
       });
       resetForm();
       await load();
+      track('default_created', { type: 'food' });
     } catch {
       Alert.alert('Error', 'Could not save this default.');
     } finally {
@@ -103,6 +105,7 @@ export default function UsualFoodsScreen() {
       });
       resetForm();
       await load();
+      track('default_created', { type: 'meal' });
     } catch {
       Alert.alert('Error', 'Could not save this meal default.');
     } finally {

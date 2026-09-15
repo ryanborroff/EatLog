@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { DayEntry } from '../../types';
 import { getHistory, getUserGoals } from '../../services/storageService';
+import { track } from '../../services/analytics';
 
 export default function InsightsScreen() {
   const [history, setHistory] = useState<DayEntry[]>([]);
@@ -18,6 +19,7 @@ export default function InsightsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadInsights();
+      track('weekly_summary_viewed');
     }, [])
   );
 

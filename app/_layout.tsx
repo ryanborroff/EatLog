@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Session } from '@supabase/supabase-js';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { getSession, onAuthStateChange } from '../services/authService';
+import { track } from '../services/analytics';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -11,7 +12,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     getSession()
-      .then(setSession)
+      .then((initialSession) => {
+        setSession(initialSession);
+        if (initialSession) track('app_opened');
+      })
       .finally(() => setLoading(false));
 
     const subscription = onAuthStateChange(setSession);

@@ -6,12 +6,17 @@
 // computes totals.
 
 import { validateParsedFoodResult } from './schema.ts';
+import { verifyUser, unauthorizedResponse } from '../_shared/auth.ts';
+import { isRateLimited, rateLimitedResponse } from '../_shared/rateLimit.ts';
 
 // Groq's API is OpenAI-compatible (same request/response shape), so this is
 // otherwise unchanged from an OpenAI integration — just a different base URL,
 // key, and default model. Free tier: https://console.groq.com
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
 const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'openai/gpt-oss-20b';
+
+const MAX_TRANSCRIPT_LENGTH = 500;
+const RATE_LIMIT_PER_MINUTE = 10;
 
 const JSON_SHAPE_DESCRIPTION = `Respond with a single JSON object, no prose, matching exactly this shape:
 {
@@ -69,6 +74,15 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const user = await verifyUser(req);
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
+  if (await isRateLimited(user.id, 'parse-food', RATE_LIMIT_PER_MINUTE)) {
+    return rateLimitedResponse();
+  }
+
   let body: RequestBody;
   try {
     body = await req.json();
@@ -81,6 +95,13 @@ Deno.serve(async (req: Request) => {
 
   if (typeof body.transcript !== 'string' || body.transcript.trim() === '') {
     return new Response(JSON.stringify({ error: 'transcript is required' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (body.transcript.length > MAX_TRANSCRIPT_LENGTH) {
+    return new Response(JSON.stringify({ error: 'transcript is too long' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });

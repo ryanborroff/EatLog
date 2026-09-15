@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { PersonalFood } from '../../types';
 import { getUserFoods, createUserFood, deleteUserFood } from '../../services/storageService';
+import { track } from '../../services/analytics';
 
 const emptyForm = {
   name: '',
@@ -68,6 +69,7 @@ export default function PersonalFoodsScreen() {
       setForm(emptyForm);
       setShowForm(false);
       await load();
+      track('personal_food_created');
     } catch (error) {
       Alert.alert('Error', 'Could not save this food.');
     } finally {

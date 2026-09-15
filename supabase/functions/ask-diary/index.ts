@@ -4,6 +4,8 @@
 // cover the question rather than invent an entry (spec §36).
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { verifyUser, unauthorizedResponse } from '../_shared/auth.ts';
+import { isRateLimited, rateLimitedResponse } from '../_shared/rateLimit.ts';
 
 // Groq's API is OpenAI-compatible — see parse-food/index.ts for the same swap.
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
@@ -12,6 +14,8 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 
 const LOOKBACK_DAYS = 14;
+const MAX_QUESTION_LENGTH = 500;
+const RATE_LIMIT_PER_MINUTE = 10;
 
 const SYSTEM_PROMPT = `You are EatLog's diary assistant. You answer questions about the user's food diary using ONLY the JSON data provided in this message — you have no other source of truth.
 
@@ -34,12 +38,13 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Missing authorization' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  const user = await verifyUser(req);
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
+  if (await isRateLimited(user.id, 'ask-diary', RATE_LIMIT_PER_MINUTE)) {
+    return rateLimitedResponse();
   }
 
   let body: { question: string; localTime: string };
@@ -59,10 +64,17 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  if (body.question.length > MAX_QUESTION_LENGTH) {
+    return new Response(JSON.stringify({ error: 'question is too long' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   // Scoped to the caller's own JWT — RLS applies exactly as it would for the
   // app client, so this can only ever see the requesting user's rows.
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
+    global: { headers: { Authorization: `Bearer ${user.token}` } },
   });
 
   const since = new Date();
