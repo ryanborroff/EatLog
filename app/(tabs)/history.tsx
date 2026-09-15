@@ -131,18 +131,10 @@ export default function HistoryScreen() {
             accessibilityLabel={`${formatDate(entry.date)}, ${formatAmount(entry.totals.calories)} kcal, ${formatAmount(entry.totals.protein)}g protein`}
           >
             <Text style={styles.dayDate}>{formatDate(entry.date)}</Text>
-            <View style={styles.dayTotals}>
+            <View style={styles.dayTotalsLast}>
               <Text style={styles.dayCalories}>{formatAmount(entry.totals.calories)} kcal</Text>
               <Text style={styles.dayProtein}>{formatAmount(entry.totals.protein)}g protein</Text>
             </View>
-            {entry.meals.map((meal) => (
-              <View key={meal.id} style={styles.dayMeal}>
-                <Text style={styles.dayMealType}>
-                  {formatMealType(meal.type)} · {formatLoggedTime(meal.loggedAt)}
-                </Text>
-                <Text style={styles.dayMealCalories}>{formatAmount(meal.totalCalories)} kcal</Text>
-              </View>
-            ))}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -263,9 +255,8 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
-  dayTotals: {
+  dayTotalsLast: {
     flexDirection: 'row',
-    marginBottom: spacing.sm,
   },
   dayCalories: {
     fontSize: 18,
@@ -275,19 +266,6 @@ const styles = StyleSheet.create({
   },
   dayProtein: {
     fontSize: 18,
-    color: colors.textSecondary,
-  },
-  dayMeal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  dayMealType: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  dayMealCalories: {
-    fontSize: 16,
     color: colors.textSecondary,
   },
   loadingContainer: {
