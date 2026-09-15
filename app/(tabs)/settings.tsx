@@ -6,17 +6,24 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { DailyGoals } from '../../types';
-import { getUserGoals } from '../../services/storageService';
+import { getUserGoals, saveUserGoals } from '../../services/storageService';
 import { signOut } from '../../services/authService';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingCalories, setEditingCalories] = useState(false);
+  const [caloriesInput, setCaloriesInput] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadGoals();
@@ -30,6 +37,34 @@ export default function SettingsScreen() {
       console.error('Error loading goals:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openCaloriesEditor = () => {
+    if (!goals) return;
+    setCaloriesInput(String(goals.calories));
+    setEditingCalories(true);
+  };
+
+  const handleSaveCalories = async () => {
+    if (!goals) return;
+    const parsed = parseInt(caloriesInput, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      Alert.alert('Invalid value', 'Enter a whole number of calories greater than 0.');
+      return;
+    }
+
+    const updatedGoals = { ...goals, calories: parsed };
+    setSaving(true);
+    try {
+      await saveUserGoals(updatedGoals);
+      setGoals(updatedGoals);
+      setEditingCalories(false);
+    } catch (error) {
+      console.error('Error saving calorie target:', error);
+      Alert.alert('Error', 'Failed to save your calorie target.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -77,7 +112,7 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Targets</Text>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={openCaloriesEditor}>
             <Text style={styles.settingLabel}>Calories</Text>
             <Text style={styles.settingValue}>{goals.calories} kcal</Text>
           </TouchableOpacity>
@@ -93,6 +128,11 @@ export default function SettingsScreen() {
             <Text style={styles.settingLabel}>Fat</Text>
             <Text style={styles.settingValue}>{goals.fat || 'Not set'}g</Text>
           </TouchableOpacity>
+          <Text style={styles.disclaimer}>
+            These are general guidelines, not medical advice. Recommended daily calorie needs
+            vary by age, sex, weight, height, and activity level — consult a doctor or registered
+            dietitian before changing your target, especially if you have a health condition.
+          </Text>
         </View>
 
         <View style={styles.section}>
@@ -135,6 +175,50 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={editingCalories}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditingCalories(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Daily calorie target</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={caloriesInput}
+              onChangeText={setCaloriesInput}
+              keyboardType="number-pad"
+              placeholder="e.g. 2000"
+              autoFocus
+            />
+            <Text style={styles.disclaimer}>
+              This is a general guideline, not medical advice. Consult a doctor or registered
+              dietitian to determine the calorie target that's right for you.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => setEditingCalories(false)}
+                disabled={saving}
+              >
+                <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary]}
+                onPress={handleSaveCalories}
+                disabled={saving}
+              >
+                <Text style={styles.modalButtonPrimaryText}>{saving ? 'Saving...' : 'Save'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -201,5 +285,66 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 18,
     color: '#666666',
+  },
+  disclaimer: {
+    fontSize: 12,
+    color: '#999999',
+    marginHorizontal: 20,
+    marginTop: 12,
+    lineHeight: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    paddingBottom: 32,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 16,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#000000',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    marginTop: 20,
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonSecondary: {
+    backgroundColor: '#F2F2F2',
+  },
+  modalButtonSecondaryText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000000',
+  },
+  modalButtonPrimary: {
+    backgroundColor: '#000000',
+  },
+  modalButtonPrimaryText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
   },
 });
