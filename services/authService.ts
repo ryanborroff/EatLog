@@ -39,6 +39,18 @@ export const signOut = async () => {
   if (error) throw error;
 };
 
+/**
+ * Permanently deletes the current user's account and all their data
+ * (spec §38). The Edge Function only ever acts on the caller's own verified
+ * JWT identity, so this can't be pointed at another account. Signs the
+ * client out locally afterward, since the session is no longer valid.
+ */
+export const deleteAccount = async (): Promise<void> => {
+  const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+  if (error) throw error;
+  await supabase.auth.signOut();
+};
+
 export const getSession = async (): Promise<Session | null> => {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;

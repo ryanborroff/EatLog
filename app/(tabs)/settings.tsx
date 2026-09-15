@@ -369,6 +369,14 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => router.push('/settings/privacy')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.settingLabel}>Privacy</Text>
+            <Text style={styles.settingArrow}>→</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[styles.settingItem, styles.dangerItem]}
             onPress={handleSignOut}
           >
