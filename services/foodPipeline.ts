@@ -125,6 +125,13 @@ export const processTranscript = async (
 
   const resolvedItems = await resolveFoodItems(parsed.items);
 
+  // Rather than silently logging a phantom zero-calorie item, fail the whole
+  // entry so the user hits the normal error UI (retry / scan barcode instead)
+  // when nothing could identify what they meant.
+  if (resolvedItems.some((item) => item.unresolved)) {
+    throw new FoodParseError("Couldn't identify one or more items", 'invalid');
+  }
+
   const meal: Meal = {
     id: '', // assigned by storageService/Supabase on insert
     type: parsed.meal_type,

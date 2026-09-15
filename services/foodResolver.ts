@@ -154,26 +154,39 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
 
   if (item.estimated_nutrition) {
     const est = item.estimated_nutrition;
-    const sameUnit = normalize(est.serving_unit) === normalize(item.unit);
-    const reference: ReferenceNutrition = {
-      servingSize: est.serving_size,
-      servingUnit: est.serving_unit,
-      calories: est.calories,
-      protein: est.protein,
-      carbohydrate: est.carbohydrate,
-      fat: est.fat,
-      fibre: est.fibre ?? undefined,
-    };
-    const calculated = calculateNutrition(reference, item.quantity);
+    // A low-confidence, all-zero "estimate" isn't real nutrition data — it's the
+    // model admitting it couldn't identify the food (e.g. gibberish input).
+    // Trusting it here would silently log a phantom item that never counts
+    // toward the day's totals. Treat it the same as no estimate at all.
+    const isBogusEstimate =
+      item.confidence === 'low' &&
+      est.calories === 0 &&
+      est.protein === 0 &&
+      est.carbohydrate === 0 &&
+      est.fat === 0;
 
-    return {
-      description: item.description,
-      quantity: item.quantity,
-      unit: item.unit,
-      ...calculated,
-      confidence: sameUnit ? item.confidence : 'low',
-      estimated: true,
-    };
+    if (!isBogusEstimate) {
+      const sameUnit = normalize(est.serving_unit) === normalize(item.unit);
+      const reference: ReferenceNutrition = {
+        servingSize: est.serving_size,
+        servingUnit: est.serving_unit,
+        calories: est.calories,
+        protein: est.protein,
+        carbohydrate: est.carbohydrate,
+        fat: est.fat,
+        fibre: est.fibre ?? undefined,
+      };
+      const calculated = calculateNutrition(reference, item.quantity);
+
+      return {
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        ...calculated,
+        confidence: sameUnit ? item.confidence : 'low',
+        estimated: true,
+      };
+    }
   }
 
   // Spec §39: never invent a confident value when there's nothing to go on.
@@ -187,6 +200,7 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
     fat: 0,
     confidence: 'low',
     estimated: true,
+    unresolved: true,
   };
 };
 

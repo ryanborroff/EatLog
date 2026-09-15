@@ -75,4 +75,6 @@ export interface ResolvedFoodItem {
   fibre?: number;
   confidence: ConfidenceLevel;
   estimated: boolean;
+  /** True when nothing—reference DB, personal food, nor a usable AI estimate—could identify this item. */
+  unresolved?: boolean;
 }

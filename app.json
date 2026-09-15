@@ -11,6 +11,8 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "EatLog uses your microphone to log food by voice.",
         "NSSpeechRecognitionUsageDescription": "EatLog transcribes your voice to log the food you describe.",
+        "NSPhotoLibraryUsageDescription": "EatLog uses your photo library to attach a photo to a logged food item.",
+        "NSPhotoLibraryAddUsageDescription": "EatLog saves photos of your logged food items to your photo library.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.ryanfborroff.EatLog"
