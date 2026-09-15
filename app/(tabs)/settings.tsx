@@ -17,12 +17,31 @@ import { DailyGoals } from '../../types';
 import { getUserGoals, saveUserGoals } from '../../services/storageService';
 import { signOut } from '../../services/authService';
 
+type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat';
+
+const MACRO_CONFIG: Record<
+  MacroKey,
+  { label: string; unit: string; caloriesPerGram: number | null; calorieShare: number | null }
+> = {
+  calories: { label: 'Calories', unit: 'kcal', caloriesPerGram: null, calorieShare: null },
+  protein: { label: 'Protein', unit: 'g', caloriesPerGram: 4, calorieShare: 0.3 },
+  carbohydrate: { label: 'Carbohydrates', unit: 'g', caloriesPerGram: 4, calorieShare: 0.4 },
+  fat: { label: 'Fat', unit: 'g', caloriesPerGram: 9, calorieShare: 0.3 },
+};
+
+// Standard 30/40/30 protein/carb/fat split of the calorie target, for a suggested starting point only.
+const suggestedGrams = (macro: MacroKey, calorieTarget: number): number | null => {
+  const config = MACRO_CONFIG[macro];
+  if (config.caloriesPerGram === null || config.calorieShare === null) return null;
+  return Math.round((calorieTarget * config.calorieShare) / config.caloriesPerGram);
+};
+
 export default function SettingsScreen() {
   const router = useRouter();
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editingCalories, setEditingCalories] = useState(false);
-  const [caloriesInput, setCaloriesInput] = useState('');
+  const [editingMacro, setEditingMacro] = useState<MacroKey | null>(null);
+  const [macroInput, setMacroInput] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -40,29 +59,33 @@ export default function SettingsScreen() {
     }
   };
 
-  const openCaloriesEditor = () => {
+  const openMacroEditor = (macro: MacroKey) => {
     if (!goals) return;
-    setCaloriesInput(String(goals.calories));
-    setEditingCalories(true);
+    const currentValue = goals[macro];
+    setMacroInput(currentValue ? String(currentValue) : '');
+    setEditingMacro(macro);
   };
 
-  const handleSaveCalories = async () => {
-    if (!goals) return;
-    const parsed = parseInt(caloriesInput, 10);
+  const handleSaveMacro = async () => {
+    if (!goals || !editingMacro) return;
+    const parsed = parseInt(macroInput, 10);
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      Alert.alert('Invalid value', 'Enter a whole number of calories greater than 0.');
+      Alert.alert(
+        'Invalid value',
+        `Enter a whole number of ${MACRO_CONFIG[editingMacro].unit} greater than 0.`
+      );
       return;
     }
 
-    const updatedGoals = { ...goals, calories: parsed };
+    const updatedGoals = { ...goals, [editingMacro]: parsed };
     setSaving(true);
     try {
       await saveUserGoals(updatedGoals);
       setGoals(updatedGoals);
-      setEditingCalories(false);
+      setEditingMacro(null);
     } catch (error) {
-      console.error('Error saving calorie target:', error);
-      Alert.alert('Error', 'Failed to save your calorie target.');
+      console.error('Error saving target:', error);
+      Alert.alert('Error', 'Failed to save your target.');
     } finally {
       setSaving(false);
     }
@@ -112,19 +135,22 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Targets</Text>
-          <TouchableOpacity style={styles.settingItem} onPress={openCaloriesEditor}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => openMacroEditor('calories')}>
             <Text style={styles.settingLabel}>Calories</Text>
             <Text style={styles.settingValue}>{goals.calories} kcal</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => openMacroEditor('protein')}>
             <Text style={styles.settingLabel}>Protein</Text>
             <Text style={styles.settingValue}>{goals.protein}g</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => openMacroEditor('carbohydrate')}
+          >
             <Text style={styles.settingLabel}>Carbohydrates</Text>
             <Text style={styles.settingValue}>{goals.carbohydrate ?? 'Not set'}g</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => openMacroEditor('fat')}>
             <Text style={styles.settingLabel}>Fat</Text>
             <Text style={styles.settingValue}>{goals.fat || 'Not set'}g</Text>
           </TouchableOpacity>
@@ -177,46 +203,58 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <Modal
-        visible={editingCalories}
+        visible={editingMacro !== null}
         animationType="slide"
         transparent
-        onRequestClose={() => setEditingCalories(false)}
+        onRequestClose={() => setEditingMacro(null)}
       >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Daily calorie target</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={caloriesInput}
-              onChangeText={setCaloriesInput}
-              keyboardType="number-pad"
-              placeholder="e.g. 2000"
-              autoFocus
-            />
-            <Text style={styles.disclaimer}>
-              This is a general guideline, not medical advice. Consult a doctor or registered
-              dietitian to determine the calorie target that's right for you.
-            </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSecondary]}
-                onPress={() => setEditingCalories(false)}
-                disabled={saving}
-              >
-                <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
-                onPress={handleSaveCalories}
-                disabled={saving}
-              >
-                <Text style={styles.modalButtonPrimaryText}>{saving ? 'Saving...' : 'Save'}</Text>
-              </TouchableOpacity>
+          {editingMacro && goals && (
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Daily {MACRO_CONFIG[editingMacro].label.toLowerCase()} target</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={macroInput}
+                onChangeText={setMacroInput}
+                keyboardType="number-pad"
+                placeholder={`e.g. ${suggestedGrams(editingMacro, goals.calories) ?? 2000}`}
+                autoFocus
+              />
+              {suggestedGrams(editingMacro, goals.calories) !== null && (
+                <Text style={styles.suggestion}>
+                  Suggested: {suggestedGrams(editingMacro, goals.calories)}
+                  {MACRO_CONFIG[editingMacro].unit} based on a standard 30/40/30
+                  protein/carb/fat split of your calorie target
+                </Text>
+              )}
+              <Text style={styles.disclaimer}>
+                This is a general guideline, not medical advice. Recommended daily targets vary
+                by age, sex, weight, height, and activity level — consult a doctor or registered
+                dietitian to determine what's right for you.
+              </Text>
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonSecondary]}
+                  onPress={() => setEditingMacro(null)}
+                  disabled={saving}
+                >
+                  <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  onPress={handleSaveMacro}
+                  disabled={saving}
+                >
+                  <Text style={styles.modalButtonPrimaryText}>
+                    {saving ? 'Saving...' : 'Save'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )}
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
@@ -292,6 +330,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 12,
     lineHeight: 16,
+  },
+  suggestion: {
+    fontSize: 13,
+    color: '#666666',
+    marginTop: 10,
+    lineHeight: 18,
   },
   modalOverlay: {
     flex: 1,
