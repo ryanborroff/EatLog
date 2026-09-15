@@ -15,12 +15,13 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { colors, spacing, radii } from '../../constants/theme';
 import { generateObservations } from '../../utils/insightsObservations';
 
-type Period = 'week' | 'month' | '6months';
+type Period = 'week' | 'month' | '6months' | 'year';
 
 const PERIOD_OPTIONS: { id: Period; label: string; days: number; sectionTitle: string; observationLabel: string }[] = [
   { id: 'week', label: 'Week', days: 7, sectionTitle: 'This week', observationLabel: 'this week' },
   { id: 'month', label: 'Month', days: 30, sectionTitle: 'This month', observationLabel: 'this month' },
-  { id: '6months', label: '6 Months', days: 182, sectionTitle: 'Last 6 months', observationLabel: 'in the last 6 months' },
+  { id: '6months', label: '6 Mo', days: 182, sectionTitle: 'Last 6 months', observationLabel: 'in the last 6 months' },
+  { id: 'year', label: 'Year', days: 365, sectionTitle: 'Last year', observationLabel: 'in the last year' },
 ];
 
 export default function InsightsScreen() {
@@ -108,7 +109,10 @@ export default function InsightsScreen() {
                 accessibilityLabel={`${option.label} view`}
                 accessibilityState={{ selected: isActive }}
               >
-                <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>
+                <Text
+                  style={[styles.segmentText, isActive && styles.segmentTextActive]}
+                  numberOfLines={1}
+                >
                   {option.label}
                 </Text>
               </TouchableOpacity>
@@ -212,12 +216,13 @@ const styles = StyleSheet.create({
   segment: {
     flex: 1,
     paddingVertical: 10,
+    paddingHorizontal: 2,
     borderRadius: radii.card - 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   segmentText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textSecondary,
   },
