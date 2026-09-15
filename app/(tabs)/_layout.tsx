@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { colors } from '../../constants/theme';
 
 export default function TabLayout() {
   const { accentColor } = useTheme();
@@ -11,18 +12,23 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.background,
           borderTopWidth: 1,
           borderTopColor: '#E0E0E0',
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 60,
+          paddingBottom: 12,
+          paddingTop: 10,
+          height: 80,
         },
         tabBarActiveTintColor: accentColor,
-        tabBarInactiveTintColor: '#999999',
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarIconStyle: {
+          width: 24,
+          height: 24,
+        },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 14,
           fontWeight: '500',
+          marginTop: 4,
         },
       }}
     >

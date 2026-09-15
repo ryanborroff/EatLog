@@ -11,6 +11,7 @@ import { useFocusEffect } from 'expo-router';
 import { DayEntry } from '../../types';
 import { getHistory } from '../../services/storageService';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
+import { colors, spacing, radii } from '../../constants/theme';
 
 export default function HistoryScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -64,10 +65,11 @@ export default function HistoryScreen() {
   if (selectedDate && selectedEntry) {
     return (
       <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.scrollView}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => setSelectedDate(null)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
@@ -81,7 +83,7 @@ export default function HistoryScreen() {
               <Text style={styles.totalLabel}>Calories</Text>
               <Text style={styles.totalValue}>{selectedEntry.totals.calories} kcal</Text>
             </View>
-            <View style={styles.totalRow}>
+            <View style={[styles.totalRow, styles.totalRowLast]}>
               <Text style={styles.totalLabel}>Protein</Text>
               <Text style={styles.totalValue}>{selectedEntry.totals.protein}g</Text>
             </View>
@@ -109,7 +111,7 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>History</Text>
         </View>
@@ -119,6 +121,7 @@ export default function HistoryScreen() {
             key={entry.date}
             style={styles.dayCard}
             onPress={() => setSelectedDate(entry.date)}
+            activeOpacity={0.7}
           >
             <Text style={styles.dayDate}>{formatDate(entry.date)}</Text>
             <View style={styles.dayTotals}>
@@ -141,111 +144,124 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
   backButton: {
-    padding: 20,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   backButtonText: {
     fontSize: 16,
-    color: '#000000',
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   header: {
-    padding: 20,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
-    color: '#000000',
+    lineHeight: 38,
+    color: colors.textPrimary,
   },
   date: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#000000',
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   totalsCard: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
+  },
+  totalRowLast: {
+    marginBottom: 0,
   },
   totalLabel: {
     fontSize: 16,
-    color: '#666666',
+    color: colors.textSecondary,
   },
   totalValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   mealCard: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    backgroundColor: colors.background,
+    borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.cardBorder,
   },
   mealHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   mealType: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   mealCalories: {
     fontSize: 16,
-    color: '#666666',
+    color: colors.textSecondary,
   },
   foodItem: {
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   foodDescription: {
     fontSize: 16,
-    color: '#000000',
+    color: colors.textPrimary,
   },
   dayCard: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    backgroundColor: colors.background,
+    borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.cardBorder,
   },
   dayDate: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 8,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   dayTotals: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   dayCalories: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
-    marginRight: 16,
+    color: colors.textPrimary,
+    marginRight: spacing.md,
   },
   dayProtein: {
-    fontSize: 16,
-    color: '#666666',
+    fontSize: 18,
+    color: colors.textSecondary,
   },
   dayMeal: {
     flexDirection: 'row',
@@ -253,12 +269,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   dayMealType: {
-    fontSize: 14,
-    color: '#666666',
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   dayMealCalories: {
-    fontSize: 14,
-    color: '#666666',
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   loadingContainer: {
     flex: 1,
@@ -267,6 +283,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 18,
-    color: '#666666',
+    color: colors.textSecondary,
   },
 });

@@ -23,6 +23,7 @@ import {
 import { signOut } from '../../services/authService';
 import { ACTIVITY_LEVEL_LABELS, estimateMaintenanceCalories } from '../../services/calorieTarget';
 import { ACCENT_COLORS, useTheme } from '../../contexts/ThemeContext';
+import { colors as theme, spacing, radii } from '../../constants/theme';
 
 type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat';
 
@@ -225,7 +226,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Settings</Text>
         </View>
@@ -531,72 +532,80 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.background,
   },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
   header: {
-    padding: 20,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
-    color: '#000000',
+    lineHeight: 38,
+    color: theme.textPrimary,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: spacing.xl,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 16,
-    marginHorizontal: 20,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
+    color: theme.textPrimary,
+    marginBottom: spacing.md,
+    marginHorizontal: spacing.lg,
   },
   settingItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    minHeight: 64,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: theme.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.divider,
   },
   settingLabel: {
     fontSize: 16,
-    color: '#000000',
+    color: theme.textPrimary,
   },
   settingValue: {
     fontSize: 16,
-    color: '#666666',
+    color: theme.textSecondary,
   },
   settingArrow: {
     fontSize: 20,
-    color: '#666666',
+    color: theme.textSecondary,
   },
   settingLabelLink: {
     fontSize: 16,
+    fontWeight: '600',
     color: '#007AFF',
   },
   optionRow: {
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.divider,
   },
   optionRowText: {
     fontSize: 16,
-    color: '#000000',
+    color: theme.textPrimary,
   },
   optionCancelButton: {
-    marginTop: 16,
+    marginTop: spacing.md,
   },
   dangerItem: {
-    marginTop: 8,
+    marginTop: spacing.xs,
   },
   dangerText: {
-    color: '#FF3B30',
+    color: theme.danger,
   },
   loadingContainer: {
     flex: 1,
@@ -605,20 +614,20 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 18,
-    color: '#666666',
+    color: theme.textSecondary,
   },
   disclaimer: {
-    fontSize: 12,
-    color: '#999999',
-    marginHorizontal: 20,
-    marginTop: 12,
-    lineHeight: 16,
+    fontSize: 14,
+    color: theme.textMuted,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    lineHeight: 20,
   },
   suggestion: {
-    fontSize: 13,
-    color: '#666666',
-    marginTop: 10,
-    lineHeight: 18,
+    fontSize: 14,
+    color: theme.textSecondary,
+    marginTop: spacing.sm,
+    lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,
@@ -626,31 +635,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 20,
-    paddingBottom: 32,
+    backgroundColor: theme.background,
+    borderTopLeftRadius: radii.card,
+    borderTopRightRadius: radii.card,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 16,
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.textPrimary,
+    marginBottom: spacing.md,
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: theme.divider,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#000000',
+    color: theme.textPrimary,
   },
   modalActions: {
     flexDirection: 'row',
-    marginTop: 20,
-    gap: 12,
+    marginTop: spacing.lg,
+    gap: spacing.sm,
   },
   modalButton: {
     flex: 1,
@@ -664,7 +673,7 @@ const styles = StyleSheet.create({
   modalButtonSecondaryText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#000000',
+    color: theme.textPrimary,
   },
   modalButtonPrimary: {
     backgroundColor: '#000000',
@@ -677,8 +686,8 @@ const styles = StyleSheet.create({
   colorSwatchRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    gap: 20,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.lg,
   },
   colorSwatchWrapper: {
     alignItems: 'center',
@@ -691,11 +700,11 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   colorSwatchSelected: {
-    borderColor: '#000000',
+    borderColor: theme.textPrimary,
   },
   colorSwatchLabel: {
     fontSize: 12,
-    color: '#666666',
+    color: theme.textSecondary,
     marginTop: 6,
   },
 });

@@ -10,6 +10,7 @@ import { useFocusEffect } from 'expo-router';
 import { DayEntry } from '../../types';
 import { getHistory, getUserGoals } from '../../services/storageService';
 import { track } from '../../services/analytics';
+import { colors, spacing, radii } from '../../constants/theme';
 
 export default function InsightsScreen() {
   const [history, setHistory] = useState<DayEntry[]>([]);
@@ -63,9 +64,12 @@ export default function InsightsScreen() {
     (entry) => entry.totals.protein >= goals.protein
   ).length;
 
+  const calorieProgressRatio = history.length > 0 ? daysWithinCalorieTarget / history.length : 0;
+  const proteinProgressRatio = history.length > 0 ? daysHittingProteinTarget / history.length : 0;
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Insights</Text>
         </View>
@@ -76,7 +80,7 @@ export default function InsightsScreen() {
             <Text style={styles.insightLabel}>Average calories</Text>
             <Text style={styles.insightValue}>{avgCalories} kcal</Text>
           </View>
-          <View style={styles.insightCard}>
+          <View style={[styles.insightCard, styles.insightCardLast]}>
             <Text style={styles.insightLabel}>Average protein</Text>
             <Text style={styles.insightValue}>{avgProtein}g</Text>
           </View>
@@ -89,23 +93,39 @@ export default function InsightsScreen() {
             <Text style={styles.insightValue}>
               {daysWithinCalorieTarget} / {history.length}
             </Text>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.round(calorieProgressRatio * 100)}%` },
+                ]}
+              />
+            </View>
           </View>
-          <View style={styles.insightCard}>
+          <View style={[styles.insightCard, styles.insightCardLast]}>
             <Text style={styles.insightLabel}>Days hitting protein target</Text>
             <Text style={styles.insightValue}>
               {daysHittingProteinTarget} / {history.length}
             </Text>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.round(proteinProgressRatio * 100)}%` },
+                ]}
+              />
+            </View>
           </View>
         </View>
 
-        <View style={styles.section}>
+        <View style={[styles.section, styles.sectionLast]}>
           <Text style={styles.sectionTitle}>Observations</Text>
           <View style={styles.observationCard}>
             <Text style={styles.observationText}>
               Your protein intake has been fairly consistent this week.
             </Text>
           </View>
-          <View style={styles.observationCard}>
+          <View style={[styles.observationCard, styles.observationCardLast]}>
             <Text style={styles.observationText}>
               Most of your calorie variation is coming from evening meals.
             </Text>
@@ -119,57 +139,89 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
   header: {
-    padding: 20,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
-    color: '#000000',
+    lineHeight: 38,
+    color: colors.textPrimary,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: spacing.xl,
+  },
+  sectionLast: {
+    marginBottom: 0,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 16,
-    marginHorizontal: 20,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+    marginHorizontal: spacing.lg,
   },
   insightCard: {
-    marginHorizontal: 20,
-    marginBottom: 12,
-    padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
+    minHeight: 110,
+    justifyContent: 'center',
+  },
+  insightCardLast: {
+    marginBottom: 0,
   },
   insightLabel: {
-    fontSize: 14,
-    color: '#666666',
+    fontSize: 16,
+    fontWeight: '400',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   insightValue: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.textPrimary,
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.divider,
+    marginTop: spacing.sm,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.textPrimary,
   },
   observationCard: {
-    marginHorizontal: 20,
-    marginBottom: 12,
-    padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    backgroundColor: colors.observationTint,
+    borderRadius: radii.card,
+  },
+  observationCardLast: {
+    marginBottom: 0,
   },
   observationText: {
     fontSize: 16,
-    color: '#000000',
-    lineHeight: 24,
+    color: colors.textPrimary,
+    lineHeight: 23,
   },
   loadingContainer: {
     flex: 1,
@@ -178,6 +230,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 18,
-    color: '#666666',
+    color: colors.textSecondary,
   },
 });

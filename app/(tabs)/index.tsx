@@ -16,6 +16,7 @@ import {
 } from '../../services/storageService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
+import { colors, spacing, radii } from '../../constants/theme';
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'clarification' | 'complete';
 
@@ -42,7 +43,7 @@ export default function TodayScreen() {
       ]);
 
       const entry = await createDayEntry(todayDate);
-      
+
       setGoals(userGoals);
       setTodayEntry(entry);
     } catch (error) {
@@ -88,13 +89,15 @@ export default function TodayScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.date}>{formatDate(todayEntry.date)}</Text>
           <TouchableOpacity
+            style={styles.askButtonTouchable}
             onPress={handleAsk}
             accessibilityLabel="Ask about your diary"
             accessibilityRole="button"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={[styles.askButton, { color: accentColor }]}>Ask</Text>
           </TouchableOpacity>
@@ -120,7 +123,7 @@ export default function TodayScreen() {
             <Text style={styles.macroValue}>{todayEntry.totals.carbohydrate}g</Text>
           </View>
 
-          <View style={styles.macroSection}>
+          <View style={[styles.macroSection, styles.macroSectionLast]}>
             <Text style={styles.macroLabel}>Fat</Text>
             <Text style={styles.macroValue}>{todayEntry.totals.fat}g</Text>
           </View>
@@ -133,7 +136,7 @@ export default function TodayScreen() {
           </Text>
         </View>
 
-        <View style={styles.remainingSection}>
+        <View style={[styles.remainingSection, styles.remainingSectionLast]}>
           <Text style={styles.remainingLabel}>Protein remaining</Text>
           <Text style={styles.remainingValue}>
             {remainingProtein >= 0 ? remainingProtein : `+${Math.abs(remainingProtein)}`}g
@@ -163,6 +166,7 @@ export default function TodayScreen() {
           <TouchableOpacity
             style={[styles.voiceButton, { backgroundColor: accentColor }]}
             onPress={handleVoiceLog}
+            activeOpacity={0.85}
           >
             <Text style={styles.voiceButtonText}>LOG FOOD</Text>
           </TouchableOpacity>
@@ -175,134 +179,153 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingTop: spacing.lg,
+  },
   header: {
-    padding: 20,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   date: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#000000',
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    flexShrink: 1,
+  },
+  askButtonTouchable: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   askButton: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#666666',
   },
   totalsCard: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
   },
   calorieSection: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   calorieValue: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.textPrimary,
   },
   calorieTarget: {
-    fontSize: 16,
-    color: '#666666',
+    fontSize: 18,
+    color: colors.textSecondary,
     marginTop: 4,
   },
   divider: {
     height: 1,
-    backgroundColor: '#E0E0E0',
-    marginBottom: 16,
+    backgroundColor: colors.divider,
+    marginBottom: spacing.md,
   },
   macroSection: {
-    marginBottom: 12,
+    marginBottom: spacing.sm,
+  },
+  macroSectionLast: {
+    marginBottom: 0,
   },
   macroLabel: {
     fontSize: 14,
-    color: '#666666',
+    fontWeight: '500',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   macroValue: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.textPrimary,
     marginTop: 4,
   },
   remainingSection: {
-    marginHorizontal: 20,
-    marginBottom: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  remainingSectionLast: {
+    marginBottom: spacing.lg,
+  },
   remainingLabel: {
     fontSize: 16,
-    color: '#666666',
+    color: colors.textSecondary,
   },
   remainingValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.textPrimary,
   },
   mealCard: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    backgroundColor: colors.background,
+    borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.cardBorder,
   },
   mealHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   mealType: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   mealCalories: {
     fontSize: 16,
-    color: '#666666',
+    color: colors.textSecondary,
   },
   foodItem: {
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   foodDescription: {
     fontSize: 16,
-    color: '#000000',
+    color: colors.textPrimary,
   },
   estimatedText: {
-    fontSize: 14,
-    color: '#999999',
+    fontSize: 16,
+    color: colors.textSecondary,
     fontStyle: 'italic',
   },
   voiceButtonContainer: {
-    padding: 20,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
     alignItems: 'center',
   },
   voiceButton: {
-    backgroundColor: '#000000',
-    borderRadius: 50,
-    paddingVertical: 20,
-    paddingHorizontal: 60,
-    minWidth: 200,
+    borderRadius: radii.pill,
+    height: 48,
+    paddingHorizontal: spacing.xl,
+    minWidth: 240,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   voiceButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     letterSpacing: 1,
   },
@@ -313,6 +336,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 18,
-    color: '#666666',
+    color: colors.textSecondary,
   },
 });
