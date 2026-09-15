@@ -57,11 +57,11 @@ export const applyCorrections = async (meal: Meal, operations: CorrectionOperati
             ...existing,
             quantity: op.new_quantity,
             unit: op.new_unit,
-            calories: Math.round(existing.calories * scale * 10) / 10,
-            protein: Math.round(existing.protein * scale * 10) / 10,
-            carbohydrate: Math.round(existing.carbohydrate * scale * 10) / 10,
-            fat: Math.round(existing.fat * scale * 10) / 10,
-            fibre: existing.fibre !== undefined ? Math.round(existing.fibre * scale * 10) / 10 : undefined,
+            calories: Math.ceil(existing.calories * scale * 10) / 10,
+            protein: Math.ceil(existing.protein * scale * 10) / 10,
+            carbohydrate: Math.ceil(existing.carbohydrate * scale * 10) / 10,
+            fat: Math.ceil(existing.fat * scale * 10) / 10,
+            fibre: existing.fibre !== undefined ? Math.ceil(existing.fibre * scale * 10) / 10 : undefined,
           };
         }
         break;

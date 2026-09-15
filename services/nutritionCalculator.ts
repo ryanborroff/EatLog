@@ -19,7 +19,7 @@ export interface CalculatedNutrition {
   fibre?: number;
 }
 
-const round = (value: number): number => Math.round(value * 10) / 10;
+const round = (value: number): number => Math.ceil(value * 10) / 10;
 
 /**
  * Scales a food's reference nutrition (e.g. "per 100g") to a requested quantity.
