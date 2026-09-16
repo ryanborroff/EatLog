@@ -109,11 +109,17 @@ export default function TodayScreen() {
             </View>
             <View style={styles.macroCell}>
               <Text style={styles.macroLabel}>Carbs</Text>
-              <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.carbohydrate)}g</Text>
+              <Text style={styles.macroValue}>
+                {formatAmount(todayEntry.totals.carbohydrate)}g
+                {goals.carbohydrate ? ` / ${formatAmount(goals.carbohydrate)}g` : ''}
+              </Text>
             </View>
             <View style={styles.macroCell}>
               <Text style={styles.macroLabel}>Fat</Text>
-              <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.fat)}g</Text>
+              <Text style={styles.macroValue}>
+                {formatAmount(todayEntry.totals.fat)}g
+                {goals.fat ? ` / ${formatAmount(goals.fat)}g` : ''}
+              </Text>
             </View>
             <View style={styles.macroCell}>
               <Text style={styles.macroLabel}>Fibre</Text>
