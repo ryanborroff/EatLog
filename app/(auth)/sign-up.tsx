@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { signUp } from '../../services/authService';
+import { signUp, handleAuthRedirectUrl } from '../../services/authService';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -19,6 +19,20 @@ export default function SignUpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
+
+  // DEV BYPASS — remove once the emailRedirectTo/deep-link fix is confirmed
+  // working in production. Lets testers paste the confirmation email's link
+  // in manually, since older TestFlight builds sent it to localhost:3000.
+  const [pastedLink, setPastedLink] = useState('');
+  const [pasteError, setPasteError] = useState<string | null>(null);
+  const handlePasteConfirm = async () => {
+    setPasteError(null);
+    try {
+      await handleAuthRedirectUrl(pastedLink.trim());
+    } catch (err) {
+      setPasteError(err instanceof Error ? err.message : 'Could not confirm with that link.');
+    }
+  };
 
   const handleSignUp = async () => {
     setError(null);
@@ -49,6 +63,25 @@ export default function SignUpScreen() {
           <TouchableOpacity onPress={() => router.replace('/(auth)/sign-in')}>
             <Text style={styles.link}>Back to sign in</Text>
           </TouchableOpacity>
+
+          {/* DEV BYPASS — delete this block along with the state/handler above
+              once the deep-link confirmation flow is verified in production. */}
+          <View style={styles.devBypass}>
+            <Text style={styles.devBypassLabel}>Dev: paste confirmation link</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="http://localhost:3000/#access_token=..."
+              placeholderTextColor="#999999"
+              autoCapitalize="none"
+              autoComplete="off"
+              value={pastedLink}
+              onChangeText={setPastedLink}
+            />
+            {pasteError && <Text style={styles.error}>{pasteError}</Text>}
+            <TouchableOpacity style={styles.button} onPress={handlePasteConfirm}>
+              <Text style={styles.buttonText}>Confirm with pasted link</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -130,4 +163,11 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   link: { color: '#000000', fontSize: 14, textAlign: 'center', marginTop: 24 },
+  devBypass: {
+    marginTop: 40,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  devBypassLabel: { fontSize: 12, color: '#999999', marginBottom: 8 },
 });
