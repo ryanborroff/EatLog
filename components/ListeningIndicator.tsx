@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 interface ListeningIndicatorProps {
   /** Whether the mic is actively capturing — drives the breathing animation. */
@@ -7,6 +8,10 @@ interface ListeningIndicatorProps {
   /** Diameter of the core circle in px. */
   size?: number;
   color: string;
+  /** Show the mic glyph inside the core circle. */
+  showMicIcon?: boolean;
+  /** Show a checkmark glyph, popping in with a spring — used for the "Logged" beat. */
+  showCheckIcon?: boolean;
 }
 
 /**
@@ -14,9 +19,29 @@ interface ListeningIndicatorProps {
  * restrained — a slow "breathing" scale plus one or two fading pulse rings,
  * not a nightclub equalizer. Scale variance is kept under ~10% (spec).
  */
-const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({ active, size = 96, color }) => {
+const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
+  active,
+  size = 96,
+  color,
+  showMicIcon = false,
+  showCheckIcon = false,
+}) => {
   const breathe = useRef(new Animated.Value(0)).current;
   const ring = useRef(new Animated.Value(0)).current;
+  const checkScale = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!showCheckIcon) {
+      checkScale.setValue(0);
+      return;
+    }
+    Animated.spring(checkScale, {
+      toValue: 1,
+      friction: 5,
+      tension: 140,
+      useNativeDriver: true,
+    }).start();
+  }, [showCheckIcon, checkScale]);
 
   useEffect(() => {
     breathe.setValue(0);
@@ -91,7 +116,14 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({ active, size = 
             transform: [{ scale: active ? coreScale : 1 }],
           },
         ]}
-      />
+      >
+        {showMicIcon && <Ionicons name="mic" size={size * 0.4} color="#FFFFFF" />}
+        {showCheckIcon && (
+          <Animated.View style={{ transform: [{ scale: checkScale }] }}>
+            <Ionicons name="checkmark" size={size * 0.45} color="#FFFFFF" />
+          </Animated.View>
+        )}
+      </Animated.View>
     </View>
   );
 };

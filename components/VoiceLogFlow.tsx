@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   View,
   Text,
   StyleSheet,
@@ -34,6 +35,7 @@ type FlowState =
   | 'transcribing'
   | 'confirmed'
   | 'processing'
+  | 'logged'
   | 'clarification'
   | 'result'
   | 'error'
@@ -86,6 +88,17 @@ const VoiceLogFlow: React.FC = () => {
   const [gramsValue, setGramsValue] = useState('100');
   const mealHintRef = useRef<string | undefined>(undefined);
   const startedRef = useRef(false);
+  const contentOpacity = useRef(new Animated.Value(1)).current;
+
+  // Quick cross-fade whenever the state (and thus the rendered content) changes.
+  useEffect(() => {
+    contentOpacity.setValue(0);
+    Animated.timing(contentOpacity, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [state, contentOpacity]);
 
   useSpeechRecognitionEvent('result', (event) => {
     const text = event.results[0]?.transcript ?? '';
@@ -152,7 +165,8 @@ const VoiceLogFlow: React.FC = () => {
       } else {
         setLoggedMeal(result.meal);
         setWasCorrection(result.status === 'updated');
-        setState('result');
+        setState('logged');
+        setTimeout(() => setState('result'), 450);
         track('voice_log_completed');
         if (result.status === 'logged') {
           track('food_logged', { source: 'voice', mealType: result.meal.type, itemCount: result.meal.items.length });
@@ -212,7 +226,8 @@ const VoiceLogFlow: React.FC = () => {
     track('food_logged', { source: 'barcode', mealType: meal.type, itemCount: meal.items.length });
     setLoggedMeal(meal);
     setWasCorrection(false);
-    setState('result');
+    setState('logged');
+    setTimeout(() => setState('result'), 450);
   };
 
   const renderContent = () => {
@@ -221,7 +236,12 @@ const VoiceLogFlow: React.FC = () => {
       case 'transcribing':
         return (
           <View style={styles.content}>
-            <ListeningIndicator active size={100} color={accentColor} />
+            <ListeningIndicator
+              active
+              size={100}
+              color={accentColor}
+              showMicIcon={state === 'listening'}
+            />
             {state === 'listening' ? (
               <Text style={styles.prompt}>{LISTENING_COPY}</Text>
             ) : (
@@ -242,6 +262,14 @@ const VoiceLogFlow: React.FC = () => {
         return (
           <View style={styles.content}>
             <ListeningIndicator active={false} size={72} color={accentColor} />
+          </View>
+        );
+
+      case 'logged':
+        return (
+          <View style={styles.content}>
+            <ListeningIndicator active={false} size={72} color={accentColor} showCheckIcon />
+            <Text style={styles.prompt}>Logged</Text>
           </View>
         );
 
@@ -320,15 +348,13 @@ const VoiceLogFlow: React.FC = () => {
 
       case 'result': {
         if (!loggedMeal) return null;
-        const hasEstimate = loggedMeal.items.some((i) => i.estimated);
-        const kcal = `${hasEstimate ? '≈' : ''}${formatAmount(loggedMeal.totalCalories)}`;
-        const protein = `${hasEstimate ? '≈' : ''}${formatAmount(loggedMeal.totalProtein)}`;
+        const kcal = formatAmount(loggedMeal.totalCalories);
+        const protein = formatAmount(loggedMeal.totalProtein);
         return (
           <TouchableOpacity style={styles.content} activeOpacity={1} onPress={handleFollowUp}>
             <Text style={styles.resultMealType}>{formatMealType(loggedMeal.type)}</Text>
             {loggedMeal.items.map((item) => (
               <Text key={item.id} style={styles.resultItem}>
-                {item.estimated ? '~' : ''}
                 {formatFoodItemLine(item)}
               </Text>
             ))}
@@ -337,9 +363,8 @@ const VoiceLogFlow: React.FC = () => {
                 ? `Updated · ${kcal} kcal`
                 : `${kcal} kcal · ${protein}g protein · Logged`}
             </Text>
-            {hasEstimate && <Text style={styles.estimatedLabel}>Estimated</Text>}
             <Text style={styles.followUpHint}>Tap the mic to add or correct something</Text>
-            <ListeningIndicator active={false} size={64} color={accentColor} />
+            <ListeningIndicator active={false} size={64} color={accentColor} showMicIcon />
           </TouchableOpacity>
         );
       }
@@ -377,7 +402,9 @@ const VoiceLogFlow: React.FC = () => {
         style={styles.body}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {renderContent()}
+        <Animated.View style={[styles.body, { opacity: contentOpacity }]}>
+          {renderContent()}
+        </Animated.View>
       </KeyboardAvoidingView>
       <CalendarPicker
         visible={showCalendar}
@@ -494,11 +521,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginTop: spacing.md,
     textAlign: 'center',
-  },
-  estimatedLabel: {
-    ...typography.small,
-    color: colors.textMuted,
-    marginTop: 4,
   },
   followUpHint: {
     ...typography.small,

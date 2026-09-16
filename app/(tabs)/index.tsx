@@ -187,6 +187,19 @@ export default function TodayScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <TouchableOpacity
+          style={styles.voiceCta}
+          onPress={handleVoiceLog}
+          activeOpacity={0.7}
+          accessibilityLabel="Log what you've eaten"
+          accessibilityRole="button"
+        >
+          <Text style={styles.voiceCtaPrompt}>Log what you've eaten</Text>
+          <View style={[styles.voiceCtaMic, { backgroundColor: accentColor }]}>
+            <Ionicons name="mic" size={28} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+
         {todayEntry.meals.map((meal) => (
           <View key={meal.id} style={styles.mealCard}>
             <View style={styles.mealHeader}>
@@ -205,19 +218,6 @@ export default function TodayScreen() {
             ))}
           </View>
         ))}
-
-        <TouchableOpacity
-          style={styles.voiceCta}
-          onPress={handleVoiceLog}
-          activeOpacity={0.7}
-          accessibilityLabel="Log what you've eaten"
-          accessibilityRole="button"
-        >
-          <Text style={styles.voiceCtaPrompt}>Log what you've eaten</Text>
-          <View style={[styles.voiceCtaMic, { backgroundColor: accentColor }]}>
-            <Ionicons name="mic" size={28} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -392,8 +392,8 @@ const styles = StyleSheet.create({
   },
   voiceCta: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.lg,
     alignItems: 'center',
   },
   voiceCtaPrompt: {
