@@ -63,6 +63,13 @@ export default function RootLayout() {
               headerShown: false,
             }}
           />
+          <Stack.Screen
+            name="edit-meal"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
           <Stack.Screen name="settings/personal-foods" options={{ headerShown: false }} />
           <Stack.Screen name="settings/usual-foods" options={{ headerShown: false }} />
         </Stack.Protected>

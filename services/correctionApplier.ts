@@ -15,6 +15,20 @@ const findItemIndex = (items: FoodItem[], targetDescription: string | null): num
   return items.findIndex((item) => normalize(item.description).includes(normalize(targetDescription)));
 };
 
+/** Rebuilds a meal's totals from its (possibly edited) item list — shared by voice corrections and manual editing. */
+export const recalculateMealTotals = (meal: Meal, items: FoodItem[], type: Meal['type']): Meal => ({
+  ...meal,
+  type,
+  items,
+  totalCalories: items.reduce((sum, i) => sum + i.calories, 0),
+  totalProtein: items.reduce((sum, i) => sum + i.protein, 0),
+  totalCarbohydrate: items.reduce((sum, i) => sum + i.carbohydrate, 0),
+  totalFat: items.reduce((sum, i) => sum + i.fat, 0),
+  totalFibre: items.reduce((sum, i) => sum + (i.fibre ?? 0), 0),
+  totalSodium: items.reduce((sum, i) => sum + (i.sodium ?? 0), 0),
+  totalSugar: items.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
+});
+
 export const applyCorrections = async (meal: Meal, operations: CorrectionOperation[]): Promise<Meal> => {
   const items = [...meal.items];
   let mealType = meal.type;
@@ -76,16 +90,5 @@ export const applyCorrections = async (meal: Meal, operations: CorrectionOperati
     }
   }
 
-  return {
-    ...meal,
-    type: mealType,
-    items,
-    totalCalories: items.reduce((sum, i) => sum + i.calories, 0),
-    totalProtein: items.reduce((sum, i) => sum + i.protein, 0),
-    totalCarbohydrate: items.reduce((sum, i) => sum + i.carbohydrate, 0),
-    totalFat: items.reduce((sum, i) => sum + i.fat, 0),
-    totalFibre: items.reduce((sum, i) => sum + (i.fibre ?? 0), 0),
-    totalSodium: items.reduce((sum, i) => sum + (i.sodium ?? 0), 0),
-    totalSugar: items.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
-  };
+  return recalculateMealTotals(meal, items, mealType);
 };

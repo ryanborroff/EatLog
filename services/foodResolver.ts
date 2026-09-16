@@ -2,11 +2,12 @@
 // order: 1) personal foods, 2) saved defaults, 3-4) standard reference DB
 // (exact name, then alias), 5) the AI's own estimate.
 
+import { FoodItem } from '../types';
 import { ParsedFoodItem, ResolvedFoodItem } from '../types/foodParser';
 import { calculateNutrition, ReferenceNutrition } from './nutritionCalculator';
 import { supabase } from './supabaseClient';
 
-interface FoodRow {
+export interface FoodRow {
   id: string;
   name: string;
   serving_size: number;
@@ -214,4 +215,43 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
 
 export const resolveFoodItems = async (items: ParsedFoodItem[]): Promise<ResolvedFoodItem[]> => {
   return Promise.all(items.map(resolveOne));
+};
+
+/** Free-text search over the reference food DB, for manual "add food" pickers (no AI involved). */
+export const searchFoods = async (query: string): Promise<FoodRow[]> => {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const { data } = await supabase
+    .from('foods')
+    .select('id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar')
+    .ilike('name', `%${normalize(trimmed)}%`)
+    .limit(15);
+
+  return data ?? [];
+};
+
+/** Builds a full FoodItem from a picked reference food at its default serving — used by manual editing. */
+export const foodRowToItem = (food: FoodRow): FoodItem => {
+  const reference: ReferenceNutrition = {
+    servingSize: food.serving_size,
+    servingUnit: food.serving_unit,
+    calories: food.calories,
+    protein: food.protein,
+    carbohydrate: food.carbohydrate,
+    fat: food.fat,
+    fibre: food.fibre ?? undefined,
+    sodium: food.sodium ?? undefined,
+    sugar: food.sugar ?? undefined,
+  };
+
+  return {
+    id: String(Date.now()),
+    description: food.name,
+    quantity: food.serving_size,
+    unit: food.serving_unit,
+    ...calculateNutrition(reference, food.serving_size),
+    confidence: 'high',
+    estimated: false,
+  };
 };

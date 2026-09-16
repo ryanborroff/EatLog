@@ -201,7 +201,14 @@ export default function TodayScreen() {
         </TouchableOpacity>
 
         {todayEntry.meals.map((meal) => (
-          <View key={meal.id} style={styles.mealCard}>
+          <TouchableOpacity
+            key={meal.id}
+            style={styles.mealCard}
+            activeOpacity={0.7}
+            onPress={() => router.push({ pathname: '/edit-meal', params: { date: todayDate, mealId: meal.id } })}
+            accessibilityLabel={`Edit ${formatMealType(meal.type)}`}
+            accessibilityRole="button"
+          >
             <View style={styles.mealHeader}>
               <View>
                 <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
@@ -216,7 +223,7 @@ export default function TodayScreen() {
                 </Text>
               </View>
             ))}
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </SafeAreaView>
