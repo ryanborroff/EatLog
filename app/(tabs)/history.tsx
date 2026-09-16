@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { DayEntry } from '../../types';
@@ -14,11 +15,13 @@ import { formatFoodItemLine } from '../../utils/formatFoodItem';
 import { formatAmount } from '../../utils/formatNumber';
 import { formatLoggedTime } from '../../utils/formatTime';
 import { colors, spacing, radii } from '../../constants/theme';
+import CalendarPicker from '../../components/CalendarPicker';
 
 export default function HistoryScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [history, setHistory] = useState<DayEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,6 +56,7 @@ export default function HistoryScreen() {
   const selectedEntry = selectedDate
     ? history.find((entry) => entry.date === selectedDate)
     : null;
+  const today = new Date().toISOString().split('T')[0];
 
   if (loading) {
     return (
@@ -64,7 +68,7 @@ export default function HistoryScreen() {
     );
   }
 
-  if (selectedDate && selectedEntry) {
+  if (selectedDate) {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -77,38 +81,46 @@ export default function HistoryScreen() {
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <Text style={styles.date}>{formatDate(selectedEntry.date)}</Text>
+            <Text style={styles.date}>{formatDate(selectedDate)}</Text>
           </View>
 
-          <View style={styles.totalsCard}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Calories</Text>
-              <Text style={styles.totalValue}>{formatAmount(selectedEntry.totals.calories)} kcal</Text>
-            </View>
-            <View style={[styles.totalRow, styles.totalRowLast]}>
-              <Text style={styles.totalLabel}>Protein</Text>
-              <Text style={styles.totalValue}>{formatAmount(selectedEntry.totals.protein)}g</Text>
-            </View>
-          </View>
-
-          {selectedEntry.meals.map((meal) => (
-            <View key={meal.id} style={styles.mealCard}>
-              <View style={styles.mealHeader}>
-                <View>
-                  <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
-                  <Text style={styles.mealTime}>{formatLoggedTime(meal.loggedAt)}</Text>
+          {selectedEntry ? (
+            <>
+              <View style={styles.totalsCard}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Calories</Text>
+                  <Text style={styles.totalValue}>{formatAmount(selectedEntry.totals.calories)} kcal</Text>
                 </View>
-                <Text style={styles.mealCalories}>{formatAmount(meal.totalCalories)} kcal</Text>
+                <View style={[styles.totalRow, styles.totalRowLast]}>
+                  <Text style={styles.totalLabel}>Protein</Text>
+                  <Text style={styles.totalValue}>{formatAmount(selectedEntry.totals.protein)}g</Text>
+                </View>
               </View>
-              {meal.items.map((item) => (
-                <View key={item.id} style={styles.foodItem}>
-                  <Text style={styles.foodDescription}>
-                    {formatFoodItemLine(item)}
-                  </Text>
+
+              {selectedEntry.meals.map((meal) => (
+                <View key={meal.id} style={styles.mealCard}>
+                  <View style={styles.mealHeader}>
+                    <View>
+                      <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
+                      <Text style={styles.mealTime}>{formatLoggedTime(meal.loggedAt)}</Text>
+                    </View>
+                    <Text style={styles.mealCalories}>{formatAmount(meal.totalCalories)} kcal</Text>
+                  </View>
+                  {meal.items.map((item) => (
+                    <View key={item.id} style={styles.foodItem}>
+                      <Text style={styles.foodDescription}>
+                        {formatFoodItemLine(item)}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
               ))}
+            </>
+          ) : (
+            <View style={styles.emptyDayCard}>
+              <Text style={styles.emptyDayText}>No meals logged on this day.</Text>
             </View>
-          ))}
+          )}
         </ScrollView>
       </SafeAreaView>
     );
@@ -117,8 +129,16 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
+        <View style={styles.headerRow}>
           <Text style={styles.title}>History</Text>
+          <TouchableOpacity
+            onPress={() => setPickerVisible(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Jump to a specific day"
+          >
+            <Ionicons name="calendar-outline" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
         </View>
 
         {history.map((entry) => (
@@ -161,6 +181,13 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <CalendarPicker
+        visible={pickerVisible}
+        selectedDate={selectedDate ?? today}
+        onSelect={setSelectedDate}
+        onClose={() => setPickerVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -191,6 +218,13 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
+  },
+  headerRow: {
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: {
     fontSize: 32,
@@ -226,6 +260,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  emptyDayCard: {
+    marginHorizontal: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
+  },
+  emptyDayText: {
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   mealCard: {
     marginHorizontal: spacing.lg,
