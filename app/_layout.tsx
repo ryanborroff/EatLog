@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Session } from '@supabase/supabase-js';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
@@ -22,11 +22,15 @@ export default function RootLayout() {
 
     const subscription = onAuthStateChange(setSession);
 
+    const routeIfRecovery = (type: string | null) => {
+      if (type === 'recovery') router.push('/reset-password');
+    };
+
     Linking.getInitialURL().then((url) => {
-      if (url) handleAuthRedirectUrl(url).catch(() => {});
+      if (url) handleAuthRedirectUrl(url).then(routeIfRecovery).catch(() => {});
     });
     const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
-      handleAuthRedirectUrl(url).catch(() => {});
+      handleAuthRedirectUrl(url).then(routeIfRecovery).catch(() => {});
     });
 
     return () => {
@@ -76,6 +80,10 @@ export default function RootLayout() {
         <Stack.Protected guard={!session}>
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack.Protected>
+        <Stack.Screen
+          name="reset-password"
+          options={{ presentation: 'modal', headerShown: false }}
+        />
       </Stack>
     </ThemeProvider>
   );

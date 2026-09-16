@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { signIn, signUp } from '../../services/authService';
+import { signIn, signUp, requestPasswordReset } from '../../services/authService';
 
 // Fixed dev-only account so local testing doesn't require a real inbox to
 // click an email-confirmation link. __DEV__-gated: never present in a
@@ -24,6 +24,22 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+
+  const handleForgotPassword = async () => {
+    setError(null);
+    setResetSubmitting(true);
+    try {
+      await requestPasswordReset(email.trim());
+      setResetSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send reset email.');
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
 
   const handleSignIn = async () => {
     setError(null);
@@ -57,6 +73,72 @@ export default function SignInScreen() {
       setSubmitting(false);
     }
   };
+
+  if (showForgotPassword) {
+    if (resetSent) {
+      return (
+        <SafeAreaView style={styles.container}>
+          <View style={styles.content}>
+            <Text style={styles.title}>Check your email</Text>
+            <Text style={styles.subtitle}>
+              If an account exists for {email}, we've sent a link to reset your password.
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setShowForgotPassword(false);
+                setResetSent(false);
+              }}
+            >
+              <Text style={styles.link}>Back to sign in</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.content}>
+            <Text style={styles.title}>Reset password</Text>
+            <Text style={styles.subtitle}>
+              Enter your email and we'll send you a link to reset your password.
+            </Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#999999"
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+            />
+
+            {error && <Text style={styles.error}>{error}</Text>}
+
+            <TouchableOpacity
+              style={[styles.button, resetSubmitting && styles.buttonDisabled]}
+              onPress={handleForgotPassword}
+              disabled={resetSubmitting}
+            >
+              <Text style={styles.buttonText}>
+                {resetSubmitting ? 'Sending…' : 'Send reset link'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setShowForgotPassword(false)}>
+              <Text style={styles.link}>Back to sign in</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -96,6 +178,10 @@ export default function SignInScreen() {
             disabled={submitting}
           >
             <Text style={styles.buttonText}>{submitting ? 'Signing in…' : 'Sign in'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setShowForgotPassword(true)}>
+            <Text style={styles.link}>Forgot password or trouble signing in?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.push('/(auth)/sign-up')}>

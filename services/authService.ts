@@ -16,15 +16,31 @@ export const signUp = async (email: string, password: string) => {
  * Supabase email links redirect back with the session tokens in the URL
  * fragment (#access_token=...). Parse them out and establish the session,
  * since detectSessionInUrl is off (there's no window/fragment handling on RN).
+ * Returns the link's `type` (e.g. "signup", "recovery") so callers can route
+ * a password-recovery link to the reset-password screen instead of just
+ * dropping the user into the main app.
  */
-export const handleAuthRedirectUrl = async (url: string) => {
+export const handleAuthRedirectUrl = async (url: string): Promise<string | null> => {
   const fragment = url.split('#')[1];
-  if (!fragment) return;
+  if (!fragment) return null;
   const params = new URLSearchParams(fragment);
   const access_token = params.get('access_token');
   const refresh_token = params.get('refresh_token');
-  if (!access_token || !refresh_token) return;
+  if (!access_token || !refresh_token) return null;
   const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+  if (error) throw error;
+  return params.get('type');
+};
+
+export const requestPasswordReset = async (email: string) => {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: Linking.createURL('/auth/callback'),
+  });
+  if (error) throw error;
+};
+
+export const updatePassword = async (newPassword: string) => {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
 };
 
