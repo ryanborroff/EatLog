@@ -53,7 +53,15 @@
         }
       ],
       "expo-font",
-      "@kingstinct/react-native-healthkit"
+      "@kingstinct/react-native-healthkit",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "userScriptSandboxing": false
+          }
+        }
+      ]
     ],
     "scheme": "eatlog",
     "extra": {
