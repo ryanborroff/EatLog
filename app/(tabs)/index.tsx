@@ -5,9 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { DayEntry, DailyGoals, Meal } from '../../types';
 import {
@@ -15,6 +17,7 @@ import {
   getMealsForDate,
   createDayEntry,
   addWater,
+  deleteMeal,
 } from '../../services/storageService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
@@ -70,6 +73,28 @@ export default function TodayScreen() {
     } catch (error) {
       console.error('Error adding water:', error);
     }
+  };
+
+  const handleDeleteMeal = (meal: Meal) => {
+    Alert.alert(
+      `Delete ${formatMealType(meal.type)}?`,
+      'This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMeal(todayDate, meal.id);
+              await loadData();
+            } catch (error) {
+              console.error('Error deleting meal:', error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading || !todayEntry || !goals) {
@@ -185,29 +210,42 @@ export default function TodayScreen() {
         )}
 
         {todayEntry.meals.map((meal) => (
-          <TouchableOpacity
+          <Swipeable
             key={meal.id}
-            style={styles.mealCard}
-            activeOpacity={0.7}
-            onPress={() => router.push({ pathname: '/edit-meal', params: { date: todayDate, mealId: meal.id } })}
-            accessibilityLabel={`Edit ${formatMealType(meal.type)}`}
-            accessibilityRole="button"
+            renderRightActions={() => (
+              <TouchableOpacity
+                style={styles.deleteAction}
+                onPress={() => handleDeleteMeal(meal)}
+                accessibilityLabel={`Delete ${formatMealType(meal.type)}`}
+                accessibilityRole="button"
+              >
+                <Ionicons name="trash" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
           >
-            <View style={styles.mealHeader}>
-              <View>
-                <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
-                <Text style={styles.mealTime}>{formatLoggedTime(meal.loggedAt)}</Text>
+            <TouchableOpacity
+              style={styles.mealCard}
+              activeOpacity={0.7}
+              onPress={() => router.push({ pathname: '/edit-meal', params: { date: todayDate, mealId: meal.id } })}
+              accessibilityLabel={`Edit ${formatMealType(meal.type)}`}
+              accessibilityRole="button"
+            >
+              <View style={styles.mealHeader}>
+                <View>
+                  <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
+                  <Text style={styles.mealTime}>{formatLoggedTime(meal.loggedAt)}</Text>
+                </View>
+                <Text style={styles.mealCalories}>{formatCalories(meal.totalCalories)} kcal</Text>
               </View>
-              <Text style={styles.mealCalories}>{formatCalories(meal.totalCalories)} kcal</Text>
-            </View>
-            {meal.items.map((item) => (
-              <View key={item.id} style={styles.foodItem}>
-                <Text style={styles.foodDescription}>
-                  {formatFoodItemLine(item)}
-                </Text>
-              </View>
-            ))}
-          </TouchableOpacity>
+              {meal.items.map((item) => (
+                <View key={item.id} style={styles.foodItem}>
+                  <Text style={styles.foodDescription}>
+                    {formatFoodItemLine(item)}
+                  </Text>
+                </View>
+              ))}
+            </TouchableOpacity>
+          </Swipeable>
         ))}
       </ScrollView>
 
@@ -355,6 +393,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.cardBorder,
+  },
+  deleteAction: {
+    marginBottom: spacing.sm,
+    marginRight: spacing.lg,
+    width: 72,
+    borderRadius: radii.card,
+    backgroundColor: '#D64545',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   mealHeader: {
     flexDirection: 'row',

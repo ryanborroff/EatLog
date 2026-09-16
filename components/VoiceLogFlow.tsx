@@ -91,6 +91,7 @@ const VoiceLogFlow: React.FC = () => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<BarcodeProduct | null>(null);
   const [gramsValue, setGramsValue] = useState('100');
+  const [productNameValue, setProductNameValue] = useState('');
   const mealHintRef = useRef<string | undefined>(undefined);
   const startedRef = useRef(false);
   const contentOpacity = useRef(new Animated.Value(1)).current;
@@ -258,6 +259,7 @@ const VoiceLogFlow: React.FC = () => {
     }
     setScannedProduct(product);
     setGramsValue(String(product.reference.servingSize));
+    setProductNameValue(product.name);
     setState('barcode_result');
   };
 
@@ -267,7 +269,8 @@ const VoiceLogFlow: React.FC = () => {
     if (!grams || grams <= 0) return;
 
     setState('processing');
-    const meal = await logBarcodeItem(targetDate, 'snack', scannedProduct.name, scannedProduct.reference, grams);
+    const name = productNameValue.trim() || scannedProduct.name;
+    const meal = await logBarcodeItem(targetDate, 'snack', name, scannedProduct.reference, grams);
     track('food_logged', { source: 'barcode', mealType: meal.type, itemCount: meal.items.length });
     setLoggedMeal(meal);
     setWasCorrection(false);
@@ -373,7 +376,11 @@ const VoiceLogFlow: React.FC = () => {
       case 'barcode_result':
         return (
           <View style={styles.content}>
-            <Text style={styles.prompt}>{scannedProduct?.name}</Text>
+            <TextInput
+              style={styles.textInput}
+              value={productNameValue}
+              onChangeText={setProductNameValue}
+            />
             <Text style={styles.subPrompt}>How many grams?</Text>
             <TextInput
               style={styles.textInput}
