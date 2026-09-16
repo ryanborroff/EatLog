@@ -274,8 +274,7 @@ export default function SettingsScreen() {
             </Text>
           </TouchableOpacity>
           <Text style={styles.disclaimer}>
-            Optional. Used only to suggest a starting daily calorie target — never shared or used
-            for anything else.
+            We’ll use this information to suggest your starting calorie and nutrition targets. This isn’t medical advice, and you can skip it if you prefer.
           </Text>
         </View>
 
@@ -478,7 +477,7 @@ export default function SettingsScreen() {
                 autoFocus
               />
               <Text style={styles.disclaimer}>
-                Optional and only used to suggest a starting calorie target — not medical advice.
+                We’ll use this information to suggest your starting calorie and nutrition targets. This isn’t medical advice, and you can skip it if you prefer.
               </Text>
               <View style={styles.modalActions}>
                 <TouchableOpacity

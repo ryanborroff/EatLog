@@ -63,10 +63,6 @@ export default function TodayScreen() {
     router.push('/modal');
   };
 
-  const handleAsk = () => {
-    router.push('/ask');
-  };
-
   const handleAddWater = async (amountMl: number) => {
     try {
       await addWater(todayDate, amountMl);
@@ -94,15 +90,6 @@ export default function TodayScreen() {
       <View style={styles.fixedSection}>
         <View style={styles.header}>
           <Text style={styles.date}>Today</Text>
-          <TouchableOpacity
-            style={styles.askButtonTouchable}
-            onPress={handleAsk}
-            accessibilityLabel="Ask about your diary"
-            accessibilityRole="button"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={[styles.askButton, { color: accentTextColor }]}>Ask</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.totalsCard}>
@@ -257,16 +244,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
     flexShrink: 1,
-  },
-  askButtonTouchable: {
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  askButton: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   totalsCard: {
     marginHorizontal: spacing.lg,
