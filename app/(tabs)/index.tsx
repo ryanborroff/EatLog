@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { DayEntry, DailyGoals, Meal } from '../../types';
@@ -209,11 +210,13 @@ export default function TodayScreen() {
           style={styles.voiceCta}
           onPress={handleVoiceLog}
           activeOpacity={0.7}
-          accessibilityLabel="Tell EatLog what you ate"
+          accessibilityLabel="Log what you've eaten"
           accessibilityRole="button"
         >
-          <Text style={styles.voiceCtaPrompt}>Tell EatLog what you ate</Text>
-          <View style={[styles.voiceCtaMic, { backgroundColor: accentColor }]} />
+          <Text style={styles.voiceCtaPrompt}>Log what you've eaten</Text>
+          <View style={[styles.voiceCtaMic, { backgroundColor: accentColor }]}>
+            <Ionicons name="mic" size={28} color="#FFFFFF" />
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -402,6 +405,8 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingContainer: {
     flex: 1,

@@ -262,7 +262,7 @@ const VoiceLogFlow: React.FC = () => {
               <>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Tell EatLog what you ate"
+                  placeholder="Log what you've eaten"
                   placeholderTextColor={colors.textMuted}
                   value={textValue}
                   onChangeText={setTextValue}
