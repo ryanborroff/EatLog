@@ -10,6 +10,32 @@ import { resolveFoodItems } from './foodResolver';
 import { calculateNutrition, ReferenceNutrition } from './nutritionCalculator';
 import { getMostRecentMeal, saveMealForDate, saveVoiceLog, updateMeal } from './storageService';
 import { supabase } from './supabaseClient';
+import { getAppleHealthSyncEnabled } from './healthSyncPreference';
+import { writeMealToHealthKit, resyncMealToHealthKit } from './healthKitService';
+
+// Best-effort: a HealthKit write failure (permission revoked, simulator, etc.) must never
+// block food logging, which is the app's core function.
+const syncMealToHealthIfEnabled = async (meal: Meal): Promise<void> => {
+  try {
+    if (await getAppleHealthSyncEnabled()) {
+      await writeMealToHealthKit(meal);
+    }
+  } catch (error) {
+    console.error('Error syncing meal to Apple Health:', error);
+  }
+};
+
+// Same as above, but for a correction/edit: clears any samples already written for this
+// meal first so the re-write doesn't double-count calories/macros in Apple Health.
+const resyncMealToHealthIfEnabled = async (meal: Meal): Promise<void> => {
+  try {
+    if (await getAppleHealthSyncEnabled()) {
+      await resyncMealToHealthKit(meal);
+    }
+  } catch (error) {
+    console.error('Error re-syncing meal to Apple Health:', error);
+  }
+};
 
 export class FoodParseError extends Error {
   constructor(message: string, readonly kind: 'network' | 'invalid') {
@@ -97,8 +123,10 @@ export const processTranscript = async (
   // Known-phrase short-circuit (spec §20): saved defaults skip the AI entirely.
   const defaultMeal = await matchDefault(transcript, mealHint);
   if (defaultMeal) {
-    await saveMealForDate(date, defaultMeal);
-    return { status: 'logged', meal: defaultMeal };
+    const savedId = await saveMealForDate(date, defaultMeal);
+    const savedMeal = { ...defaultMeal, id: savedId };
+    await syncMealToHealthIfEnabled(savedMeal);
+    return { status: 'logged', meal: savedMeal };
   }
 
   const recentMeal = await getMostRecentMeal(date);
@@ -120,6 +148,7 @@ export const processTranscript = async (
     }
     const updated = await applyCorrections(recentMeal, parsed.operations);
     await updateMeal(date, recentMeal.id, updated);
+    await resyncMealToHealthIfEnabled(updated);
     return { status: 'updated', meal: updated };
   }
 
@@ -146,7 +175,9 @@ export const processTranscript = async (
     loggedAt: new Date().toISOString(),
   };
 
-  await saveMealForDate(date, meal);
+  const savedId = await saveMealForDate(date, meal);
+  meal.id = savedId;
+  await syncMealToHealthIfEnabled(meal);
 
   return { status: 'logged', meal };
 };
@@ -189,6 +220,8 @@ export const logBarcodeItem = async (
     loggedAt: new Date().toISOString(),
   };
 
-  await saveMealForDate(date, meal);
+  const savedId = await saveMealForDate(date, meal);
+  meal.id = savedId;
+  await syncMealToHealthIfEnabled(meal);
   return meal;
 };

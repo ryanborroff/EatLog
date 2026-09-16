@@ -17,6 +17,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FoodItem, Meal } from '../types';
 import { getMealsForDate, updateMeal } from '../services/storageService';
 import { recalculateMealTotals } from '../services/correctionApplier';
+import { getAppleHealthSyncEnabled } from '../services/healthSyncPreference';
+import { resyncMealToHealthKit } from '../services/healthKitService';
 import { searchFoods, foodRowToItem, FoodRow } from '../services/foodResolver';
 import { formatFoodItemLine } from '../utils/formatFoodItem';
 import { formatCalories } from '../utils/formatNumber';
@@ -101,6 +103,13 @@ export default function EditMealScreen() {
     try {
       const updated = recalculateMealTotals(meal, items, mealType);
       await updateMeal(date, meal.id, updated);
+      try {
+        if (await getAppleHealthSyncEnabled()) {
+          await resyncMealToHealthKit(updated);
+        }
+      } catch (error) {
+        console.error('Error syncing meal to Apple Health:', error);
+      }
       router.back();
     } catch (error) {
       console.error('Error saving meal:', error);

@@ -169,7 +169,7 @@ export const getMealsForDate = async (date: string): Promise<Meal[]> => withCloc
   return (data as MealRow[]).map(toMeal);
 });
 
-export const saveMealForDate = async (date: string, meal: Meal): Promise<void> => {
+export const saveMealForDate = async (date: string, meal: Meal): Promise<string> => {
   const userId = await getUserId();
 
   const { data: insertedMeal, error: mealError } = await supabase
@@ -200,6 +200,8 @@ export const saveMealForDate = async (date: string, meal: Meal): Promise<void> =
     const { error: itemsError } = await supabase.from('meal_items').insert(itemRows);
     if (itemsError) throw itemsError;
   }
+
+  return insertedMeal.id;
 };
 
 export const updateMeal = async (date: string, mealId: string, updatedMeal: Meal): Promise<void> => {

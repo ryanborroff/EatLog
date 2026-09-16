@@ -10,6 +10,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,6 +25,8 @@ import { signOut } from '../../services/authService';
 import { ACTIVITY_LEVEL_LABELS, estimateMaintenanceCalories } from '../../services/calorieTarget';
 import { ACCENT_COLORS, WeekStartDay, useTheme } from '../../contexts/ThemeContext';
 import { colors as theme, spacing, radii } from '../../constants/theme';
+import { getAppleHealthSyncEnabled, setAppleHealthSyncEnabled } from '../../services/healthSyncPreference';
+import { requestHealthKitAuthorization } from '../../services/healthKitService';
 
 type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat';
 
@@ -85,11 +88,40 @@ export default function SettingsScreen() {
   const [numericFieldInput, setNumericFieldInput] = useState('');
   const [editingChoiceField, setEditingChoiceField] = useState<ChoiceProfileField | null>(null);
   const [saving, setSaving] = useState(false);
+  const [healthSyncEnabled, setHealthSyncEnabled] = useState(false);
+  const [healthSyncBusy, setHealthSyncBusy] = useState(false);
 
   useEffect(() => {
     loadGoals();
     loadProfile();
+    getAppleHealthSyncEnabled().then(setHealthSyncEnabled);
   }, []);
+
+  const handleToggleHealthSync = async (value: boolean) => {
+    if (value) {
+      setHealthSyncBusy(true);
+      try {
+        const granted = await requestHealthKitAuthorization();
+        if (!granted) {
+          Alert.alert(
+            'Apple Health access needed',
+            'EatLog needs permission to write to Apple Health. You can grant it in Settings → Privacy & Security → Health → EatLog.'
+          );
+          return;
+        }
+        await setAppleHealthSyncEnabled(true);
+        setHealthSyncEnabled(true);
+      } catch (error) {
+        console.error('Error enabling Apple Health sync:', error);
+        Alert.alert('Error', 'Could not connect to Apple Health.');
+      } finally {
+        setHealthSyncBusy(false);
+      }
+    } else {
+      await setAppleHealthSyncEnabled(false);
+      setHealthSyncEnabled(false);
+    }
+  };
 
   const loadGoals = async () => {
     try {
@@ -365,6 +397,24 @@ export default function SettingsScreen() {
             })}
           </View>
         </View>
+
+        {Platform.OS === 'ios' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Apple Health</Text>
+            <View style={styles.settingItem}>
+              <Text style={styles.settingLabel}>Sync to Apple Health</Text>
+              <Switch
+                value={healthSyncEnabled}
+                onValueChange={handleToggleHealthSync}
+                disabled={healthSyncBusy}
+              />
+            </View>
+            <Text style={styles.disclaimer}>
+              When on, EatLog writes the calories and macros you log to Apple Health. EatLog never
+              reads data from Apple Health.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal foods</Text>

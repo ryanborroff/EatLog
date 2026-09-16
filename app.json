@@ -8,11 +8,14 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
+      "buildNumber": "3",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "EatLog uses your microphone to log food by voice.",
         "NSSpeechRecognitionUsageDescription": "EatLog transcribes your voice to log the food you describe.",
         "NSPhotoLibraryUsageDescription": "EatLog uses your photo library to attach a photo to a logged food item.",
         "NSPhotoLibraryAddUsageDescription": "EatLog saves photos of your logged food items to your photo library.",
+        "NSHealthShareUsageDescription": "EatLog does not read data from Apple Health.",
+        "NSHealthUpdateUsageDescription": "EatLog writes the calories and macros you log to Apple Health.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.ryanfborroff.EatLog"
@@ -49,7 +52,8 @@
           "cameraPermission": "EatLog uses your camera to scan a food barcode."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@kingstinct/react-native-healthkit"
     ],
     "scheme": "eatlog",
     "extra": {
