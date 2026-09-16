@@ -10,7 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { signIn } from '../../services/authService';
+import { signIn, signUp } from '../../services/authService';
+
+// Fixed dev-only account so local testing doesn't require a real inbox to
+// click an email-confirmation link. __DEV__-gated: never present in a
+// release build.
+const DEV_EMAIL = 'dev-skip@eatlog.test';
+const DEV_PASSWORD = 'dev-skip-password-1';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -27,6 +33,26 @@ export default function SignInScreen() {
       // Root layout's auth listener redirects to (tabs) once the session updates.
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not sign in.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDevSkip = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      try {
+        await signIn(DEV_EMAIL, DEV_PASSWORD);
+      } catch {
+        // First run: the dev account doesn't exist yet — create it, then
+        // sign in (only works if the Supabase project has email
+        // confirmation disabled; if it's on, this surfaces that error).
+        await signUp(DEV_EMAIL, DEV_PASSWORD);
+        await signIn(DEV_EMAIL, DEV_PASSWORD);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Dev skip failed.');
     } finally {
       setSubmitting(false);
     }
@@ -75,6 +101,12 @@ export default function SignInScreen() {
           <TouchableOpacity onPress={() => router.push('/(auth)/sign-up')}>
             <Text style={styles.link}>Don't have an account? Sign up</Text>
           </TouchableOpacity>
+
+          {__DEV__ && (
+            <TouchableOpacity onPress={handleDevSkip} disabled={submitting}>
+              <Text style={styles.devLink}>Skip sign-in (dev)</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -108,4 +140,5 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   link: { color: '#000000', fontSize: 14, textAlign: 'center', marginTop: 24 },
+  devLink: { color: '#999999', fontSize: 13, textAlign: 'center', marginTop: 16 },
 });

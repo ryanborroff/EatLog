@@ -19,9 +19,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
 import { formatAmount } from '../../utils/formatNumber';
 import { formatLoggedTime } from '../../utils/formatTime';
-import { colors, spacing, radii } from '../../constants/theme';
-
-type VoiceState = 'idle' | 'listening' | 'processing' | 'clarification' | 'complete';
+import { colors, spacing, radii, typography } from '../../constants/theme';
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -54,15 +52,6 @@ export default function TodayScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    });
   };
 
   const formatMealType = (type: string): string => {
@@ -103,7 +92,7 @@ export default function TodayScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.fixedSection}>
         <View style={styles.header}>
-          <Text style={styles.date}>{formatDate(todayEntry.date)}</Text>
+          <Text style={styles.date}>Today</Text>
           <TouchableOpacity
             style={styles.askButtonTouchable}
             onPress={handleAsk}
@@ -216,15 +205,16 @@ export default function TodayScreen() {
           </View>
         ))}
 
-        <View style={styles.voiceButtonContainer}>
-          <TouchableOpacity
-            style={[styles.voiceButton, { backgroundColor: accentColor }]}
-            onPress={handleVoiceLog}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.voiceButtonText}>LOG FOOD</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.voiceCta}
+          onPress={handleVoiceLog}
+          activeOpacity={0.7}
+          accessibilityLabel="Tell EatLog what you ate"
+          accessibilityRole="button"
+        >
+          <Text style={styles.voiceCtaPrompt}>Tell EatLog what you ate</Text>
+          <View style={[styles.voiceCtaMic, { backgroundColor: accentColor }]} />
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -397,28 +387,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
   },
-  voiceButtonContainer: {
+  voiceCta: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.xl,
     alignItems: 'center',
   },
-  voiceButton: {
-    borderRadius: radii.pill,
-    minHeight: 48,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    minWidth: 240,
-    alignItems: 'center',
-    justifyContent: 'center',
+  voiceCtaPrompt: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
   },
-  voiceButtonText: {
-    // Black, not white: white text on any of the light accent backgrounds
-    // fails WCAG AA contrast (see docs/accessibility-audit.md).
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 1,
+  voiceCtaMic: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   loadingContainer: {
     flex: 1,

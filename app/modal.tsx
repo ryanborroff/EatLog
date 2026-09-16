@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import VoiceModal from '../components/VoiceModal';
+import VoiceLogFlow from '../components/VoiceLogFlow';
 
 export default function VoiceModalScreen() {
   return (
     <View style={styles.container}>
-      <VoiceModal />
+      <VoiceLogFlow />
     </View>
   );
 }
