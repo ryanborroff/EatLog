@@ -30,6 +30,11 @@ import ListeningIndicator from './ListeningIndicator';
 // against a quieter/no-copy variant once we can measure drop-off here.
 const LISTENING_COPY = "I'm listening…";
 
+// How long to wait after the speaker goes quiet before treating the
+// utterance as finished. Longer than each platform's own default (~1.5-2s)
+// so a mid-sentence pause doesn't cut someone off.
+const SILENCE_TIMEOUT_MS = 3500;
+
 type FlowState =
   | 'listening'
   | 'transcribing'
@@ -89,6 +94,32 @@ const VoiceLogFlow: React.FC = () => {
   const mealHintRef = useRef<string | undefined>(undefined);
   const startedRef = useRef(false);
   const contentOpacity = useRef(new Animated.Value(1)).current;
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const transcriptRef = useRef('');
+
+  const clearSilenceTimer = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  };
+
+  const resetSilenceTimer = () => {
+    clearSilenceTimer();
+    silenceTimerRef.current = setTimeout(() => {
+      ExpoSpeechRecognitionModule.stop();
+      const finalText = transcriptRef.current.trim();
+      if (finalText.length > 0) {
+        setState('confirmed');
+        setTimeout(() => void submitTranscript(finalText), 350);
+      } else {
+        setErrorMessage(ERROR_COPY.stt);
+        setState('error');
+      }
+    }, SILENCE_TIMEOUT_MS);
+  };
+
+  useEffect(() => () => clearSilenceTimer(), []);
 
   // Quick cross-fade whenever the state (and thus the rendered content) changes.
   useEffect(() => {
@@ -102,11 +133,14 @@ const VoiceLogFlow: React.FC = () => {
 
   useSpeechRecognitionEvent('result', (event) => {
     const text = event.results[0]?.transcript ?? '';
+    transcriptRef.current = text;
     setTranscript(text);
     if (text.trim().length > 0) {
       setState((current) => (current === 'listening' ? 'transcribing' : current));
+      resetSilenceTimer();
     }
     if (event.isFinal && text.trim().length > 0) {
+      clearSilenceTimer();
       setState('confirmed');
       // Brief settle beat before the calc kicks off, so "Got it." is felt.
       setTimeout(() => void submitTranscript(text), 350);
@@ -114,15 +148,18 @@ const VoiceLogFlow: React.FC = () => {
   });
 
   useSpeechRecognitionEvent('error', () => {
+    clearSilenceTimer();
     setErrorMessage(ERROR_COPY.stt);
     setState('error');
   });
 
   useSpeechRecognitionEvent('end', () => {
+    clearSilenceTimer();
     setState((current) => (current === 'listening' || current === 'transcribing' ? 'error' : current));
   });
 
   const handleClose = () => {
+    clearSilenceTimer();
     ExpoSpeechRecognitionModule.abort();
     router.back();
   };
@@ -137,13 +174,21 @@ const VoiceLogFlow: React.FC = () => {
     }
 
     setTranscript('');
+    transcriptRef.current = '';
     setState('listening');
     track('voice_log_started');
+    // `continuous: true` on both platforms hands end-of-speech detection to
+    // our own silence timer instead of each platform's short native default.
     ExpoSpeechRecognitionModule.start({
       lang: 'en-GB',
       interimResults: true,
-      continuous: false,
+      continuous: true,
+      androidIntentOptions: {
+        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: SILENCE_TIMEOUT_MS,
+        EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: SILENCE_TIMEOUT_MS,
+      },
     });
+    resetSilenceTimer();
   };
 
   // Mount-time auto-start: the tap that opens this screen IS the tap that

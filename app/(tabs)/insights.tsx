@@ -82,6 +82,7 @@ export default function InsightsScreen() {
       : 0;
 
   const avgCalories = Math.round(average((entry) => entry.totals.calories));
+  const avgWater = Math.round(average((entry) => entry.totals.water));
   const avgProtein = formatAmount(average((entry) => entry.totals.protein));
   const avgCarbohydrate = formatAmount(average((entry) => entry.totals.carbohydrate));
   const avgFat = formatAmount(average((entry) => entry.totals.fat));
@@ -102,12 +103,19 @@ export default function InsightsScreen() {
 
   const observations = generateObservations(periodHistory, activePeriod.observationLabel);
 
-  const macroSquares: { label: string; value: string; infoTitle: string; infoMessage: string }[] = [
+  const macroSquares: { label: string; value: string; infoTitle: string; infoMessage: string; tinted?: boolean }[] = [
     {
       label: 'Average daily calories',
       value: `${avgCalories} kcal`,
       infoTitle: 'Recommended daily calories',
       infoMessage: `Your target is ${goals.calories} kcal/day, set in Settings.`,
+    },
+    {
+      label: 'Average daily water',
+      value: `${avgWater}ml`,
+      infoTitle: 'Recommended daily water',
+      infoMessage: 'About 2,000-2,500ml/day is a common general guideline. Not medical advice.',
+      tinted: true,
     },
     {
       label: 'Average daily protein',
@@ -185,7 +193,10 @@ export default function InsightsScreen() {
           <Text style={styles.sectionTitle}>{activePeriod.sectionTitle}</Text>
           <View style={styles.insightGrid}>
             {macroSquares.map((square) => (
-              <View key={square.label} style={styles.insightSquare}>
+              <View
+                key={square.label}
+                style={[styles.insightSquare, square.tinted && styles.insightSquareTinted]}
+              >
                 <View style={styles.insightSquareHeader}>
                   <Text style={styles.insightSquareLabel}>{square.label}</Text>
                   <TouchableOpacity
@@ -341,6 +352,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radii.card,
     justifyContent: 'flex-start',
+  },
+  insightSquareTinted: {
+    backgroundColor: '#BFE0F5',
   },
   insightSquareHeader: {
     flexDirection: 'row',

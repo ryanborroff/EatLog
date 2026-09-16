@@ -180,18 +180,9 @@ export default function TodayScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <TouchableOpacity
-          style={styles.voiceCta}
-          onPress={handleVoiceLog}
-          activeOpacity={0.7}
-          accessibilityLabel="Log what you've eaten"
-          accessibilityRole="button"
-        >
-          <Text style={styles.voiceCtaPrompt}>Log what you've eaten</Text>
-          <View style={[styles.voiceCtaMic, { backgroundColor: accentColor }]}>
-            <Ionicons name="mic" size={28} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
+        {todayEntry.meals.length === 0 && (
+          <Text style={styles.emptyMealsText}>Nothing logged yet today.</Text>
+        )}
 
         {todayEntry.meals.map((meal) => (
           <TouchableOpacity
@@ -219,6 +210,16 @@ export default function TodayScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: accentColor }]}
+        onPress={handleVoiceLog}
+        activeOpacity={0.8}
+        accessibilityLabel="Log what you've eaten"
+        accessibilityRole="button"
+      >
+        <Ionicons name="mic" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -236,7 +237,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: spacing.xs,
+    paddingTop: spacing.md,
+    paddingBottom: 96,
   },
   header: {
     paddingHorizontal: spacing.lg,
@@ -381,23 +383,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
   },
-  voiceCta: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.lg,
-    alignItems: 'center',
-  },
-  voiceCtaPrompt: {
+  emptyMealsText: {
     ...typography.body,
     color: colors.textSecondary,
-    marginBottom: spacing.sm,
+    textAlign: 'center',
+    marginTop: spacing.lg,
   },
-  voiceCtaMic: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  fab: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.lg,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   loadingContainer: {
     flex: 1,
