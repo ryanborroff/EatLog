@@ -12,7 +12,7 @@ import { useFocusEffect } from 'expo-router';
 import { DayEntry } from '../../types';
 import { getHistory } from '../../services/storageService';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
-import { formatAmount } from '../../utils/formatNumber';
+import { formatAmount, formatCalories } from '../../utils/formatNumber';
 import { formatLoggedTime } from '../../utils/formatTime';
 import { colors, spacing, radii } from '../../constants/theme';
 import CalendarPicker from '../../components/CalendarPicker';
@@ -89,7 +89,7 @@ export default function HistoryScreen() {
               <View style={styles.totalsCard}>
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabel}>Calories</Text>
-                  <Text style={styles.totalValue}>{formatAmount(selectedEntry.totals.calories)} kcal</Text>
+                  <Text style={styles.totalValue}>{formatCalories(selectedEntry.totals.calories)} kcal</Text>
                 </View>
                 <View style={[styles.totalRow, styles.totalRowLast]}>
                   <Text style={styles.totalLabel}>Protein</Text>
@@ -104,7 +104,7 @@ export default function HistoryScreen() {
                       <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
                       <Text style={styles.mealTime}>{formatLoggedTime(meal.loggedAt)}</Text>
                     </View>
-                    <Text style={styles.mealCalories}>{formatAmount(meal.totalCalories)} kcal</Text>
+                    <Text style={styles.mealCalories}>{formatCalories(meal.totalCalories)} kcal</Text>
                   </View>
                   {meal.items.map((item) => (
                     <View key={item.id} style={styles.foodItem}>
@@ -148,10 +148,10 @@ export default function HistoryScreen() {
             onPress={() => setSelectedDate(entry.date)}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`${formatDate(entry.date)}, ${formatAmount(entry.totals.calories)} kcal, ${formatAmount(entry.totals.protein)}g protein, ${formatAmount(entry.totals.carbohydrate)}g carbs, ${formatAmount(entry.totals.fat)}g fat, ${formatAmount(entry.totals.fibre)}g fibre, ${formatAmount(entry.totals.sodium)}mg sodium, ${formatAmount(entry.totals.sugar)}g sugar`}
+            accessibilityLabel={`${formatDate(entry.date)}, ${formatCalories(entry.totals.calories)} kcal, ${formatAmount(entry.totals.protein)}g protein, ${formatAmount(entry.totals.carbohydrate)}g carbs, ${formatAmount(entry.totals.fat)}g fat, ${formatAmount(entry.totals.fibre)}g fibre, ${formatAmount(entry.totals.sodium)}mg sodium, ${formatAmount(entry.totals.sugar)}g sugar`}
           >
             <Text style={styles.dayDate}>{formatDate(entry.date)}</Text>
-            <Text style={styles.dayCalories}>{formatAmount(entry.totals.calories)} kcal</Text>
+            <Text style={styles.dayCalories}>{formatCalories(entry.totals.calories)} kcal</Text>
             <View style={styles.dayMacroList}>
               <View style={styles.dayMacroRow}>
                 <Text style={styles.dayMacroLabel}>Protein</Text>

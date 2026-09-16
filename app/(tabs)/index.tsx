@@ -18,7 +18,7 @@ import {
 } from '../../services/storageService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
-import { formatAmount } from '../../utils/formatNumber';
+import { formatAmount, formatCalories } from '../../utils/formatNumber';
 import { formatLoggedTime } from '../../utils/formatTime';
 import { colors, spacing, radii, typography } from '../../constants/theme';
 
@@ -107,8 +107,8 @@ export default function TodayScreen() {
 
         <View style={styles.totalsCard}>
           <View style={styles.calorieSection}>
-            <Text style={styles.calorieValue}>{formatAmount(todayEntry.totals.calories)} kcal</Text>
-            <Text style={styles.calorieTarget}>of {formatAmount(goals.calories)} kcal</Text>
+            <Text style={styles.calorieValue}>{formatCalories(todayEntry.totals.calories)} kcal</Text>
+            <Text style={styles.calorieTarget}>of {formatCalories(goals.calories)} kcal</Text>
           </View>
 
           <View style={styles.divider} />
@@ -173,7 +173,7 @@ export default function TodayScreen() {
             <View style={styles.remainingRow}>
               <Text style={styles.remainingLabel}>Calories left</Text>
               <Text style={styles.remainingValue}>
-                {remainingCalories >= 0 ? formatAmount(remainingCalories) : `+${formatAmount(Math.abs(remainingCalories))}`}
+                {remainingCalories >= 0 ? formatCalories(remainingCalories) : `+${formatCalories(Math.abs(remainingCalories))}`}
               </Text>
             </View>
             <View style={styles.remainingRow}>
@@ -207,7 +207,7 @@ export default function TodayScreen() {
                 <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
                 <Text style={styles.mealTime}>{formatLoggedTime(meal.loggedAt)}</Text>
               </View>
-              <Text style={styles.mealCalories}>{formatAmount(meal.totalCalories)} kcal</Text>
+              <Text style={styles.mealCalories}>{formatCalories(meal.totalCalories)} kcal</Text>
             </View>
             {meal.items.map((item) => (
               <View key={item.id} style={styles.foodItem}>

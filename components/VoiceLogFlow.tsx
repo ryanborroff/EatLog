@@ -21,7 +21,7 @@ import { Meal } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { colors, spacing, radii, typography } from '../constants/theme';
 import { formatFoodItemLine } from '../utils/formatFoodItem';
-import { formatAmount } from '../utils/formatNumber';
+import { formatAmount, formatCalories } from '../utils/formatNumber';
 import CalendarPicker from './CalendarPicker';
 import BarcodeScanner from './BarcodeScanner';
 import ListeningIndicator from './ListeningIndicator';
@@ -348,7 +348,7 @@ const VoiceLogFlow: React.FC = () => {
 
       case 'result': {
         if (!loggedMeal) return null;
-        const kcal = formatAmount(loggedMeal.totalCalories);
+        const kcal = formatCalories(loggedMeal.totalCalories);
         const protein = formatAmount(loggedMeal.totalProtein);
         return (
           <TouchableOpacity style={styles.content} activeOpacity={1} onPress={handleFollowUp}>

@@ -7,3 +7,6 @@ export const formatAmount = (value: number): string => {
   const rounded = Math.round(value * 10) / 10;
   return rounded % 1 === 0 ? String(rounded) : rounded.toFixed(1);
 };
+
+/** Calories are always shown as whole numbers — a decimal kcal isn't meaningful to users. */
+export const formatCalories = (value: number): string => String(Math.round(value));
