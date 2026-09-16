@@ -17,8 +17,12 @@ export const ACCENT_COLORS: { id: AccentColorId; label: string; value: string; t
   { id: 'honey', label: 'Honey', value: '#D4A24C', textOnLight: '#8C6318' },
 ];
 
+export type WeekStartDay = 'sunday' | 'monday';
+
 const DEFAULT_ACCENT: AccentColorId = 'sage';
+const DEFAULT_WEEK_START: WeekStartDay = 'sunday';
 const STORAGE_KEY = 'eatlog.accentColor';
+const WEEK_START_STORAGE_KEY = 'eatlog.weekStartsOn';
 
 interface ThemeContextValue {
   accentColorId: AccentColorId;
@@ -26,6 +30,8 @@ interface ThemeContextValue {
   /** Darkened accent variant for text-on-white use (meets WCAG AA 4.5:1); use `accentColor` for backgrounds instead. */
   accentTextColor: string;
   setAccentColorId: (id: AccentColorId) => void;
+  weekStartsOn: WeekStartDay;
+  setWeekStartsOn: (day: WeekStartDay) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -33,15 +39,23 @@ const ThemeContext = createContext<ThemeContextValue>({
   accentColor: ACCENT_COLORS.find((c) => c.id === DEFAULT_ACCENT)!.value,
   accentTextColor: ACCENT_COLORS.find((c) => c.id === DEFAULT_ACCENT)!.textOnLight,
   setAccentColorId: () => {},
+  weekStartsOn: DEFAULT_WEEK_START,
+  setWeekStartsOn: () => {},
 });
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [accentColorId, setAccentColorIdState] = useState<AccentColorId>(DEFAULT_ACCENT);
+  const [weekStartsOn, setWeekStartsOnState] = useState<WeekStartDay>(DEFAULT_WEEK_START);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
       if (stored && ACCENT_COLORS.some((c) => c.id === stored)) {
         setAccentColorIdState(stored as AccentColorId);
+      }
+    });
+    AsyncStorage.getItem(WEEK_START_STORAGE_KEY).then((stored) => {
+      if (stored === 'sunday' || stored === 'monday') {
+        setWeekStartsOnState(stored);
       }
     });
   }, []);
@@ -53,12 +67,28 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
+  const setWeekStartsOn = (day: WeekStartDay) => {
+    setWeekStartsOnState(day);
+    AsyncStorage.setItem(WEEK_START_STORAGE_KEY, day).catch((error) => {
+      console.error('Error saving week start day:', error);
+    });
+  };
+
   const accent = ACCENT_COLORS.find((c) => c.id === accentColorId)!;
   const accentColor = accent.value;
   const accentTextColor = accent.textOnLight;
 
   return (
-    <ThemeContext.Provider value={{ accentColorId, accentColor, accentTextColor, setAccentColorId }}>
+    <ThemeContext.Provider
+      value={{
+        accentColorId,
+        accentColor,
+        accentTextColor,
+        setAccentColorId,
+        weekStartsOn,
+        setWeekStartsOn,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

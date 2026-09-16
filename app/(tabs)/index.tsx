@@ -24,7 +24,7 @@ import { colors, spacing, radii, typography } from '../../constants/theme';
 
 export default function TodayScreen() {
   const router = useRouter();
-  const { accentColor, accentTextColor } = useTheme();
+  const { accentColor } = useTheme();
   const [todayEntry, setTodayEntry] = useState<DayEntry | null>(null);
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,7 +156,7 @@ export default function TodayScreen() {
                   accessibilityLabel={`Add ${amount}ml of water`}
                   accessibilityRole="button"
                 >
-                  <Text style={[styles.waterButtonText, { color: accentTextColor }]}>+{amount}ml</Text>
+                  <Text style={styles.waterButtonText}>+{amount}ml</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -328,6 +328,7 @@ const styles = StyleSheet.create({
   waterButtonText: {
     fontSize: 13,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
   remainingRow: {
     flexDirection: 'row',

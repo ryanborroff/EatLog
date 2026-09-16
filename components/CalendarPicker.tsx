@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface CalendarPickerProps {
   visible: boolean;
@@ -8,11 +9,18 @@ interface CalendarPickerProps {
   onClose: () => void;
 }
 
-const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const WEEKDAY_LABELS_STARTING_SUNDAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const toDateString = (date: Date): string => date.toISOString().split('T')[0];
 
 const CalendarPicker: React.FC<CalendarPickerProps> = ({ visible, selectedDate, onSelect, onClose }) => {
+  const { weekStartsOn } = useTheme();
+  const weekStartOffset = weekStartsOn === 'monday' ? 1 : 0;
+  const weekdayLabels = [
+    ...WEEKDAY_LABELS_STARTING_SUNDAY.slice(weekStartOffset),
+    ...WEEKDAY_LABELS_STARTING_SUNDAY.slice(0, weekStartOffset),
+  ];
+
   const initial = new Date(`${selectedDate}T00:00:00`);
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
@@ -25,7 +33,7 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({ visible, selectedDate, 
 
   const firstOfMonth = new Date(viewYear, viewMonth, 1);
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const startWeekday = firstOfMonth.getDay();
+  const startWeekday = (firstOfMonth.getDay() - weekStartOffset + 7) % 7;
 
   const cells: (number | null)[] = [
     ...Array(startWeekday).fill(null),
@@ -82,7 +90,7 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({ visible, selectedDate, 
           </View>
 
           <View style={styles.weekdayRow}>
-            {WEEKDAY_LABELS.map((label, index) => (
+            {weekdayLabels.map((label, index) => (
               <Text key={index} style={styles.weekdayLabel}>
                 {label}
               </Text>

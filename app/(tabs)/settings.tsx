@@ -22,7 +22,7 @@ import {
 } from '../../services/storageService';
 import { signOut } from '../../services/authService';
 import { ACTIVITY_LEVEL_LABELS, estimateMaintenanceCalories } from '../../services/calorieTarget';
-import { ACCENT_COLORS, useTheme } from '../../contexts/ThemeContext';
+import { ACCENT_COLORS, WeekStartDay, useTheme } from '../../contexts/ThemeContext';
 import { colors as theme, spacing, radii } from '../../constants/theme';
 
 type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat';
@@ -61,13 +61,18 @@ const SEX_OPTIONS: { value: Sex; label: string }[] = [
   { value: 'male', label: 'Male' },
 ];
 
+const WEEK_START_OPTIONS: { value: WeekStartDay; label: string }[] = [
+  { value: 'sunday', label: 'Sunday' },
+  { value: 'monday', label: 'Monday' },
+];
+
 const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string }[] = (
   Object.keys(ACTIVITY_LEVEL_LABELS) as ActivityLevel[]
 ).map((value) => ({ value, label: ACTIVITY_LEVEL_LABELS[value] }));
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { accentColor, accentTextColor, accentColorId, setAccentColorId } = useTheme();
+  const { accentColor, accentTextColor, accentColorId, setAccentColorId, weekStartsOn, setWeekStartsOn } = useTheme();
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -332,6 +337,32 @@ export default function SettingsScreen() {
                 <Text style={styles.colorSwatchLabel}>{color.label}</Text>
               </TouchableOpacity>
             ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>General</Text>
+          <Text style={styles.weekStartLabel}>Week begins on</Text>
+          <View style={styles.weekStartRow}>
+            {WEEK_START_OPTIONS.map((option) => {
+              const selected = option.value === weekStartsOn;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.weekStartChip,
+                    selected && { backgroundColor: accentColor, borderColor: accentColor },
+                  ]}
+                  onPress={() => setWeekStartsOn(option.value)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                >
+                  <Text style={[styles.weekStartChipText, selected && styles.weekStartChipTextSelected]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -716,5 +747,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.textSecondary,
     marginTop: 6,
+  },
+  weekStartLabel: {
+    fontSize: 16,
+    color: theme.textPrimary,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  weekStartRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+  },
+  weekStartChip: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.pill,
+    backgroundColor: theme.background,
+    borderWidth: 1.5,
+    borderColor: theme.cardBorder,
+  },
+  weekStartChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.textPrimary,
+  },
+  weekStartChipTextSelected: {
+    color: '#FFFFFF',
   },
 });

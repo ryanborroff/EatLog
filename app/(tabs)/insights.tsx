@@ -18,9 +18,10 @@ import { colors, spacing, radii } from '../../constants/theme';
 import { generateObservations } from '../../utils/insightsObservations';
 import { formatAmount } from '../../utils/formatNumber';
 
-type Period = 'week' | 'month' | '6months' | 'year';
+type Period = 'day' | 'week' | 'month' | '6months' | 'year';
 
 const PERIOD_OPTIONS: { id: Period; label: string; days: number; sectionTitle: string; observationLabel: string }[] = [
+  { id: 'day', label: 'Day', days: 1, sectionTitle: 'Today', observationLabel: 'today' },
   { id: 'week', label: 'Week', days: 7, sectionTitle: 'This week', observationLabel: 'this week' },
   { id: 'month', label: 'Month', days: 30, sectionTitle: 'This month', observationLabel: 'this month' },
   { id: '6months', label: '6 Months', days: 182, sectionTitle: 'Last 6 months', observationLabel: 'in the last 6 months' },
