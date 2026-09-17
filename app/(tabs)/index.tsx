@@ -129,9 +129,7 @@ export default function TodayScreen() {
           <View style={styles.macroGrid}>
             <View style={styles.macroCell}>
               <Text style={styles.macroLabel}>Protein</Text>
-              <Text style={styles.macroValue}>
-                {formatAmount(todayEntry.totals.protein)}g / {formatAmount(goals.protein)}g
-              </Text>
+              <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.protein)}g</Text>
             </View>
             <View style={styles.macroCell}>
               <Text style={styles.macroLabel}>Carbs</Text>

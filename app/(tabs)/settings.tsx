@@ -159,17 +159,50 @@ export default function SettingsScreen() {
     setEditingMacro(macro);
   };
 
-  const openSuggestedCalories = () => {
-    if (!profile) return;
-    const suggestion = estimateMaintenanceCalories(profile, new Date().getFullYear());
-    if (suggestion === null) {
+  const openSuggestedMacros = () => {
+    if (!profile || !goals) return;
+    const calorieSuggestion = estimateMaintenanceCalories(profile, new Date().getFullYear());
+    if (calorieSuggestion === null) {
       Alert.alert(
         'Missing info',
-        'Add your sex, birth year, height, weight, and activity level in Profile first so we can suggest a calorie target.'
+        'Add your sex, birth year, height, weight, and activity level in Profile first so we can suggest your targets.'
       );
       return;
     }
-    openMacroEditor('calories', suggestion);
+
+    const proteinSuggestion = suggestedGrams('protein', calorieSuggestion)!;
+    const carbSuggestion = suggestedGrams('carbohydrate', calorieSuggestion)!;
+    const fatSuggestion = suggestedGrams('fat', calorieSuggestion)!;
+
+    Alert.alert(
+      'Suggested targets',
+      `Calories: ${calorieSuggestion} kcal\nProtein: ${proteinSuggestion}g\nCarbohydrates: ${carbSuggestion}g\nFat: ${fatSuggestion}g\n\nEstimated from your profile (Mifflin-St Jeor formula) and a standard 30/40/30 protein/carb/fat split. Not medical advice — use Targets below to fine-tune any of these individually.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Use these',
+          onPress: async () => {
+            const updatedGoals = {
+              ...goals,
+              calories: calorieSuggestion,
+              protein: proteinSuggestion,
+              carbohydrate: carbSuggestion,
+              fat: fatSuggestion,
+            };
+            setSaving(true);
+            try {
+              await saveUserGoals(updatedGoals);
+              setGoals(updatedGoals);
+            } catch (error) {
+              console.error('Error saving suggested targets:', error);
+              Alert.alert('Error', 'Failed to save your targets.');
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const openSuggestedFibre = () => {
@@ -349,9 +382,9 @@ export default function SettingsScreen() {
             <Text style={styles.settingLabel}>Calories</Text>
             <Text style={styles.settingValue}>{goals.calories} kcal</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem} onPress={openSuggestedCalories}>
+          <TouchableOpacity style={styles.settingItem} onPress={openSuggestedMacros}>
             <Text style={[styles.settingLabelLink, { color: accentTextColor }]}>
-              Suggest my calorie target
+              Suggest my macros target
             </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={() => openMacroEditor('protein')}>
@@ -363,15 +396,15 @@ export default function SettingsScreen() {
             onPress={() => openMacroEditor('carbohydrate')}
           >
             <Text style={styles.settingLabel}>Carbohydrates</Text>
-            <Text style={styles.settingValue}>{goals.carbohydrate ?? 'Not set'}g</Text>
+            <Text style={styles.settingValue}>{goals.carbohydrate ? `${goals.carbohydrate}g` : 'Not set'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={() => openMacroEditor('fat')}>
             <Text style={styles.settingLabel}>Fat</Text>
-            <Text style={styles.settingValue}>{goals.fat || 'Not set'}g</Text>
+            <Text style={styles.settingValue}>{goals.fat ? `${goals.fat}g` : 'Not set'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={() => openMacroEditor('fibre')}>
             <Text style={styles.settingLabel}>Fibre</Text>
-            <Text style={styles.settingValue}>{goals.fibre || 'Not set'}g</Text>
+            <Text style={styles.settingValue}>{goals.fibre ? `${goals.fibre}g` : 'Not set'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={openSuggestedFibre}>
             <Text style={[styles.settingLabelLink, { color: accentTextColor }]}>
