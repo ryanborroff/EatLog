@@ -12,7 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { PersonalFood } from '../../types';
 import { getUserFoods, createUserFood, deleteUserFood } from '../../services/storageService';
+import { calculateNutrition, ReferenceNutrition } from '../../services/nutritionCalculator';
 import { track } from '../../services/analytics';
+import BarcodeScanFlow from '../../components/BarcodeScanFlow';
 
 const emptyForm = {
   name: '',
@@ -30,6 +32,7 @@ export default function PersonalFoodsScreen() {
   const [foods, setFoods] = useState<PersonalFood[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
@@ -77,6 +80,23 @@ export default function PersonalFoodsScreen() {
     }
   };
 
+  const handleBarcodeResolved = (name: string, reference: ReferenceNutrition, quantity: number) => {
+    const calculated = calculateNutrition(reference, quantity);
+    setForm({
+      name,
+      nickname: name,
+      servingSize: String(quantity),
+      servingUnit: reference.servingUnit,
+      calories: String(calculated.calories),
+      protein: String(calculated.protein),
+      carbohydrate: String(calculated.carbohydrate),
+      fat: String(calculated.fat),
+    });
+    setShowScanner(false);
+    setShowForm(true);
+    track('personal_food_scanned');
+  };
+
   const handleDelete = (food: PersonalFood) => {
     Alert.alert('Delete food', `Remove "${food.nickname}"?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -90,6 +110,14 @@ export default function PersonalFoodsScreen() {
       },
     ]);
   };
+
+  if (showScanner) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <BarcodeScanFlow onResolved={handleBarcodeResolved} onCancel={() => setShowScanner(false)} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -189,9 +217,14 @@ export default function PersonalFoodsScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)}>
-            <Text style={styles.addButtonText}>+ Add personal food</Text>
-          </TouchableOpacity>
+          <View style={styles.addButtonRow}>
+            <TouchableOpacity style={[styles.addButton, styles.addButtonFlex]} onPress={() => setShowForm(true)}>
+              <Text style={styles.addButtonText}>+ Add manually</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.addButton, styles.addButtonFlex]} onPress={() => setShowScanner(true)}>
+              <Text style={styles.addButtonText}>Scan barcode</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -236,6 +269,19 @@ const styles = StyleSheet.create({
   },
   saveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   cancelText: { textAlign: 'center', color: '#666666', marginTop: 16, marginBottom: 24 },
+  addButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 40,
+  },
+  addButtonFlex: {
+    flex: 1,
+    marginHorizontal: 0,
+    marginTop: 0,
+    marginBottom: 0,
+  },
   addButton: {
     marginHorizontal: 20,
     marginTop: 8,

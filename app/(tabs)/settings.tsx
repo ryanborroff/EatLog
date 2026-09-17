@@ -417,18 +417,22 @@ export default function SettingsScreen() {
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal foods</Text>
+          <Text style={styles.sectionTitle}>My foods</Text>
           <TouchableOpacity
             style={styles.settingItem}
             onPress={() => router.push('/settings/personal-foods')}
           >
-            <Text style={styles.settingLabel}>Manage saved foods</Text>
+            <Text style={styles.settingLabel}>Manage my foods</Text>
             <Text style={styles.settingArrow}>→</Text>
           </TouchableOpacity>
+          <Text style={styles.disclaimer}>
+            Add a food with its exact nutrition — scan the barcode or enter it by hand. EatLog uses
+            these numbers instead of estimating whenever it recognizes the food.
+          </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Usual foods</Text>
+          <Text style={styles.sectionTitle}>Quick-log shortcuts</Text>
           <TouchableOpacity
             style={styles.settingItem}
             onPress={() => router.push('/settings/usual-foods')}
@@ -436,6 +440,10 @@ export default function SettingsScreen() {
             <Text style={styles.settingLabel}>Manage shortcuts</Text>
             <Text style={styles.settingArrow}>→</Text>
           </TouchableOpacity>
+          <Text style={styles.disclaimer}>
+            Say a shortcut name, like "my usual breakfast", and EatLog logs the exact foods and
+            amounts instantly. Built from your saved foods above.
+          </Text>
         </View>
 
         <View style={styles.section}>
