@@ -426,8 +426,8 @@ export default function SettingsScreen() {
             <Text style={styles.settingArrow}>→</Text>
           </TouchableOpacity>
           <Text style={styles.disclaimer}>
-            Add a food with its exact nutrition — scan the barcode or enter it by hand. EatLog uses
-            these numbers instead of estimating whenever it recognizes the food.
+            Add the exact nutrition of a food by scanning the barcode or type entry. EatLog uses
+            these figures instead of estimating whenever it recognises the food.
           </Text>
         </View>
 
