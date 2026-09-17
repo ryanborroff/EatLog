@@ -44,6 +44,11 @@ export default function EditMealScreen() {
   const [searchResults, setSearchResults] = useState<FoodRow[]>([]);
   const [searching, setSearching] = useState(false);
 
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [draftDescription, setDraftDescription] = useState('');
+  const [draftQuantity, setDraftQuantity] = useState('');
+  const [draftUnit, setDraftUnit] = useState('');
+
   useEffect(() => {
     (async () => {
       try {
@@ -83,6 +88,47 @@ export default function EditMealScreen() {
 
   const handleRemoveItem = (id: string) => {
     setItems((current) => current.filter((item) => item.id !== id));
+    if (editingItemId === id) setEditingItemId(null);
+  };
+
+  const handleStartEditItem = (item: FoodItem) => {
+    setEditingItemId(item.id);
+    setDraftDescription(item.description);
+    setDraftQuantity(String(item.quantity));
+    setDraftUnit(item.unit);
+  };
+
+  const handleCommitEditItem = () => {
+    const id = editingItemId;
+    if (!id) return;
+    setEditingItemId(null);
+
+    const newQuantity = parseFloat(draftQuantity);
+    const description = draftDescription.trim();
+    const unit = draftUnit.trim();
+
+    setItems((current) =>
+      current.map((item) => {
+        if (item.id !== id) return item;
+
+        const validQuantity = Number.isFinite(newQuantity) && newQuantity > 0 ? newQuantity : item.quantity;
+        const scale = item.quantity > 0 ? validQuantity / item.quantity : 1;
+
+        return {
+          ...item,
+          description: description || item.description,
+          quantity: validQuantity,
+          unit: unit || item.unit,
+          calories: Math.round(item.calories * scale * 10) / 10,
+          protein: Math.round(item.protein * scale * 10) / 10,
+          carbohydrate: Math.round(item.carbohydrate * scale * 10) / 10,
+          fat: Math.round(item.fat * scale * 10) / 10,
+          fibre: item.fibre !== undefined ? Math.round(item.fibre * scale * 10) / 10 : undefined,
+          sodium: item.sodium !== undefined ? Math.round(item.sodium * scale * 10) / 10 : undefined,
+          sugar: item.sugar !== undefined ? Math.round(item.sugar * scale * 10) / 10 : undefined,
+        };
+      })
+    );
   };
 
   const handleAddItem = (food: FoodRow) => {
@@ -186,22 +232,68 @@ export default function EditMealScreen() {
           <Text style={styles.sectionLabel}>Items</Text>
           <View style={styles.itemsCard}>
             {items.length === 0 && <Text style={styles.emptyText}>No items — add something below.</Text>}
-            {items.map((item) => (
-              <View key={item.id} style={styles.itemRow}>
-                <View style={styles.itemTextWrap}>
-                  <Text style={styles.itemDescription}>{formatFoodItemLine(item)}</Text>
-                  <Text style={styles.itemCalories}>{formatCalories(item.calories)} kcal</Text>
+            {items.map((item) => {
+              const isEditing = editingItemId === item.id;
+              return (
+                <View key={item.id} style={styles.itemRow}>
+                  {isEditing ? (
+                    <View style={styles.itemEditWrap}>
+                      <TextInput
+                        style={styles.itemEditInput}
+                        value={draftDescription}
+                        onChangeText={setDraftDescription}
+                        placeholder="Description"
+                        placeholderTextColor={colors.textMuted}
+                        autoFocus
+                      />
+                      <View style={styles.itemEditRow}>
+                        <TextInput
+                          style={[styles.itemEditInput, styles.itemEditQuantity]}
+                          value={draftQuantity}
+                          onChangeText={setDraftQuantity}
+                          placeholder="Qty"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="decimal-pad"
+                        />
+                        <TextInput
+                          style={[styles.itemEditInput, styles.itemEditUnit]}
+                          value={draftUnit}
+                          onChangeText={setDraftUnit}
+                          placeholder="Unit"
+                          placeholderTextColor={colors.textMuted}
+                        />
+                        <TouchableOpacity
+                          onPress={handleCommitEditItem}
+                          accessibilityLabel="Done editing item"
+                          accessibilityRole="button"
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="checkmark-circle" size={24} color={accentColor} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.itemTextWrap}
+                      onPress={() => handleStartEditItem(item)}
+                      accessibilityLabel={`Edit ${item.description}`}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.itemDescription}>{formatFoodItemLine(item)}</Text>
+                      <Text style={styles.itemCalories}>{formatCalories(item.calories)} kcal</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => handleRemoveItem(item.id)}
+                    accessibilityLabel={`Remove ${item.description}`}
+                    accessibilityRole="button"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  onPress={() => handleRemoveItem(item.id)}
-                  accessibilityLabel={`Remove ${item.description}`}
-                  accessibilityRole="button"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                </TouchableOpacity>
-              </View>
-            ))}
+              );
+            })}
           </View>
 
           <Text style={styles.sectionLabel}>Add food</Text>
@@ -318,6 +410,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  itemEditWrap: {
+    flex: 1,
+    marginRight: spacing.sm,
+    gap: spacing.xs,
+  },
+  itemEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  itemEditInput: {
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radii.card,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  itemEditQuantity: {
+    width: 60,
+  },
+  itemEditUnit: {
+    flex: 1,
   },
   searchInput: {
     borderWidth: 1,
