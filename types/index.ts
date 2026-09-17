@@ -45,6 +45,7 @@ export interface DailyGoals {
   protein: number;
   carbohydrate?: number;
   fat?: number;
+  fibre?: number;
 }
 
 export type Sex = 'male' | 'female';

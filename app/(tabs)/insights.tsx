@@ -143,7 +143,9 @@ export default function InsightsScreen() {
       label: 'Average daily fibre',
       value: `${avgFibre}g`,
       infoTitle: 'Recommended daily fibre',
-      infoMessage: '25-30g/day is a common general guideline. Not medical advice.',
+      infoMessage: goals.fibre
+        ? `Your target is ${goals.fibre}g/day, set in Settings.`
+        : '25-30g/day is a common general guideline. Not medical advice.',
     },
     {
       label: 'Average daily sodium',

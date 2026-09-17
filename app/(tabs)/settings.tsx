@@ -23,21 +23,29 @@ import {
 } from '../../services/storageService';
 import { signOut } from '../../services/authService';
 import { ACTIVITY_LEVEL_LABELS, estimateMaintenanceCalories } from '../../services/calorieTarget';
+import { getNutrientTargets } from '../../services/nutrientTargets';
 import { ACCENT_COLORS, WeekStartDay, useTheme } from '../../contexts/ThemeContext';
 import { colors as theme, spacing, radii } from '../../constants/theme';
 import { getAppleHealthSyncEnabled, setAppleHealthSyncEnabled } from '../../services/healthSyncPreference';
 import { requestHealthKitAuthorization } from '../../services/healthKitService';
 
-type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat';
+type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat' | 'fibre';
 
 const MACRO_CONFIG: Record<
   MacroKey,
-  { label: string; unit: string; caloriesPerGram: number | null; calorieShare: number | null }
+  {
+    label: string;
+    unit: string;
+    caloriesPerGram: number | null;
+    calorieShare: number | null;
+    defaultPlaceholder: number;
+  }
 > = {
-  calories: { label: 'Calories', unit: 'kcal', caloriesPerGram: null, calorieShare: null },
-  protein: { label: 'Protein', unit: 'g', caloriesPerGram: 4, calorieShare: 0.3 },
-  carbohydrate: { label: 'Carbohydrates', unit: 'g', caloriesPerGram: 4, calorieShare: 0.4 },
-  fat: { label: 'Fat', unit: 'g', caloriesPerGram: 9, calorieShare: 0.3 },
+  calories: { label: 'Calories', unit: 'kcal', caloriesPerGram: null, calorieShare: null, defaultPlaceholder: 2000 },
+  protein: { label: 'Protein', unit: 'g', caloriesPerGram: 4, calorieShare: 0.3, defaultPlaceholder: 130 },
+  carbohydrate: { label: 'Carbohydrates', unit: 'g', caloriesPerGram: 4, calorieShare: 0.4, defaultPlaceholder: 260 },
+  fat: { label: 'Fat', unit: 'g', caloriesPerGram: 9, calorieShare: 0.3, defaultPlaceholder: 70 },
+  fibre: { label: 'Fibre', unit: 'g', caloriesPerGram: null, calorieShare: null, defaultPlaceholder: 30 },
 };
 
 // Standard 30/40/30 protein/carb/fat split of the calorie target, for a suggested starting point only.
@@ -162,6 +170,26 @@ export default function SettingsScreen() {
       return;
     }
     openMacroEditor('calories', suggestion);
+  };
+
+  const openSuggestedFibre = () => {
+    if (!profile || !goals) return;
+    if (!profile.sex || !profile.birthYear) {
+      Alert.alert(
+        'Missing info',
+        'Add your sex and birth year in Profile first so we can suggest a fibre target.'
+      );
+      return;
+    }
+    const targets = getNutrientTargets({
+      // Only the birth year is collected, so July 1st is used as a
+      // reasonable midpoint — this can misjudge someone's age bracket by
+      // at most a few months near a life-stage boundary.
+      dateOfBirth: `${profile.birthYear}-07-01`,
+      sex: profile.sex,
+      dailyCalorieTarget: goals.calories,
+    });
+    openMacroEditor('fibre', targets.fiber.value);
   };
 
   const handleSaveMacro = async () => {
@@ -341,6 +369,15 @@ export default function SettingsScreen() {
             <Text style={styles.settingLabel}>Fat</Text>
             <Text style={styles.settingValue}>{goals.fat || 'Not set'}g</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={() => openMacroEditor('fibre')}>
+            <Text style={styles.settingLabel}>Fibre</Text>
+            <Text style={styles.settingValue}>{goals.fibre || 'Not set'}g</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={openSuggestedFibre}>
+            <Text style={[styles.settingLabelLink, { color: accentTextColor }]}>
+              Suggest my fibre target
+            </Text>
+          </TouchableOpacity>
           <Text style={styles.disclaimer}>
             These are general guidelines, not medical advice. Recommended daily calorie needs
             vary by age, sex, weight, height, and activity level – consult a doctor or registered
@@ -491,14 +528,21 @@ export default function SettingsScreen() {
                 value={macroInput}
                 onChangeText={setMacroInput}
                 keyboardType="number-pad"
-                placeholder={`e.g. ${suggestedGrams(editingMacro, goals.calories) ?? 2000}`}
+                placeholder={`e.g. ${suggestedGrams(editingMacro, goals.calories) ?? MACRO_CONFIG[editingMacro].defaultPlaceholder}`}
                 autoFocus
               />
-              {macroSuggestionOverride !== null && (
+              {macroSuggestionOverride !== null && editingMacro === 'calories' && (
                 <Text style={styles.suggestion}>
                   Suggested: {macroSuggestionOverride} kcal to maintain your current weight,
                   estimated from your profile (Mifflin-St Jeor formula). Adjust up or down
                   depending on your goal, then confirm below.
+                </Text>
+              )}
+              {macroSuggestionOverride !== null && editingMacro === 'fibre' && (
+                <Text style={styles.suggestion}>
+                  Suggested: {macroSuggestionOverride}g/day, based on NASEM Dietary Reference
+                  Intakes for your age and sex. Adjust up or down depending on your goal, then
+                  confirm below.
                 </Text>
               )}
               {macroSuggestionOverride === null && suggestedGrams(editingMacro, goals.calories) !== null && (

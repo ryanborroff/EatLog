@@ -28,7 +28,7 @@ export const getUserGoals = async (): Promise<DailyGoals> => withClockSkewRetry(
   const userId = await getUserId();
   const { data, error } = await supabase
     .from('user_goals')
-    .select('daily_calories, daily_protein, daily_carbs, daily_fat')
+    .select('daily_calories, daily_protein, daily_carbs, daily_fat, daily_fibre')
     .eq('user_id', userId)
     .single();
 
@@ -39,6 +39,7 @@ export const getUserGoals = async (): Promise<DailyGoals> => withClockSkewRetry(
     protein: data.daily_protein,
     carbohydrate: data.daily_carbs ?? undefined,
     fat: data.daily_fat ?? undefined,
+    fibre: data.daily_fibre ?? undefined,
   };
 });
 
@@ -51,6 +52,7 @@ export const saveUserGoals = async (goals: DailyGoals): Promise<void> => {
       daily_protein: goals.protein,
       daily_carbs: goals.carbohydrate ?? null,
       daily_fat: goals.fat ?? null,
+      daily_fibre: goals.fibre ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq('user_id', userId);

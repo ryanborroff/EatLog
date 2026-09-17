@@ -109,6 +109,7 @@ export default function TodayScreen() {
 
   const remainingCalories = goals.calories - todayEntry.totals.calories;
   const remainingProtein = goals.protein - todayEntry.totals.protein;
+  const remainingFibre = (goals.fibre ?? 0) - todayEntry.totals.fibre;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -148,7 +149,10 @@ export default function TodayScreen() {
             </View>
             <View style={styles.macroCell}>
               <Text style={styles.macroLabel}>Fibre</Text>
-              <Text style={styles.macroValue}>{formatAmount(todayEntry.totals.fibre)}g</Text>
+              <Text style={styles.macroValue}>
+                {formatAmount(todayEntry.totals.fibre)}g
+                {goals.fibre ? ` / ${formatAmount(goals.fibre)}g` : ''}
+              </Text>
             </View>
             <View style={styles.macroCell}>
               <Text style={styles.macroLabel}>Sodium</Text>
@@ -200,6 +204,14 @@ export default function TodayScreen() {
                 {remainingProtein >= 0 ? formatAmount(remainingProtein) : `+${formatAmount(Math.abs(remainingProtein))}`}g
               </Text>
             </View>
+            {goals.fibre !== undefined && (
+              <View style={styles.remainingRow}>
+                <Text style={styles.remainingLabel}>Fibre left</Text>
+                <Text style={styles.remainingValue}>
+                  {remainingFibre >= 0 ? formatAmount(remainingFibre) : `+${formatAmount(Math.abs(remainingFibre))}`}g
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
