@@ -126,7 +126,7 @@ export default function PersonalFoodsScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Personal foods</Text>
+          <Text style={styles.title}>My foods</Text>
         </View>
 
         {!loading &&
@@ -141,7 +141,7 @@ export default function PersonalFoodsScreen() {
           ))}
 
         {!loading && foods.length === 0 && !showForm && (
-          <Text style={styles.emptyText}>No personal foods saved yet.</Text>
+          <Text style={styles.emptyText}>No foods saved yet.</Text>
         )}
 
         {showForm ? (

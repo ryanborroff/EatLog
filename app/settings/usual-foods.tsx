@@ -138,7 +138,7 @@ export default function UsualFoodsScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Usual foods</Text>
+          <Text style={styles.title}>Quick-log shortcuts</Text>
         </View>
 
         {!loading &&
@@ -152,13 +152,13 @@ export default function UsualFoodsScreen() {
           ))}
 
         {!loading && defaults.length === 0 && mode === 'closed' && (
-          <Text style={styles.emptyText}>No usual foods saved yet.</Text>
+          <Text style={styles.emptyText}>No shortcuts saved yet.</Text>
         )}
 
         {personalFoods.length === 0 ? (
           mode === 'closed' && (
             <Text style={styles.hintText}>
-              Add a personal food first (Settings → Personal foods), then build a default from it.
+              Add a food first (Settings → My foods), then build a shortcut from it.
             </Text>
           )
         ) : mode === 'closed' ? (
