@@ -62,9 +62,9 @@ const formatLogDate = (date: string): string => {
 
 // Same conversational voice for every failure mode — no system-error strings.
 const ERROR_COPY = {
-  stt: "Didn't catch that — try again, or type it instead.",
+  stt: "Didn't catch that – try again, or type it instead.",
   network: "Couldn't connect. Nothing's been logged yet.",
-  ai: "Couldn't work that out — try again.",
+  ai: "Couldn't work that out – try again.",
 } as const;
 
 const formatMealType = (type: Meal['type']): string => type.charAt(0).toUpperCase() + type.slice(1);
@@ -217,7 +217,7 @@ const VoiceLogFlow: React.FC = () => {
       }
     } catch (err) {
       if (err instanceof FoodParseError && err.message === 'Nothing to correct') {
-        setErrorMessage("Nothing recent to correct — try logging the food instead.");
+        setErrorMessage("Nothing recent to correct – try logging the food instead.");
       } else if (err instanceof FoodParseError) {
         setErrorMessage(err.kind === 'network' ? ERROR_COPY.network : ERROR_COPY.ai);
       } else {

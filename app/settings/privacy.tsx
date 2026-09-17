@@ -61,11 +61,11 @@ export default function PrivacyScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>How your data is used</Text>
           <Text style={styles.paragraph}>
-            Your food diary — what you log, quantities, calories and macros — is stored against
+            Your food diary – what you log, quantities, calories and macros – is stored against
             your account and never shared with third parties for advertising or sold to anyone.
           </Text>
           <Text style={styles.paragraph}>
-            When you log food by voice, the audio itself never leaves your device — it's
+            When you log food by voice, the audio itself never leaves your device – it's
             transcribed to text on-device. That text, and any question you ask in Ask, is sent to
             Groq, a third-party AI service, to interpret it. Groq doesn't receive your email or
             account identity, only the text of that one request.

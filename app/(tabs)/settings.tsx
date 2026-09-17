@@ -343,7 +343,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
           <Text style={styles.disclaimer}>
             These are general guidelines, not medical advice. Recommended daily calorie needs
-            vary by age, sex, weight, height, and activity level — consult a doctor or registered
+            vary by age, sex, weight, height, and activity level – consult a doctor or registered
             dietitian before changing your target, especially if you have a health condition.
           </Text>
         </View>
@@ -510,7 +510,7 @@ export default function SettingsScreen() {
               )}
               <Text style={styles.disclaimer}>
                 This is a general guideline, not medical advice. Recommended daily targets vary
-                by age, sex, weight, height, and activity level — consult a doctor or registered
+                by age, sex, weight, height, and activity level – consult a doctor or registered
                 dietitian to determine what's right for you.
               </Text>
               <View style={styles.modalActions}>

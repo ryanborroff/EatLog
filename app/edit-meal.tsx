@@ -260,7 +260,7 @@ export default function EditMealScreen() {
 
           <Text style={styles.sectionLabel}>Items</Text>
           <View style={styles.itemsCard}>
-            {items.length === 0 && <Text style={styles.emptyText}>No items — add something below.</Text>}
+            {items.length === 0 && <Text style={styles.emptyText}>No items – add something below.</Text>}
             {items.map((item) => {
               const isEditing = editingItemId === item.id;
               return (
