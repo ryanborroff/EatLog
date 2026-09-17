@@ -20,10 +20,12 @@ import { recalculateMealTotals } from '../services/correctionApplier';
 import { getAppleHealthSyncEnabled } from '../services/healthSyncPreference';
 import { resyncMealToHealthKit } from '../services/healthKitService';
 import { searchFoods, foodRowToItem, FoodRow } from '../services/foodResolver';
+import { calculateNutrition, ReferenceNutrition } from '../services/nutritionCalculator';
 import { formatFoodItemLine } from '../utils/formatFoodItem';
 import { formatCalories } from '../utils/formatNumber';
 import { useTheme } from '../contexts/ThemeContext';
 import { colors, spacing, radii, typography } from '../constants/theme';
+import BarcodeScanFlow from '../components/BarcodeScanFlow';
 
 const MEAL_TYPES: Meal['type'][] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -48,6 +50,8 @@ export default function EditMealScreen() {
   const [draftDescription, setDraftDescription] = useState('');
   const [draftQuantity, setDraftQuantity] = useState('');
   const [draftUnit, setDraftUnit] = useState('');
+
+  const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -137,6 +141,23 @@ export default function EditMealScreen() {
     setSearchResults([]);
   };
 
+  const handleBarcodeResolved = (name: string, reference: ReferenceNutrition, quantity: number) => {
+    const calculated = calculateNutrition(reference, quantity);
+    setItems((current) => [
+      ...current,
+      {
+        id: String(Date.now()),
+        description: name,
+        quantity,
+        unit: reference.servingUnit,
+        ...calculated,
+        confidence: 'high',
+        estimated: false,
+      },
+    ]);
+    setShowScanner(false);
+  };
+
   const handleSave = useCallback(async () => {
     if (!meal) return;
 
@@ -184,6 +205,14 @@ export default function EditMealScreen() {
             <Text style={[styles.doneText, { color: accentTextColor }]}>Close</Text>
           </TouchableOpacity>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (showScanner) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <BarcodeScanFlow onResolved={handleBarcodeResolved} onCancel={() => setShowScanner(false)} />
       </SafeAreaView>
     );
   }
@@ -297,13 +326,23 @@ export default function EditMealScreen() {
           </View>
 
           <Text style={styles.sectionLabel}>Add food</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search foods…"
-            placeholderTextColor={colors.textMuted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+          <View style={styles.searchRow}>
+            <TextInput
+              style={[styles.searchInput, styles.searchInputFlex]}
+              placeholder="Search foods…"
+              placeholderTextColor={colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            <TouchableOpacity
+              style={styles.scanButton}
+              onPress={() => setShowScanner(true)}
+              accessibilityLabel="Scan a barcode"
+              accessibilityRole="button"
+            >
+              <Ionicons name="barcode-outline" size={22} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
           {searching && <ActivityIndicator style={styles.searchSpinner} color={colors.textSecondary} />}
           {searchResults.map((food) => (
             <TouchableOpacity key={food.id} style={styles.searchResultRow} onPress={() => handleAddItem(food)}>
@@ -436,6 +475,11 @@ const styles = StyleSheet.create({
   itemEditUnit: {
     flex: 1,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   searchInput: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -444,6 +488,15 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     fontSize: 16,
     color: colors.textPrimary,
+  },
+  searchInputFlex: {
+    flex: 1,
+  },
+  scanButton: {
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radii.card,
+    padding: spacing.sm,
   },
   searchSpinner: {
     marginTop: spacing.sm,

@@ -15,7 +15,7 @@ import {
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
 import { processTranscript, logBarcodeItem, FoodParseError } from '../services/foodPipeline';
-import { lookupBarcode, BarcodeProduct } from '../services/barcodeLookup';
+import { ReferenceNutrition } from '../services/nutritionCalculator';
 import { track } from '../services/analytics';
 import { Meal } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
@@ -23,7 +23,7 @@ import { colors, spacing, radii, typography } from '../constants/theme';
 import { formatFoodItemLine } from '../utils/formatFoodItem';
 import { formatAmount, formatCalories } from '../utils/formatNumber';
 import CalendarPicker from './CalendarPicker';
-import BarcodeScanner from './BarcodeScanner';
+import BarcodeScanFlow from './BarcodeScanFlow';
 import ListeningIndicator from './ListeningIndicator';
 
 // Flag: "I'm listening…" reads a bit "smart speaker" — worth A/B testing
@@ -44,9 +44,7 @@ type FlowState =
   | 'clarification'
   | 'result'
   | 'error'
-  | 'barcode_scanning'
-  | 'barcode_result'
-  | 'barcode_not_found';
+  | 'barcode';
 
 const todayDate = (): string => new Date().toISOString().split('T')[0];
 
@@ -89,9 +87,6 @@ const VoiceLogFlow: React.FC = () => {
   const [wasCorrection, setWasCorrection] = useState(false);
   const [targetDate, setTargetDate] = useState(todayDate());
   const [showCalendar, setShowCalendar] = useState(false);
-  const [scannedProduct, setScannedProduct] = useState<BarcodeProduct | null>(null);
-  const [gramsValue, setGramsValue] = useState('100');
-  const [productNameValue, setProductNameValue] = useState('');
   const mealHintRef = useRef<string | undefined>(undefined);
   const startedRef = useRef(false);
   const contentOpacity = useRef(new Animated.Value(1)).current;
@@ -250,27 +245,9 @@ const VoiceLogFlow: React.FC = () => {
     void startListening();
   };
 
-  const handleBarcodeScanned = async (barcode: string) => {
-    track('barcode_scanned');
-    const product = await lookupBarcode(barcode).catch(() => null);
-    if (!product) {
-      setState('barcode_not_found');
-      return;
-    }
-    setScannedProduct(product);
-    setGramsValue(String(product.reference.servingSize));
-    setProductNameValue(product.name);
-    setState('barcode_result');
-  };
-
-  const handleBarcodeConfirm = async () => {
-    if (!scannedProduct) return;
-    const grams = parseFloat(gramsValue);
-    if (!grams || grams <= 0) return;
-
+  const handleBarcodeResolved = async (name: string, reference: ReferenceNutrition, quantity: number) => {
     setState('processing');
-    const name = productNameValue.trim() || scannedProduct.name;
-    const meal = await logBarcodeItem(targetDate, 'snack', name, scannedProduct.reference, grams);
+    const meal = await logBarcodeItem(targetDate, 'snack', name, reference, quantity);
     track('food_logged', { source: 'barcode', mealType: meal.type, itemCount: meal.items.length });
     setLoggedMeal(meal);
     setWasCorrection(false);
@@ -354,46 +331,8 @@ const VoiceLogFlow: React.FC = () => {
             <TouchableOpacity onPress={() => void startListening()}>
               <Text style={styles.linkText}>Try again</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setState('barcode_scanning')}>
+            <TouchableOpacity onPress={() => setState('barcode')}>
               <Text style={styles.linkText}>Scan barcode instead</Text>
-            </TouchableOpacity>
-          </View>
-        );
-
-      case 'barcode_not_found':
-        return (
-          <View style={styles.content}>
-            <Text style={styles.errorMessage}>Couldn't find that product.</Text>
-            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: accentColor }]} onPress={() => setState('barcode_scanning')}>
-              <Text style={styles.primaryButtonText}>Scan again</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => void startListening()}>
-              <Text style={styles.linkText}>Tell EatLog instead</Text>
-            </TouchableOpacity>
-          </View>
-        );
-
-      case 'barcode_result':
-        return (
-          <View style={styles.content}>
-            <TextInput
-              style={styles.textInput}
-              value={productNameValue}
-              onChangeText={setProductNameValue}
-            />
-            <Text style={styles.subPrompt}>How many grams?</Text>
-            <TextInput
-              style={styles.textInput}
-              value={gramsValue}
-              onChangeText={setGramsValue}
-              keyboardType="numeric"
-              autoFocus
-            />
-            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: accentColor }]} onPress={handleBarcodeConfirm}>
-              <Text style={styles.primaryButtonText}>Log it</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setState('barcode_scanning')}>
-              <Text style={styles.linkText}>Scan a different item</Text>
             </TouchableOpacity>
           </View>
         );
@@ -426,11 +365,11 @@ const VoiceLogFlow: React.FC = () => {
     }
   };
 
-  if (state === 'barcode_scanning') {
+  if (state === 'barcode') {
     return (
-      <BarcodeScanner
-        onScanned={(barcode) => void handleBarcodeScanned(barcode)}
-        onClose={() => setState('error')}
+      <BarcodeScanFlow
+        onResolved={(name, reference, quantity) => void handleBarcodeResolved(name, reference, quantity)}
+        onCancel={() => setState('error')}
       />
     );
   }
