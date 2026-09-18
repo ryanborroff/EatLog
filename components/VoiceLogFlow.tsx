@@ -110,6 +110,7 @@ const VoiceLogFlow: React.FC = () => {
         setTimeout(() => void submitTranscript(finalText), 350);
       } else {
         setErrorMessage(ERROR_COPY.stt);
+        setShowTextInput(true);
         setState('error');
       }
     }, SILENCE_TIMEOUT_MS);
@@ -146,12 +147,17 @@ const VoiceLogFlow: React.FC = () => {
   useSpeechRecognitionEvent('error', () => {
     clearSilenceTimer();
     setErrorMessage(ERROR_COPY.stt);
+    setShowTextInput(true);
     setState('error');
   });
 
   useSpeechRecognitionEvent('end', () => {
     clearSilenceTimer();
-    setState((current) => (current === 'listening' || current === 'transcribing' ? 'error' : current));
+    if (state === 'listening' || state === 'transcribing') {
+      setErrorMessage(ERROR_COPY.stt);
+      setShowTextInput(true);
+      setState('error');
+    }
   });
 
   const handleClose = () => {
@@ -165,6 +171,7 @@ const VoiceLogFlow: React.FC = () => {
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!permission.granted) {
       setErrorMessage(ERROR_COPY.stt);
+      setShowTextInput(true);
       setState('error');
       return;
     }

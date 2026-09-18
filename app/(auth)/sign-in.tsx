@@ -226,5 +226,5 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   link: { color: '#000000', fontSize: 14, textAlign: 'center', marginTop: 24 },
-  devLink: { color: '#999999', fontSize: 13, textAlign: 'center', marginTop: 16 },
+  devLink: { color: '#6B6B6B', fontSize: 13, textAlign: 'center', marginTop: 16 },
 });

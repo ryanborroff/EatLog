@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 12,
-    color: '#999999',
+    color: '#6B6B6B',
   },
   grid: {
     flexDirection: 'row',

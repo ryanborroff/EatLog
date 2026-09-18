@@ -117,7 +117,8 @@ const styles = StyleSheet.create({
   closeButton: { fontSize: 22, color: '#000000' },
   scrollView: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 12 },
-  emptyText: { color: '#999999', fontSize: 15, textAlign: 'center', marginTop: 40 },
+  // #6B6B6B (not #999999) meets WCAG AA 4.5:1 contrast against white.
+  emptyText: { color: '#6B6B6B', fontSize: 15, textAlign: 'center', marginTop: 40 },
   bubble: {
     maxWidth: '85%',
     padding: 14,
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
   },
   questionText: { color: '#FFFFFF', fontSize: 15 },
   answerText: { color: '#000000', fontSize: 15, lineHeight: 21 },
-  thinkingText: { color: '#999999', fontSize: 14, marginTop: 4 },
+  thinkingText: { color: '#6B6B6B', fontSize: 14, marginTop: 4 },
   inputRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,

@@ -171,5 +171,5 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
   },
-  devBypassLabel: { fontSize: 12, color: '#999999', marginBottom: 8 },
+  devBypassLabel: { fontSize: 12, color: '#6B6B6B', marginBottom: 8 },
 });

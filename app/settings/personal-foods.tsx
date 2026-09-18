@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#000000' },
   cardSubtitle: { fontSize: 14, color: '#666666', marginTop: 4 },
-  emptyText: { textAlign: 'center', color: '#999999', marginTop: 20, marginBottom: 20 },
+  emptyText: { textAlign: 'center', color: '#6B6B6B', marginTop: 20, marginBottom: 20 },
   form: { paddingHorizontal: 20, marginTop: 12 },
   row: { flexDirection: 'row', gap: 12 },
   inputHalf: { flex: 1 },
