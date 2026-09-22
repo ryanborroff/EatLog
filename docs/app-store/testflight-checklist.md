@@ -8,8 +8,8 @@
 - [ ] Supabase secrets are set on the target project: `GROQ_API_KEY`
       (`supabase secrets set GROQ_API_KEY=...`)
 - [ ] All migrations applied to the target project (`supabase db push`)
-- [ ] Both Edge Functions deployed (`supabase functions deploy parse-food`,
-      `supabase functions deploy ask-diary`)
+- [ ] All three Edge Functions deployed (`supabase functions deploy parse-food`,
+      `supabase functions deploy ask-diary`, `supabase functions deploy delete-account`)
 - [ ] Xcode signing set up (Apple Developer account, automatic signing —
       handled by the Fastlane lane below)
 - [ ] `ASC_KEY_ID` / `ASC_ISSUER_ID` / `ASC_KEY_CONTENT` env vars set for the
@@ -56,13 +56,14 @@ Product → Archive, then upload via Xcode Organizer.
       connect" message appears rather than a crash or a false "Logged"
 - [ ] Sign out and back in — confirm data persists (it's server-side, not
       per-device)
+- [ ] Settings → Privacy → Delete my account — confirm the two-step
+      confirmation, then that the account and its data are actually gone
+      (can't sign back in with the same credentials)
 
 ## Known limitations to tell testers about
 
 - Groq's free tier has request-rate limits shared across all EatLog users
   during testing — occasional "AI parser request failed" errors under load
   are a known current limitation, not necessarily a bug to report.
-- No account-deletion flow yet — testers who want their test data removed
-  should ask you to delete it manually via the Supabase dashboard.
 - No offline queueing — logging while offline fails cleanly but isn't
   retried automatically once back online.
