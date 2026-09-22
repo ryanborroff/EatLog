@@ -21,7 +21,7 @@ import { colors, spacing, radii, typography } from '../constants/theme';
 const PAGE_COUNT = 3;
 const LAST_PAGE = PAGE_COUNT - 1;
 
-const EXAMPLE_CORRECTIONS = ['“make the eggs three”', '“remove the banana”'];
+const EXAMPLE_CORRECTIONS = ['“make that three eggs”', '“remove the banana”'];
 const EXAMPLE_MEAL = '“Two scrambled eggs on sourdough with butter and a flat white.”';
 
 export default function OnboardingScreen() {
