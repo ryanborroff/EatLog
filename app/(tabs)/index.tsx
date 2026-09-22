@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import {
   deleteMeal,
 } from '../../services/storageService';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
 import { formatAmount, formatCalories } from '../../utils/formatNumber';
 import { formatLoggedTime } from '../../utils/formatTime';
@@ -28,11 +29,19 @@ import { colors, spacing, radii, typography } from '../../constants/theme';
 export default function TodayScreen() {
   const router = useRouter();
   const { accentColor } = useTheme();
+  const { launchVoiceLogPending, clearLaunchVoiceLog } = useOnboarding();
   const [todayEntry, setTodayEntry] = useState<DayEntry | null>(null);
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [loading, setLoading] = useState(true);
 
   const todayDate = new Date().toISOString().split('T')[0];
+
+  // "Start speaking" on the last onboarding screen lands here and goes straight to the mic.
+  useEffect(() => {
+    if (!launchVoiceLogPending) return;
+    clearLaunchVoiceLog();
+    router.push('/modal');
+  }, [launchVoiceLogPending, clearLaunchVoiceLog, router]);
 
   useFocusEffect(
     useCallback(() => {

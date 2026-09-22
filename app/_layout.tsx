@@ -8,8 +8,10 @@ import * as Linking from 'expo-linking';
 import { getSession, onAuthStateChange, handleAuthRedirectUrl } from '../services/authService';
 import { track } from '../services/analytics';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import { OnboardingProvider, useOnboarding } from '../contexts/OnboardingContext';
 
-export default function RootLayout() {
+function RootNavigator() {
+  const { ready: onboardingReady, completed: onboardingCompleted } = useOnboarding();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,7 +42,7 @@ export default function RootLayout() {
     };
   }, []);
 
-  if (loading) {
+  if (loading || !onboardingReady) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color="#000000" />
@@ -54,30 +56,35 @@ export default function RootLayout() {
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Protected guard={!!session}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="modal"
-              options={{
-                presentation: 'modal',
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="ask"
-              options={{
-                presentation: 'modal',
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="edit-meal"
-              options={{
-                presentation: 'modal',
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen name="settings/personal-foods" options={{ headerShown: false }} />
-            <Stack.Screen name="settings/usual-foods" options={{ headerShown: false }} />
+            <Stack.Protected guard={onboardingCompleted}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="modal"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="ask"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="edit-meal"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen name="settings/personal-foods" options={{ headerShown: false }} />
+              <Stack.Screen name="settings/usual-foods" options={{ headerShown: false }} />
+            </Stack.Protected>
+            <Stack.Protected guard={!onboardingCompleted}>
+              <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+            </Stack.Protected>
           </Stack.Protected>
           <Stack.Protected guard={!session}>
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
@@ -89,6 +96,14 @@ export default function RootLayout() {
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <OnboardingProvider>
+      <RootNavigator />
+    </OnboardingProvider>
   );
 }
 
