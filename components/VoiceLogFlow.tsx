@@ -95,7 +95,7 @@ const formatLogDate = (date: string): string => {
 
 // Same conversational voice for every failure mode — no system-error strings.
 const ERROR_COPY = {
-  stt: "Didn't catch that – try again, or type it instead.",
+  stt: "Didn't catch that. Try again, or type your entry instead.",
   network: "Couldn't connect. Nothing's been logged yet.",
   ai: "Couldn't work that out – try again.",
 } as const;
