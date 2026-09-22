@@ -8,6 +8,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  NativeModules,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -46,6 +47,38 @@ type FlowState =
   | 'error'
   | 'barcode';
 
+// Recognition was set to a hardcoded 'en-GB', which mismatches the device's
+// actual keyboard/locale for a lot of users and quietly hurts accuracy —
+// SFSpeechRecognizer (iOS) and SpeechRecognizer (Android) both do noticeably
+// better when the requested locale matches what the speaker is actually
+// speaking. Fall back to en-GB only if the device locale can't be read.
+const deviceLocale = (): string => {
+  try {
+    const iosLocale =
+      NativeModules.SettingsManager?.settings?.AppleLocale ||
+      NativeModules.SettingsManager?.settings?.AppleLanguages?.[0];
+    const androidLocale = NativeModules.I18nManager?.localeIdentifier;
+    return (iosLocale || androidLocale || 'en-GB').replace('_', '-');
+  } catch {
+    return 'en-GB';
+  }
+};
+
+// Biases recognition toward the vocabulary we actually expect to hear, via
+// SFSpeechRecognitionRequest.contextualStrings on iOS (and the Android
+// equivalent where supported). This is the main lever for "it keeps
+// mishearing food words" — generic dictation models have no reason to
+// prefer "quinoa" over "kin-wa" without a hint.
+const FOOD_CONTEXTUAL_STRINGS = [
+  'calories', 'protein', 'carbs', 'carbohydrates', 'fat', 'fibre', 'fiber',
+  'grams', 'ounces', 'tablespoon', 'teaspoon', 'cup', 'serving', 'scoop',
+  'quinoa', 'yoghurt', 'yogurt', 'granola', 'hummus', 'avocado', 'tofu',
+  'edamame', 'protein shake', 'protein bar', 'smoothie', 'oat milk',
+  'almond milk', 'greek yogurt', 'chicken breast', 'salmon', 'broccoli',
+  'sweet potato', 'brown rice', 'peanut butter', 'olive oil',
+  'breakfast', 'lunch', 'dinner', 'snack',
+];
+
 const todayDate = (): string => new Date().toISOString().split('T')[0];
 
 const formatLogDate = (date: string): string => {
@@ -74,10 +107,17 @@ const formatMealType = (type: Meal['type']): string => type.charAt(0).toUpperCas
  * listening the instant it mounts (the triggering tap already happened on
  * the Today screen) — no intermediate "tap to record" screen.
  */
-const VoiceLogFlow: React.FC = () => {
+interface VoiceLogFlowProps {
+  // Set when this screen was opened by the "Log food in EatLog" Siri
+  // Shortcut / App Intent rather than a manual mic tap — skips straight to
+  // submitting this text instead of listening for speech.
+  initialTranscript?: string;
+}
+
+const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const router = useRouter();
   const { accentColor } = useTheme();
-  const [state, setState] = useState<FlowState>('listening');
+  const [state, setState] = useState<FlowState>(initialTranscript ? 'confirmed' : 'listening');
   const [showTextInput, setShowTextInput] = useState(false);
   const [textValue, setTextValue] = useState('');
   const [transcript, setTranscript] = useState('');
@@ -183,9 +223,11 @@ const VoiceLogFlow: React.FC = () => {
     // `continuous: true` on both platforms hands end-of-speech detection to
     // our own silence timer instead of each platform's short native default.
     ExpoSpeechRecognitionModule.start({
-      lang: 'en-GB',
+      lang: deviceLocale(),
       interimResults: true,
       continuous: true,
+      contextualStrings: FOOD_CONTEXTUAL_STRINGS,
+      addsPunctuation: false,
       androidIntentOptions: {
         EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: SILENCE_TIMEOUT_MS,
         EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: SILENCE_TIMEOUT_MS,
@@ -195,10 +237,17 @@ const VoiceLogFlow: React.FC = () => {
   };
 
   // Mount-time auto-start: the tap that opens this screen IS the tap that
-  // starts listening — no separate "ready to record" step.
+  // starts listening — no separate "ready to record" step. Skipped when a
+  // Siri Shortcut already supplied a transcript (see initialTranscript).
   if (!startedRef.current) {
     startedRef.current = true;
-    void startListening();
+    if (initialTranscript) {
+      setTranscript(initialTranscript);
+      track('voice_log_started', { source: 'siri' });
+      setTimeout(() => void submitTranscript(initialTranscript), 350);
+    } else {
+      void startListening();
+    }
   }
 
   const submitTranscript = async (text: string) => {
@@ -252,6 +301,24 @@ const VoiceLogFlow: React.FC = () => {
     void startListening();
   };
 
+  // Lets the user tap the mic again while it's listening to say "I'm done"
+  // instead of waiting out SILENCE_TIMEOUT_MS — useful when there's
+  // background noise keeping the mic "hearing" something, or the user just
+  // doesn't want to wait the full 3.5s pause.
+  const handleFinishListening = () => {
+    clearSilenceTimer();
+    ExpoSpeechRecognitionModule.stop();
+    const finalText = transcriptRef.current.trim();
+    if (finalText.length > 0) {
+      setState('confirmed');
+      setTimeout(() => void submitTranscript(finalText), 350);
+    } else {
+      setErrorMessage(ERROR_COPY.stt);
+      setShowTextInput(true);
+      setState('error');
+    }
+  };
+
   const handleBarcodeResolved = async (name: string, reference: ReferenceNutrition, quantity: number) => {
     setState('processing');
     const meal = await logBarcodeItem(targetDate, 'snack', name, reference, quantity);
@@ -268,17 +335,25 @@ const VoiceLogFlow: React.FC = () => {
       case 'transcribing':
         return (
           <View style={styles.content}>
-            <ListeningIndicator
-              active
-              size={100}
-              color={accentColor}
-              showMicIcon={state === 'listening'}
-            />
+            <TouchableOpacity
+              onPress={handleFinishListening}
+              accessibilityLabel="Finish talking and log this"
+              accessibilityRole="button"
+              activeOpacity={0.7}
+            >
+              <ListeningIndicator
+                active
+                size={100}
+                color={accentColor}
+                showMicIcon={state === 'listening'}
+              />
+            </TouchableOpacity>
             {state === 'listening' ? (
               <Text style={styles.prompt}>{LISTENING_COPY}</Text>
             ) : (
               <Text style={styles.transcript}>{transcript}</Text>
             )}
+            <Text style={styles.tapToFinishHint}>Tap the mic when you're done</Text>
           </View>
         );
 
@@ -461,6 +536,11 @@ const styles = StyleSheet.create({
     ...typography.secondary,
     marginTop: spacing.xs,
     marginBottom: spacing.md,
+  },
+  tapToFinishHint: {
+    ...typography.small,
+    color: colors.textMuted,
+    marginTop: spacing.md,
   },
   transcript: {
     ...typography.cardHeading,
