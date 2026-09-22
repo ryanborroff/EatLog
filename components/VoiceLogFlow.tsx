@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
-    width: '100%',
+    alignSelf: 'stretch',
   },
   prompt: {
     ...typography.cardHeading,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   textInput: {
-    width: '100%',
+    alignSelf: 'stretch',
     minHeight: 60,
     borderWidth: 1,
     borderColor: colors.cardBorder,

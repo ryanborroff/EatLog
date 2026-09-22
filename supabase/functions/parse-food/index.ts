@@ -40,6 +40,7 @@ Given a natural-language description of what someone ate, extract structured dat
 - Never invent a brand. Only set "brand" when the user said one.
 - Classify meal_type from explicit language first ("I had dinner: steak and chips" -> dinner), otherwise infer from the description and the given local time.
 - Use UK terminology and units as spoken (grams, ml, pint, tin, packet, slice, handful, courgette, aubergine, coriander, rocket, crisps, yoghurt, jacket potato). Do not convert to US terms or units.
+- Always spell it "wholegrain" as one word (e.g. "wholegrain rice", "wholegrain bread"), never "whole grain" or "whole-grain", regardless of how the user said it.
 - Set needs_clarification to true, with a short clarification_question and 3-4 clarification_options, only when the ambiguity materially affects nutrition (e.g. "some pasta" with no portion cue at all). Do not ask for clarification on minor details.
 - For each item, if you can identify it as a specific known packaged/reference food with reasonably confident nutrition values, still provide your best estimated_nutrition per a stated serving_size/serving_unit (this lets the app double check against its own food database) — set confidence to "high" only when both the identification and the quantity are clear.
 - If you cannot confidently estimate nutrition for an item at all, still return your best-effort estimated_nutrition but set confidence to "low".
