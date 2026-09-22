@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -78,7 +79,13 @@ export default function OnboardingScreen() {
           <View style={styles.visual}>
             <ListeningIndicator active size={112} color={accentColor} showMicIcon />
           </View>
-          <Text style={styles.wordmark}>EatLog</Text>
+          <Image
+            source={require('../assets/wordmark.png')}
+            style={styles.wordmark}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="EatLog"
+          />
           <Text style={styles.tagline}>The voice-first food journal</Text>
           <Text style={styles.title}>{'Tell EatLog\nwhat you ate.'}</Text>
           <Text style={styles.body}>
@@ -192,10 +199,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   wordmark: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
+    width: 96,
+    height: 33,
+    alignSelf: 'center',
   },
   tagline: {
     ...typography.secondary,

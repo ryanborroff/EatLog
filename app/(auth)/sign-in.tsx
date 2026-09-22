@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -147,7 +148,13 @@ export default function SignInScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.content}>
-          <Text style={styles.title}>EatLog</Text>
+          <Image
+            source={require('../../assets/wordmark.png')}
+            style={styles.wordmark}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="EatLog"
+          />
           <Text style={styles.subtitle}>Tell us what you ate. We'll do the maths.</Text>
 
           <TextInput
@@ -204,6 +211,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
   title: { fontSize: 32, fontWeight: '700', color: '#000000', marginBottom: 8 },
+  wordmark: { width: 150, height: 51, marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#666666', marginBottom: 32 },
   input: {
     borderWidth: 1,
