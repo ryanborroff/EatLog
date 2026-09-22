@@ -18,13 +18,23 @@ struct EatLogShortcuts: AppShortcutsProvider {
     // That means this has to stay a two-turn interaction: the trigger
     // phrase alone, then Siri's own requestValueDialog follow-up asks for
     // the food description on the LogFoodIntent parameter.
+    //
+    // Down to a single phrase, deliberately: registration/build/app-name
+    // matching were all confirmed working (the shortcut shows up correctly
+    // in the Shortcuts app and runs fine when triggered manually) — the
+    // remaining failure is Siri's on-device NLU not confidently matching
+    // "Hey Siri, [phrase]" to any of our registered phrasings, and offering
+    // three similar phrases for one intent likely diluted matching further
+    // rather than helping. "EatLog" is also not a real word Siri's language
+    // model has ever seen, so it has to lean entirely on this template —
+    // "with" reads more naturally leading into a compound app name than
+    // "in" (Apple's own HIG examples favor "Log a workout with Fitness"
+    // over "... in Fitness").
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: LogFoodIntent(),
             phrases: [
-                "Log food in \(.applicationName)",
-                "Log a meal in \(.applicationName)",
-                "Log what I ate in \(.applicationName)",
+                "Log food with \(.applicationName)",
             ],
             shortTitle: "Log Food",
             systemImageName: "fork.knife"

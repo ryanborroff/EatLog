@@ -132,6 +132,10 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const contentOpacity = useRef(new Animated.Value(1)).current;
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptRef = useRef('');
+  // Silence timer, the native isFinal result, and the "tap to finish" button
+  // can all fire for one utterance (stop() itself triggers a final result),
+  // so only the first one submits. Reset per listening session.
+  const submittedRef = useRef(false);
 
   const clearSilenceTimer = () => {
     if (silenceTimerRef.current) {
@@ -140,20 +144,32 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     }
   };
 
+  const finishWith = (text: string, delay = 350) => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    clearSilenceTimer();
+    setState('confirmed');
+    // Brief settle beat before the calc kicks off, so "Got it." is felt.
+    setTimeout(() => void submitTranscript(text), delay);
+  };
+
+  const stopAndFinish = () => {
+    clearSilenceTimer();
+    if (submittedRef.current) return;
+    ExpoSpeechRecognitionModule.stop();
+    const finalText = transcriptRef.current.trim();
+    if (finalText.length > 0) {
+      finishWith(finalText);
+    } else {
+      setErrorMessage(ERROR_COPY.stt);
+      setShowTextInput(true);
+      setState('error');
+    }
+  };
+
   const resetSilenceTimer = () => {
     clearSilenceTimer();
-    silenceTimerRef.current = setTimeout(() => {
-      ExpoSpeechRecognitionModule.stop();
-      const finalText = transcriptRef.current.trim();
-      if (finalText.length > 0) {
-        setState('confirmed');
-        setTimeout(() => void submitTranscript(finalText), 350);
-      } else {
-        setErrorMessage(ERROR_COPY.stt);
-        setShowTextInput(true);
-        setState('error');
-      }
-    }, SILENCE_TIMEOUT_MS);
+    silenceTimerRef.current = setTimeout(stopAndFinish, SILENCE_TIMEOUT_MS);
   };
 
   useEffect(() => () => clearSilenceTimer(), []);
@@ -169,6 +185,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   }, [state, contentOpacity]);
 
   useSpeechRecognitionEvent('result', (event) => {
+    if (submittedRef.current) return;
     const text = event.results[0]?.transcript ?? '';
     transcriptRef.current = text;
     setTranscript(text);
@@ -177,15 +194,13 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
       resetSilenceTimer();
     }
     if (event.isFinal && text.trim().length > 0) {
-      clearSilenceTimer();
-      setState('confirmed');
-      // Brief settle beat before the calc kicks off, so "Got it." is felt.
-      setTimeout(() => void submitTranscript(text), 350);
+      finishWith(text);
     }
   });
 
   useSpeechRecognitionEvent('error', () => {
     clearSilenceTimer();
+    if (submittedRef.current) return;
     setErrorMessage(ERROR_COPY.stt);
     setShowTextInput(true);
     setState('error');
@@ -193,6 +208,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
 
   useSpeechRecognitionEvent('end', () => {
     clearSilenceTimer();
+    if (submittedRef.current) return;
     if (state === 'listening' || state === 'transcribing') {
       setErrorMessage(ERROR_COPY.stt);
       setShowTextInput(true);
@@ -218,6 +234,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
 
     setTranscript('');
     transcriptRef.current = '';
+    submittedRef.current = false;
     setState('listening');
     track('voice_log_started');
     // `continuous: true` on both platforms hands end-of-speech detection to
@@ -244,7 +261,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     if (initialTranscript) {
       setTranscript(initialTranscript);
       track('voice_log_started', { source: 'siri' });
-      setTimeout(() => void submitTranscript(initialTranscript), 350);
+      finishWith(initialTranscript);
     } else {
       void startListening();
     }
@@ -280,6 +297,8 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         setErrorMessage(ERROR_COPY.ai);
       }
       track('voice_log_failed');
+      // Let the typed-text fallback submit.
+      submittedRef.current = false;
       setTextValue(text);
       setShowTextInput(true);
       setState('error');
@@ -292,8 +311,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     setShowTextInput(false);
     setTextValue('');
     setTranscript(value);
-    setState('confirmed');
-    setTimeout(() => void submitTranscript(value), 200);
+    finishWith(value, 200);
   };
 
   // Result → tap mic again to say a correction ("Actually it was three eggs").
@@ -305,19 +323,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   // instead of waiting out SILENCE_TIMEOUT_MS — useful when there's
   // background noise keeping the mic "hearing" something, or the user just
   // doesn't want to wait the full 3.5s pause.
-  const handleFinishListening = () => {
-    clearSilenceTimer();
-    ExpoSpeechRecognitionModule.stop();
-    const finalText = transcriptRef.current.trim();
-    if (finalText.length > 0) {
-      setState('confirmed');
-      setTimeout(() => void submitTranscript(finalText), 350);
-    } else {
-      setErrorMessage(ERROR_COPY.stt);
-      setShowTextInput(true);
-      setState('error');
-    }
-  };
+  const handleFinishListening = stopAndFinish;
 
   const handleBarcodeResolved = async (name: string, reference: ReferenceNutrition, quantity: number) => {
     setState('processing');
