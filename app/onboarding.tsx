@@ -89,7 +89,7 @@ export default function OnboardingScreen() {
           <Text style={styles.tagline}>The voice-first food journal</Text>
           <Text style={styles.title}>{'Tell EatLog\nwhat you ate.'}</Text>
           <Text style={styles.body}>
-            Speak naturally. EatLog will turn it into a simple, editable nutrition record.
+            Speak naturally and EatLog will create a simple, editable journal and nutrition record.
           </Text>
         </View>
 
