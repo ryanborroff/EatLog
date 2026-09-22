@@ -148,7 +148,7 @@ export default function SignInScreen() {
       >
         <View style={styles.content}>
           <Text style={styles.title}>EatLog</Text>
-          <Text style={styles.subtitle}>Say what you ate. We'll do the maths.</Text>
+          <Text style={styles.subtitle}>Tell us what you ate. We'll do the maths.</Text>
 
           <TextInput
             style={styles.input}
