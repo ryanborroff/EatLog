@@ -11,6 +11,12 @@ Aliases are lowercase. The resolver also tries a singular form, so plurals
 only need listing where the singular reads oddly (e.g. "chips").
 """
 
+# CoFID names shared by more than one food, pinned to the intended code.
+DUPLICATE_NAME_CODES = {
+    # 18-470 is plain stewed mince; 19-607 is a recipe with onions, flour and stock.
+    "Beef, mince, stewed": "18-470",
+}
+
 ALIASES = {
     # Eggs
     "Eggs, chicken, whole, boiled": ["egg", "boiled egg", "hard boiled egg", "soft boiled egg"],

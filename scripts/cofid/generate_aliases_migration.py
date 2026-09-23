@@ -1,7 +1,9 @@
 """Generates a CoFID alias migration from aliases.py.
 
 Validates every CoFID name against the spreadsheet (so a typo fails loudly
-rather than silently dropping an alias) and that no alias is used twice.
+rather than silently dropping an alias), that no alias is used twice, and that
+any name CoFID uses for more than one food is pinned to a code in
+DUPLICATE_NAME_CODES.
 
 Usage:
     pip install openpyxl
@@ -17,7 +19,7 @@ from pathlib import Path
 
 import openpyxl
 
-from aliases import ALIASES
+from aliases import ALIASES, DUPLICATE_NAME_CODES
 
 MIGRATIONS = Path(__file__).resolve().parents[2] / "supabase/migrations"
 
@@ -29,17 +31,26 @@ def sql_text(value):
 def main(xlsx_path, migration_number):
     output = MIGRATIONS / f"{migration_number}_cofid_aliases.sql"
     wb = openpyxl.load_workbook(xlsx_path, read_only=True)
-    code_by_name = {}
+    codes_by_name = {}
     for row in wb["1.3 Proximates"].iter_rows(min_row=4, values_only=True):
         if row[0] and row[1]:
-            code_by_name.setdefault(row[1].strip(), row[0])
+            codes_by_name.setdefault(row[1].strip(), []).append(row[0])
 
     errors, seen, values = [], {}, []
     for name, aliases in ALIASES.items():
-        code = code_by_name.get(name)
-        if code is None:
+        codes = codes_by_name.get(name)
+        if not codes:
             errors.append(f"Unknown CoFID name: {name!r}")
             continue
+        if len(codes) > 1:
+            # CoFID reuses some names for different foods (e.g. "Beef, mince, stewed"
+            # is both plain mince and a recipe with onions and flour).
+            code = DUPLICATE_NAME_CODES.get(name)
+            if code not in codes:
+                errors.append(f"CoFID name {name!r} matches {codes}; pin one in DUPLICATE_NAME_CODES")
+                continue
+        else:
+            code = codes[0]
         for alias in aliases:
             if alias != alias.strip().lower():
                 errors.append(f"Alias must be lowercase and trimmed: {alias!r}")
