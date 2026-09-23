@@ -66,30 +66,55 @@ const findFoodDefault = async (
   return { food: data.foods as unknown as FoodRow, quantity: data.quantity, unit: data.unit };
 };
 
+/** "strawberries" -> "strawberry", "potatoes" -> "potato", "eggs" -> "egg"; leaves "glass" alone. */
+const singularize = (text: string): string => {
+  if (text.endsWith('ies') && text.length > 4) return `${text.slice(0, -3)}y`;
+  if (text.endsWith('oes')) return text.slice(0, -2);
+  if (text.endsWith('s') && !text.endsWith('ss') && text.length > 3) return text.slice(0, -1);
+  return text;
+};
+
 /**
- * Tier 3/4: look up the foods table by exact name, then by a known alias.
+ * Alias lookup keys for an item, most specific first: the preparation plus the
+ * food ("boiled egg") beats the bare food ("egg"), and each is also tried in
+ * singular form ("scrambled eggs" -> "scrambled egg").
+ */
+const aliasCandidates = (item: ParsedFoodItem): string[] => {
+  const description = normalize(item.description);
+  const preparation = item.preparation ? normalize(item.preparation) : '';
+  const forms = [description, singularize(description)];
+  const withPreparation =
+    preparation && !description.includes(preparation) ? forms.map((form) => `${preparation} ${form}`) : [];
+  return [...new Set([...withPreparation, ...forms])];
+};
+
+/**
+ * Tier 3/4: look up the foods table by exact name, then by a known alias
+ * (everyday names like "egg" for CoFID's "Eggs, chicken, whole, boiled").
  * Returns null if nothing matches (falls through to the AI's own estimate).
  */
-const findReferenceFood = async (description: string): Promise<FoodRow | null> => {
-  const query = normalize(description);
-
+const findReferenceFood = async (item: ParsedFoodItem): Promise<FoodRow | null> => {
   const { data: exactMatch } = await supabase
     .from('foods')
     .select('id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar')
-    .ilike('name', query)
+    .ilike('name', normalize(item.description))
     .limit(1)
     .maybeSingle();
 
   if (exactMatch) return exactMatch;
 
-  const { data: aliasMatch } = await supabase
+  // Aliases are stored lowercase, so an exact `in` match is case-insensitive here.
+  const candidates = aliasCandidates(item);
+  const { data: aliasMatches } = await supabase
     .from('food_aliases')
-    .select('foods!inner(id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar)')
-    .ilike('alias', query)
-    .limit(1)
-    .maybeSingle();
+    .select('alias, foods!inner(id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar)')
+    .in('alias', candidates);
 
-  return (aliasMatch?.foods as unknown as FoodRow) ?? null;
+  for (const candidate of candidates) {
+    const match = aliasMatches?.find((row) => row.alias === candidate);
+    if (match) return match.foods as unknown as FoodRow;
+  }
+  return null;
 };
 
 const toReference = (food: FoodRow): ReferenceNutrition => ({
@@ -163,7 +188,7 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
     if (fromDefault) return fromDefault;
   }
 
-  const referenceFood = await findReferenceFood(item.description);
+  const referenceFood = await findReferenceFood(item);
   const fromReference =
     referenceFood && scaleToLoggedQuantity(toReference(referenceFood), item.quantity, item.unit, item.grams_per_unit);
 

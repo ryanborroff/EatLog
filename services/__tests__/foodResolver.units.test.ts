@@ -1,25 +1,40 @@
 import { ParsedFoodItem } from '../../types/foodParser';
 
-// Rows the fake `foods` table returns by exact (lowercased) name. CoFID values, per 100 g / 100 ml.
-const mockReferenceFoods: Record<string, object> = {
-  egg: { id: '1', name: 'Egg', serving_size: 100, serving_unit: 'g', calories: 143, protein: 14.1, carbohydrate: 0, fat: 9.6, fibre: 0, sodium: 150, sugar: 0 },
-  'black coffee': { id: '2', name: 'Black coffee', serving_size: 100, serving_unit: 'g', calories: 2, protein: 0.2, carbohydrate: 0.3, fat: 0, fibre: 0, sodium: 0, sugar: 0.3 },
-  toast: { id: '3', name: 'Toast', serving_size: 100, serving_unit: 'g', calories: 250, protein: 9, carbohydrate: 48, fat: 2, fibre: 3, sodium: 400, sugar: 3 },
-  beer: { id: '4', name: 'Beer', serving_size: 100, serving_unit: 'ml', calories: 30, protein: 0.3, carbohydrate: 2.2, fat: 0, fibre: 0, sodium: 6, sugar: 2.2 },
+// Fake reference data: CoFID-style foods (per 100 g / 100 ml) reachable only via
+// their everyday aliases, as in production.
+const mockFood = (name: string, serving_unit: string, calories: number) => ({
+  id: name, name, serving_size: 100, serving_unit, calories, protein: 1, carbohydrate: 1, fat: 1, fibre: 0, sodium: 0, sugar: 0,
+});
+const mockAliases: Record<string, object> = {
+  egg: mockFood('Eggs, chicken, whole, boiled', 'g', 143),
+  'scrambled egg': mockFood('Eggs, chicken, scrambled, with semi-skimmed milk', 'g', 237),
+  'black coffee': mockFood('Coffee, infusion, average', 'g', 2),
+  toast: mockFood('Bread, white, toasted', 'g', 250),
+  beer: mockFood('Beer, bitter, average (<4% ABV)', 'ml', 30),
+  strawberry: mockFood('Strawberries, raw', 'g', 30),
 };
 
 jest.mock('../supabaseClient', () => {
   const query = (table: string) => {
-    let name = '';
+    let aliases: string[] = [];
     const builder = {
       select: () => builder,
       eq: () => builder,
       limit: () => builder,
-      ilike: (_column: string, value: string) => {
-        name = value;
+      ilike: () => builder,
+      // No CoFID food is ever named "egg", so exact-name/personal/default lookups miss.
+      maybeSingle: async () => ({ data: null }),
+      in: (_column: string, values: string[]) => {
+        aliases = values;
         return builder;
       },
-      maybeSingle: async () => ({ data: table === 'foods' ? mockReferenceFoods[name] ?? null : null }),
+      then: (resolve: (value: unknown) => void) =>
+        resolve({
+          data:
+            table === 'food_aliases'
+              ? aliases.filter((alias) => mockAliases[alias]).map((alias) => ({ alias, foods: mockAliases[alias] }))
+              : null,
+        }),
     };
     return builder;
   };
@@ -78,6 +93,19 @@ describe('resolveFoodItems unit reconciliation', () => {
     ]);
     expect(egg.calories).toBe(72);
     expect(egg.estimated).toBe(true);
+  });
+
+  it('finds a food by its alias in singular form ("strawberries" -> "strawberry")', async () => {
+    const [berries] = await resolveFoodItems([parsed({ description: 'Strawberries', quantity: 150, unit: 'g' })]);
+    expect(berries.calories).toBe(45);
+    expect(berries.unresolved).toBeUndefined();
+  });
+
+  it('prefers the preparation-specific alias ("scrambled" + "eggs")', async () => {
+    const [eggs] = await resolveFoodItems([
+      parsed({ description: 'Eggs', preparation: 'scrambled', quantity: 2, grams_per_unit: 60 }),
+    ]);
+    expect(eggs.calories).toBeCloseTo(284.4);
   });
 
   it('marks the item unresolved instead of logging a wrong number when nothing converts', async () => {
