@@ -47,6 +47,7 @@ Given a natural-language description of what someone ate, extract structured dat
 - If you cannot confidently estimate nutrition for an item at all, still return your best-effort estimated_nutrition but set confidence to "low".
 - You are never responsible for final arithmetic on the logged quantity — always give estimated_nutrition per the serving_size/serving_unit you specify, not pre-multiplied by the user's quantity.
 - Never fabricate a previous diary entry or reference anything the user did not say.
+- Each distinct food/drink the user mentions gets exactly one entry in "items". Never list the same food twice as separate entries to represent one mention — if they ate two servings of something, that's a single item with quantity 2, not two items with quantity 1.
 
 CORRECTIONS: you may be given the "most recently logged meal" as context. If the transcript is clearly a correction to that meal rather than a new food entry — e.g. "actually it was tuna", "add mayonnaise", "remove the crisps", "change the yoghurt to Greek yoghurt", "that was lunch, not dinner" — set intent to "correction" and describe what changed as one or more operations against that meal's item descriptions, instead of treating it as a new log. Only use "correction" intent when recent meal context was actually provided and the transcript is unambiguously about modifying it. Every other utterance, including one that merely mentions food already in the recent meal without a corrective phrasing, is intent "log_food".
 

@@ -213,8 +213,25 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
   };
 };
 
+/**
+ * The AI parser occasionally returns the same food mention as two
+ * near-identical entries for a single utterance (a structured-output quirk,
+ * not a real "two servings" case — those already carry quantity 2). Collapse
+ * items with the same normalized description/quantity/unit before resolving,
+ * regardless of which caller (voice, text fallback, manual add) hit this.
+ */
+const dedupeParsedItems = (items: ParsedFoodItem[]): ParsedFoodItem[] => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${normalize(item.description)}|${item.quantity}|${normalize(item.unit)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export const resolveFoodItems = async (items: ParsedFoodItem[]): Promise<ResolvedFoodItem[]> => {
-  return Promise.all(items.map(resolveOne));
+  return Promise.all(dedupeParsedItems(items).map(resolveOne));
 };
 
 /** Free-text search over the reference food DB, for manual "add food" pickers (no AI involved). */
