@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -28,6 +29,8 @@ import { ACCENT_COLORS, WeekStartDay, useTheme } from '../../contexts/ThemeConte
 import { colors as theme, spacing, radii } from '../../constants/theme';
 import { getAppleHealthSyncEnabled, setAppleHealthSyncEnabled } from '../../services/healthSyncPreference';
 import { requestHealthKitAuthorization } from '../../services/healthKitService';
+
+const OGL_URL = 'https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/';
 
 type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat' | 'fibre';
 
@@ -541,6 +544,25 @@ export default function SettingsScreen() {
             <Text style={[styles.settingLabel, styles.dangerText]}>Sign out</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Data sources</Text>
+          <Text style={styles.disclaimer}>
+            Nutrition data for standard foods comes from McCance and Widdowson's Composition of
+            Foods Integrated Dataset (CoFID), published by the UK government.
+          </Text>
+          <Text style={styles.disclaimer}>
+            Contains public sector information licensed under the{' '}
+            <Text
+              style={[styles.disclaimerLink, { color: accentTextColor }]}
+              onPress={() => Linking.openURL(OGL_URL)}
+              accessibilityRole="link"
+            >
+              Open Government Licence v3.0
+            </Text>
+            .
+          </Text>
+        </View>
       </ScrollView>
 
       <Modal
@@ -788,6 +810,9 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 18,
     color: theme.textSecondary,
+  },
+  disclaimerLink: {
+    textDecorationLine: 'underline',
   },
   disclaimer: {
     fontSize: 14,
