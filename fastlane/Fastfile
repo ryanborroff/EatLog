@@ -30,15 +30,12 @@ platform :ios do
     )
 
     upload_to_testflight(
-      # Prefers an App Store Connect API key (set ASC_KEY_ID / ASC_ISSUER_ID /
-      # ASC_KEY_CONTENT below) to avoid the Apple-ID 2FA prompt entirely.
-      # Falls back to interactive Apple ID login if those aren't set.
-      api_key: ENV["ASC_KEY_ID"] ? app_store_connect_api_key(
-        key_id: ENV["ASC_KEY_ID"],
-        issuer_id: ENV["ASC_ISSUER_ID"],
-        key_content: ENV["ASC_KEY_CONTENT"],
-        is_key_content_base64: true
-      ) : nil,
+      # Prefers an App Store Connect API key to avoid the Apple-ID 2FA prompt.
+      # With no arguments, app_store_connect_api_key reads fastlane's standard
+      # APP_STORE_CONNECT_API_KEY_KEY_ID / _ISSUER_ID / _KEY (raw .p8 contents)
+      # env vars, as exported in ~/.zshrc. Falls back to Apple ID login
+      # (FASTLANE_USER + app-specific password) if they aren't set.
+      api_key: ENV["APP_STORE_CONNECT_API_KEY_KEY_ID"] ? app_store_connect_api_key : nil,
       skip_waiting_for_build_processing: true
     )
   end
