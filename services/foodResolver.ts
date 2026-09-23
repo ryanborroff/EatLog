@@ -66,12 +66,17 @@ const findFoodDefault = async (
   return { food: data.foods as unknown as FoodRow, quantity: data.quantity, unit: data.unit };
 };
 
-/** "strawberries" -> "strawberry", "potatoes" -> "potato", "eggs" -> "egg"; leaves "glass" alone. */
-const singularize = (text: string): string => {
-  if (text.endsWith('ies') && text.length > 4) return `${text.slice(0, -3)}y`;
-  if (text.endsWith('oes')) return text.slice(0, -2);
-  if (text.endsWith('s') && !text.endsWith('ss') && text.length > 3) return text.slice(0, -1);
-  return text;
+/**
+ * Possible singular forms of a word: "strawberries" -> "strawberry" but
+ * "brownies" -> "brownie", so "-ies" yields both; "potatoes" -> "potato";
+ * "eggs" -> "egg". Leaves "glass" alone. Only exact alias hits count, so the
+ * extra wrong guess ("browny") is harmless.
+ */
+const singularForms = (text: string): string[] => {
+  if (text.endsWith('ies') && text.length > 4) return [`${text.slice(0, -3)}y`, text.slice(0, -1)];
+  if (text.endsWith('oes')) return [text.slice(0, -2)];
+  if (text.endsWith('s') && !text.endsWith('ss') && text.length > 3) return [text.slice(0, -1)];
+  return [];
 };
 
 /**
@@ -82,7 +87,7 @@ const singularize = (text: string): string => {
 const aliasCandidates = (item: ParsedFoodItem): string[] => {
   const description = normalize(item.description);
   const preparation = item.preparation ? normalize(item.preparation) : '';
-  const forms = [description, singularize(description)];
+  const forms = [description, ...singularForms(description)];
   const withPreparation =
     preparation && !description.includes(preparation) ? forms.map((form) => `${preparation} ${form}`) : [];
   return [...new Set([...withPreparation, ...forms])];

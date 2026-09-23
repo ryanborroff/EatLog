@@ -12,6 +12,7 @@ const mockAliases: Record<string, object> = {
   toast: mockFood('Bread, white, toasted', 'g', 250),
   beer: mockFood('Beer, bitter, average (<4% ABV)', 'ml', 30),
   strawberry: mockFood('Strawberries, raw', 'g', 30),
+  brownie: mockFood('Brownies, chocolate, homemade', 'g', 506),
 };
 
 jest.mock('../supabaseClient', () => {
@@ -99,6 +100,12 @@ describe('resolveFoodItems unit reconciliation', () => {
     const [berries] = await resolveFoodItems([parsed({ description: 'Strawberries', quantity: 150, unit: 'g' })]);
     expect(berries.calories).toBe(45);
     expect(berries.unresolved).toBeUndefined();
+  });
+
+  it('finds "-ies" plurals whose singular ends in "-ie" ("brownies" -> "brownie")', async () => {
+    const [brownies] = await resolveFoodItems([parsed({ description: 'Brownies', quantity: 50, unit: 'g' })]);
+    expect(brownies.calories).toBe(253);
+    expect(brownies.unresolved).toBeUndefined();
   });
 
   it('prefers the preparation-specific alias ("scrambled" + "eggs")', async () => {

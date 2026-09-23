@@ -1,11 +1,15 @@
-"""Generates supabase/migrations/0010_cofid_aliases.sql from aliases.py.
+"""Generates a CoFID alias migration from aliases.py.
 
 Validates every CoFID name against the spreadsheet (so a typo fails loudly
 rather than silently dropping an alias) and that no alias is used twice.
 
 Usage:
     pip install openpyxl
-    python scripts/cofid/generate_aliases_migration.py path/to/cofid.xlsx
+    python scripts/cofid/generate_aliases_migration.py path/to/cofid.xlsx NNNN
+
+where NNNN is the next free migration number. Each run writes the complete
+alias set as a new migration (it replaces every CoFID alias), because an
+already-applied migration is never re-run.
 """
 
 import sys
@@ -15,14 +19,15 @@ import openpyxl
 
 from aliases import ALIASES
 
-OUTPUT = Path(__file__).resolve().parents[2] / "supabase/migrations/0010_cofid_aliases.sql"
+MIGRATIONS = Path(__file__).resolve().parents[2] / "supabase/migrations"
 
 
 def sql_text(value):
     return "'" + value.replace("'", "''") + "'"
 
 
-def main(xlsx_path):
+def main(xlsx_path, migration_number):
+    output = MIGRATIONS / f"{migration_number}_cofid_aliases.sql"
     wb = openpyxl.load_workbook(xlsx_path, read_only=True)
     code_by_name = {}
     for row in wb["1.3 Proximates"].iter_rows(min_row=4, values_only=True):
@@ -46,7 +51,7 @@ def main(xlsx_path):
     if errors:
         sys.exit("\n".join(errors))
 
-    OUTPUT.write_text(
+    output.write_text(
         "-- EatLog: everyday short names (\"egg\", \"black coffee\") for CoFID foods, so the\n"
         "-- resolver's alias lookup finds them. CoFID's own names (\"Eggs, chicken, whole,\n"
         "-- boiled\") never match what people say.\n"
@@ -60,8 +65,8 @@ def main(xlsx_path):
         ") as aliases (source_id, alias)\n"
         "join public.foods on foods.source = 'cofid' and foods.source_id = aliases.source_id;\n"
     )
-    print(f"Wrote {len(values)} aliases for {len(ALIASES)} foods to {OUTPUT}")
+    print(f"Wrote {len(values)} aliases for {len(ALIASES)} foods to {output}")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2])
