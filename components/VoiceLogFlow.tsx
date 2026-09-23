@@ -36,6 +36,33 @@ const LISTENING_COPY = "I'm listening…";
 // so a mid-sentence pause doesn't cut someone off.
 const SILENCE_TIMEOUT_MS = 3500;
 
+// Rotating status lines while the pipeline runs, so a multi-second wait
+// reads as progress rather than a frozen screen. The last line holds.
+const PROCESSING_COPY = ['Reading your meal…', 'Looking up nutrition…', 'Adding it up…', 'Almost there…'];
+const PROCESSING_STEP_MS = 1800;
+
+const ProcessingStatus: React.FC = () => {
+  const [index, setIndex] = useState(0);
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (index >= PROCESSING_COPY.length - 1) return;
+    const timer = setTimeout(() => {
+      Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setIndex((i) => i + 1);
+        Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+      });
+    }, PROCESSING_STEP_MS);
+    return () => clearTimeout(timer);
+  }, [index, opacity]);
+
+  return (
+    <Animated.Text style={[styles.prompt, { opacity }]} accessibilityLiveRegion="polite">
+      {PROCESSING_COPY[index]}
+    </Animated.Text>
+  );
+};
+
 type FlowState =
   | 'listening'
   | 'transcribing'
@@ -326,6 +353,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const handleFinishListening = stopAndFinish;
 
   const handleBarcodeResolved = async (name: string, reference: ReferenceNutrition, quantity: number) => {
+    setTranscript('');
     setState('processing');
     const meal = await logBarcodeItem(targetDate, 'snack', name, reference, quantity);
     track('food_logged', { source: 'barcode', mealType: meal.type, itemCount: meal.items.length });
@@ -374,7 +402,13 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
       case 'processing':
         return (
           <View style={styles.content}>
-            <ListeningIndicator active={false} size={72} color={accentColor} />
+            <ListeningIndicator active={false} thinking size={72} color={accentColor} />
+            <ProcessingStatus />
+            {transcript.length > 0 && (
+              <Text style={styles.processingTranscript} numberOfLines={3}>
+                “{transcript}”
+              </Text>
+            )}
           </View>
         );
 
@@ -553,6 +587,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     textAlign: 'center',
     marginTop: spacing.lg,
+  },
+  processingTranscript: {
+    ...typography.secondary,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
   textInput: {
     alignSelf: 'stretch',

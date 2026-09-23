@@ -12,6 +12,8 @@ interface ListeningIndicatorProps {
   showMicIcon?: boolean;
   /** Show a checkmark glyph, popping in with a spring — used for the "Logged" beat. */
   showCheckIcon?: boolean;
+  /** Working state — an orbiting arc plus a slow breathe, so a wait reads as progress. */
+  thinking?: boolean;
 }
 
 /**
@@ -25,10 +27,51 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
   color,
   showMicIcon = false,
   showCheckIcon = false,
+  thinking = false,
 }) => {
   const breathe = useRef(new Animated.Value(0)).current;
   const ring = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
+  const spin = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    spin.setValue(0);
+    pulse.setValue(0);
+    if (!thinking) return;
+
+    const spinLoop = Animated.loop(
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: 1100,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 900,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    spinLoop.start();
+    pulseLoop.start();
+    return () => {
+      spinLoop.stop();
+      pulseLoop.stop();
+    };
+  }, [thinking, spin, pulse]);
 
   useEffect(() => {
     if (!showCheckIcon) {
@@ -86,6 +129,13 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
   const coreScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
   const ringScale = ring.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
   const ringOpacity = ring.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.25, 0.1, 0] });
+  const spinRotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
+  const arcSize = size * 1.35;
+
+  let coreTransform: { scale: Animated.AnimatedInterpolation<number> | number }[] = [{ scale: 1 }];
+  if (active) coreTransform = [{ scale: coreScale }];
+  else if (thinking) coreTransform = [{ scale: pulseScale }];
 
   return (
     <View style={[styles.container, { width: size * 1.8, height: size * 1.8 }]}>
@@ -105,6 +155,40 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
           ]}
         />
       )}
+      {thinking && (
+        <>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.ring,
+              {
+                width: arcSize,
+                height: arcSize,
+                borderRadius: arcSize / 2,
+                borderWidth: 3,
+                borderColor: color,
+                opacity: 0.15,
+              },
+            ]}
+          />
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.ring,
+              {
+                width: arcSize,
+                height: arcSize,
+                borderRadius: arcSize / 2,
+                borderWidth: 3,
+                borderColor: 'transparent',
+                borderTopColor: color,
+                borderRightColor: color,
+                transform: [{ rotate: spinRotate }],
+              },
+            ]}
+          />
+        </>
+      )}
       <Animated.View
         style={[
           styles.core,
@@ -113,7 +197,7 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
             height: size,
             borderRadius: size / 2,
             backgroundColor: color,
-            transform: [{ scale: active ? coreScale : 1 }],
+            transform: coreTransform,
           },
         ]}
       >
