@@ -26,6 +26,7 @@ export interface ParsedFoodItem {
   brand: string | null;
   quantity: number;
   unit: string;
+  grams_per_unit: number | null;
   preparation: string | null;
   confidence: ConfidenceLevel;
   estimated_nutrition: {
@@ -107,6 +108,12 @@ function validateItem(raw: unknown, path: string): ParsedFoodItem {
     brand: typeof item.brand === 'string' ? item.brand : null,
     quantity: item.quantity,
     unit: item.unit,
+    // Optional hint: a missing or nonsensical weight just means the client can't
+    // convert count units for this item, so drop it rather than reject the parse.
+    grams_per_unit:
+      typeof item.grams_per_unit === 'number' && Number.isFinite(item.grams_per_unit) && item.grams_per_unit > 0
+        ? item.grams_per_unit
+        : null,
     preparation: typeof item.preparation === 'string' ? item.preparation : null,
     confidence: item.confidence,
     estimated_nutrition,

@@ -22,7 +22,7 @@ const JSON_SHAPE_DESCRIPTION = `Respond with a single JSON object, no prose, mat
 {
   "intent": "log_food" | "correction",
   "meal_type": "breakfast" | "lunch" | "dinner" | "snack" | null,
-  "items": [{ "description": string, "brand": string | null, "quantity": number, "unit": string, "preparation": string | null, "confidence": "high" | "medium" | "low", "estimated_nutrition": { "serving_size": number, "serving_unit": string, "calories": number, "protein": number, "carbohydrate": number, "fat": number, "fibre": number | null, "sodium": number | null, "sugar": number | null } | null }] | null,
+  "items": [{ "description": string, "brand": string | null, "quantity": number, "unit": string, "grams_per_unit": number | null, "preparation": string | null, "confidence": "high" | "medium" | "low", "estimated_nutrition": { "serving_size": number, "serving_unit": string, "calories": number, "protein": number, "carbohydrate": number, "fat": number, "fibre": number | null, "sodium": number | null, "sugar": number | null } | null }] | null,
   "operations": [{ "type": "replace_item" | "remove_item" | "add_item" | "update_quantity" | "change_meal_type", "target_description": string | null, "item": <same item shape as above> | null, "new_quantity": number | null, "new_unit": string | null, "meal_type": "breakfast" | "lunch" | "dinner" | "snack" | null }] | null,
   "needs_clarification": boolean,
   "clarification_question": string | null,
@@ -45,6 +45,7 @@ Given a natural-language description of what someone ate, extract structured dat
 - Set needs_clarification to true, with a short clarification_question and 3-4 clarification_options, only when the ambiguity materially affects nutrition (e.g. "some pasta" with no portion cue at all). Do not ask for clarification on minor details.
 - For each item, if you can identify it as a specific known packaged/reference food with reasonably confident nutrition values, still provide your best estimated_nutrition per a stated serving_size/serving_unit (this lets the app double check against its own food database) — set confidence to "high" only when both the identification and the quantity are clear.
 - If you cannot confidently estimate nutrition for an item at all, still return your best-effort estimated_nutrition but set confidence to "low".
+- grams_per_unit: when "unit" is a count or portion rather than a weight/volume (e.g. "whole", "slice", "rasher", "piece", "bowl", "packet", "bar"), set grams_per_unit to your best estimate of the edible weight in grams of ONE such unit (e.g. 1 whole medium egg -> 50, 1 slice of bread -> 36, 1 medium banana -> 100). For weights and volumes (g, kg, ml, l, pint, oz, tsp, tbsp, cup) set it to null.
 - You are never responsible for final arithmetic on the logged quantity — always give estimated_nutrition per the serving_size/serving_unit you specify, not pre-multiplied by the user's quantity.
 - Never fabricate a previous diary entry or reference anything the user did not say.
 - Each distinct food/drink the user mentions gets exactly one entry in "items". Never list the same food twice as separate entries to represent one mention — if they ate two servings of something, that's a single item with quantity 2, not two items with quantity 1.

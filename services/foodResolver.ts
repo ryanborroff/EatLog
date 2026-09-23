@@ -4,7 +4,8 @@
 
 import { FoodItem } from '../types';
 import { ParsedFoodItem, ResolvedFoodItem } from '../types/foodParser';
-import { calculateNutrition, ReferenceNutrition } from './nutritionCalculator';
+import { calculateNutrition, CalculatedNutrition, ReferenceNutrition } from './nutritionCalculator';
+import { convertQuantity } from './unitConversion';
 import { supabase } from './supabaseClient';
 
 export interface FoodRow {
@@ -91,26 +92,59 @@ const findReferenceFood = async (description: string): Promise<FoodRow | null> =
   return (aliasMatch?.foods as unknown as FoodRow) ?? null;
 };
 
-const fromFoodRow = (food: FoodRow, quantity: number, unit: string, confidence: ResolvedFoodItem['confidence']): ResolvedFoodItem => {
-  const reference: ReferenceNutrition = {
-    servingSize: food.serving_size,
-    servingUnit: food.serving_unit,
-    calories: food.calories,
-    protein: food.protein,
-    carbohydrate: food.carbohydrate,
-    fat: food.fat,
-    fibre: food.fibre ?? undefined,
-    sodium: food.sodium ?? undefined,
-    sugar: food.sugar ?? undefined,
-  };
+const toReference = (food: FoodRow): ReferenceNutrition => ({
+  servingSize: food.serving_size,
+  servingUnit: food.serving_unit,
+  calories: food.calories,
+  protein: food.protein,
+  carbohydrate: food.carbohydrate,
+  fat: food.fat,
+  fibre: food.fibre ?? undefined,
+  sodium: food.sodium ?? undefined,
+  sugar: food.sugar ?? undefined,
+});
+
+const CONFIDENCE_RANK: ResolvedFoodItem['confidence'][] = ['low', 'medium', 'high'];
+const capConfidence = (
+  confidence: ResolvedFoodItem['confidence'],
+  cap: ResolvedFoodItem['confidence']
+): ResolvedFoodItem['confidence'] =>
+  CONFIDENCE_RANK[Math.min(CONFIDENCE_RANK.indexOf(confidence), CONFIDENCE_RANK.indexOf(cap))];
+
+/**
+ * Scales reference nutrition to the logged quantity, converting the logged unit
+ * into the reference's unit first ("1 whole" egg at 50 g each vs "per 100 g").
+ * Returns null when the units can't be reconciled, so the caller can try the
+ * next source instead of logging a wildly wrong number.
+ */
+const scaleToLoggedQuantity = (
+  reference: ReferenceNutrition,
+  quantity: number,
+  unit: string,
+  gramsPerUnit: number | null | undefined
+): { calculated: CalculatedNutrition; approximate: boolean } | null => {
+  const converted = convertQuantity(quantity, unit, reference.servingUnit, gramsPerUnit);
+  if (!converted) return null;
+  return { calculated: calculateNutrition(reference, converted.quantity), approximate: converted.approximate };
+};
+
+const fromFoodRow = (
+  food: FoodRow,
+  quantity: number,
+  unit: string,
+  gramsPerUnit: number | null | undefined,
+  confidence: ResolvedFoodItem['confidence']
+): ResolvedFoodItem | null => {
+  const scaled = scaleToLoggedQuantity(toReference(food), quantity, unit, gramsPerUnit);
+  if (!scaled) return null;
 
   return {
     description: food.name,
     quantity,
     unit,
-    ...calculateNutrition(reference, quantity),
-    confidence,
-    estimated: false,
+    ...scaled.calculated,
+    confidence: scaled.approximate ? capConfidence(confidence, 'medium') : confidence,
+    estimated: scaled.approximate,
   };
 };
 
@@ -119,43 +153,30 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
 
   if (userId) {
     const personalFood = await findPersonalFood(item.description, userId);
-    if (personalFood) {
-      return fromFoodRow(personalFood, item.quantity, item.unit, 'high');
-    }
+    const fromPersonal = personalFood && fromFoodRow(personalFood, item.quantity, item.unit, item.grams_per_unit, 'high');
+    if (fromPersonal) return fromPersonal;
 
     const foodDefault = await findFoodDefault(item.description, userId);
-    if (foodDefault) {
-      // A default's saved quantity/unit takes priority — that's the point of a default.
-      return fromFoodRow(foodDefault.food, foodDefault.quantity, foodDefault.unit, 'high');
-    }
+    // A default's saved quantity/unit takes priority — that's the point of a default.
+    // (The AI's grams_per_unit describes the spoken unit, not the default's, so it doesn't apply.)
+    const fromDefault = foodDefault && fromFoodRow(foodDefault.food, foodDefault.quantity, foodDefault.unit, null, 'high');
+    if (fromDefault) return fromDefault;
   }
 
   const referenceFood = await findReferenceFood(item.description);
+  const fromReference =
+    referenceFood && scaleToLoggedQuantity(toReference(referenceFood), item.quantity, item.unit, item.grams_per_unit);
 
-  if (referenceFood) {
-    const sameUnit = normalize(referenceFood.serving_unit) === normalize(item.unit);
-    const reference: ReferenceNutrition = {
-      servingSize: referenceFood.serving_size,
-      servingUnit: referenceFood.serving_unit,
-      calories: referenceFood.calories,
-      protein: referenceFood.protein,
-      carbohydrate: referenceFood.carbohydrate,
-      fat: referenceFood.fat,
-      fibre: referenceFood.fibre ?? undefined,
-      sodium: referenceFood.sodium ?? undefined,
-      sugar: referenceFood.sugar ?? undefined,
-    };
-    const calculated = calculateNutrition(reference, item.quantity);
-
+  if (fromReference) {
     return {
       description: item.description,
       quantity: item.quantity,
       unit: item.unit,
-      ...calculated,
-      // Units matching the reference is what makes the scaling trustworthy;
-      // otherwise be conservative rather than imply false precision.
-      confidence: sameUnit ? item.confidence : 'low',
-      estimated: !sameUnit,
+      ...fromReference.calculated,
+      // An estimated per-unit weight or ml≈g assumption makes the scaling less
+      // trustworthy than an exact unit match — don't imply false precision.
+      confidence: fromReference.approximate ? capConfidence(item.confidence, 'medium') : item.confidence,
+      estimated: fromReference.approximate,
     };
   }
 
@@ -172,33 +193,34 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
       est.carbohydrate === 0 &&
       est.fat === 0;
 
-    if (!isBogusEstimate) {
-      const sameUnit = normalize(est.serving_unit) === normalize(item.unit);
-      const reference: ReferenceNutrition = {
-        servingSize: est.serving_size,
-        servingUnit: est.serving_unit,
-        calories: est.calories,
-        protein: est.protein,
-        carbohydrate: est.carbohydrate,
-        fat: est.fat,
-        fibre: est.fibre ?? undefined,
-        sodium: est.sodium ?? undefined,
-        sugar: est.sugar ?? undefined,
-      };
-      const calculated = calculateNutrition(reference, item.quantity);
+    const reference: ReferenceNutrition = {
+      servingSize: est.serving_size,
+      servingUnit: est.serving_unit,
+      calories: est.calories,
+      protein: est.protein,
+      carbohydrate: est.carbohydrate,
+      fat: est.fat,
+      fibre: est.fibre ?? undefined,
+      sodium: est.sodium ?? undefined,
+      sugar: est.sugar ?? undefined,
+    };
+    const fromEstimate = !isBogusEstimate && scaleToLoggedQuantity(reference, item.quantity, item.unit, item.grams_per_unit);
 
+    if (fromEstimate) {
       return {
         description: item.description,
         quantity: item.quantity,
         unit: item.unit,
-        ...calculated,
-        confidence: sameUnit ? item.confidence : 'low',
+        ...fromEstimate.calculated,
+        confidence: fromEstimate.approximate ? capConfidence(item.confidence, 'medium') : item.confidence,
         estimated: true,
       };
     }
   }
 
-  // Spec §39: never invent a confident value when there's nothing to go on.
+  // Spec §39: never invent a confident value when there's nothing to go on —
+  // including when the units can't be reconciled (e.g. "1 whole" vs "per 100 g"
+  // with no per-unit weight), which would otherwise scale by the wrong amount.
   return {
     description: item.description,
     quantity: item.quantity,
@@ -249,26 +271,12 @@ export const searchFoods = async (query: string): Promise<FoodRow[]> => {
 };
 
 /** Builds a full FoodItem from a picked reference food at its default serving — used by manual editing. */
-export const foodRowToItem = (food: FoodRow): FoodItem => {
-  const reference: ReferenceNutrition = {
-    servingSize: food.serving_size,
-    servingUnit: food.serving_unit,
-    calories: food.calories,
-    protein: food.protein,
-    carbohydrate: food.carbohydrate,
-    fat: food.fat,
-    fibre: food.fibre ?? undefined,
-    sodium: food.sodium ?? undefined,
-    sugar: food.sugar ?? undefined,
-  };
-
-  return {
-    id: String(Date.now()),
-    description: food.name,
-    quantity: food.serving_size,
-    unit: food.serving_unit,
-    ...calculateNutrition(reference, food.serving_size),
-    confidence: 'high',
-    estimated: false,
-  };
-};
+export const foodRowToItem = (food: FoodRow): FoodItem => ({
+  id: String(Date.now()),
+  description: food.name,
+  quantity: food.serving_size,
+  unit: food.serving_unit,
+  ...calculateNutrition(toReference(food), food.serving_size),
+  confidence: 'high',
+  estimated: false,
+});

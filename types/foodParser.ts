@@ -21,6 +21,8 @@ export interface ParsedFoodItem {
   brand: string | null;
   quantity: number;
   unit: string;
+  /** Estimated weight of one `unit` for count units ("whole", "slice"); null for measured units. Optional for older parse-food deployments. */
+  grams_per_unit?: number | null;
   preparation: string | null;
   confidence: ConfidenceLevel;
   estimated_nutrition: EstimatedNutrition | null;
