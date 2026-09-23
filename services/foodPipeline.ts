@@ -2,7 +2,7 @@
 // parse) -> resolve -> compute -> (auto-log | apply correction | ask for
 // clarification). Shared by voice and text input (spec §9).
 
-import { Meal } from '../types';
+import { FoodItem, Meal } from '../types';
 import { ParsedFoodResult, RecentMealContext } from '../types/foodParser';
 import { applyCorrections } from './correctionApplier';
 import { matchDefault } from './defaultsMatcher';
@@ -180,6 +180,36 @@ export const processTranscript = async (
   await syncMealToHealthIfEnabled(meal);
 
   return { status: 'logged', meal };
+};
+
+/**
+ * Free-text add for screens that hold their own in-progress item list (Edit
+ * Meal's manual "Add food" field) rather than logging a whole meal straight
+ * away. Runs the same parse+resolve steps as processTranscript's log_food
+ * path, but never persists — the caller owns saving. Always treated as a
+ * fresh addition (recentMeal: null) since there is no meal being corrected.
+ */
+export const parseFoodItemsFreeText = async (description: string, date: string): Promise<FoodItem[]> => {
+  const parsed = await parseTranscript(description, date, undefined, null);
+
+  if (parsed.needs_clarification) {
+    throw new FoodParseError(
+      parsed.clarification_question ?? "Couldn't work that out – try being more specific.",
+      'invalid'
+    );
+  }
+
+  if (parsed.intent === 'correction') {
+    throw new FoodParseError("Couldn't work that out – try again.", 'invalid');
+  }
+
+  const resolvedItems = await resolveFoodItems(parsed.items);
+
+  if (resolvedItems.some((item) => item.unresolved)) {
+    throw new FoodParseError("Couldn't identify one or more items", 'invalid');
+  }
+
+  return resolvedItems.map((item, index) => ({ id: `${Date.now()}-${index}`, ...item }));
 };
 
 /**

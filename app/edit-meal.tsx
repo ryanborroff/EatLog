@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FoodItem, Meal } from '../types';
 import { getMealsForDate, updateMeal } from '../services/storageService';
 import { recalculateMealTotals } from '../services/correctionApplier';
+import { parseFoodItemsFreeText, FoodParseError } from '../services/foodPipeline';
 import { getAppleHealthSyncEnabled } from '../services/healthSyncPreference';
 import { resyncMealToHealthKit } from '../services/healthKitService';
 import { searchFoods, foodRowToItem, FoodRow } from '../services/foodResolver';
@@ -45,6 +46,7 @@ export default function EditMealScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FoodRow[]>([]);
   const [searching, setSearching] = useState(false);
+  const [addingFreeText, setAddingFreeText] = useState(false);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [draftDescription, setDraftDescription] = useState('');
@@ -139,6 +141,25 @@ export default function EditMealScreen() {
     setItems((current) => [...current, foodRowToItem(food)]);
     setSearchQuery('');
     setSearchResults([]);
+  };
+
+  const handleAddFreeText = async () => {
+    const description = searchQuery.trim();
+    if (!description) return;
+
+    setAddingFreeText(true);
+    try {
+      const newItems = await parseFoodItemsFreeText(description, date);
+      setItems((current) => [...current, ...newItems]);
+      setSearchQuery('');
+      setSearchResults([]);
+    } catch (error) {
+      console.error('Error adding food by text:', error);
+      const message = error instanceof FoodParseError ? error.message : "Couldn't work that out – try again.";
+      Alert.alert('Could not add food', message);
+    } finally {
+      setAddingFreeText(false);
+    }
   };
 
   const handleBarcodeResolved = (name: string, reference: ReferenceNutrition, quantity: number) => {
@@ -250,7 +271,7 @@ export default function EditMealScreen() {
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                 >
-                  <Text style={[styles.mealTypeChipText, selected && { color: accentTextColor }]}>
+                  <Text style={[styles.mealTypeChipText, selected && styles.mealTypeChipTextSelected]}>
                     {formatMealType(type)}
                   </Text>
                 </TouchableOpacity>
@@ -326,13 +347,16 @@ export default function EditMealScreen() {
           </View>
 
           <Text style={styles.sectionLabel}>Add food</Text>
+          <Text style={styles.addFoodHint}>Search below, or type what you had and tap Add.</Text>
           <View style={styles.searchRow}>
             <TextInput
               style={[styles.searchInput, styles.searchInputFlex]}
-              placeholder="Search foods…"
+              placeholder="e.g. two boiled eggs"
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
+              onSubmitEditing={handleAddFreeText}
+              returnKeyType="done"
             />
             <TouchableOpacity
               style={styles.scanButton}
@@ -341,6 +365,23 @@ export default function EditMealScreen() {
               accessibilityRole="button"
             >
               <Ionicons name="barcode-outline" size={22} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.addFreeTextButton,
+                { backgroundColor: accentColor },
+                (!searchQuery.trim() || addingFreeText) && styles.addFreeTextButtonDisabled,
+              ]}
+              onPress={handleAddFreeText}
+              disabled={!searchQuery.trim() || addingFreeText}
+              accessibilityLabel="Add this food"
+              accessibilityRole="button"
+            >
+              {addingFreeText ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.addFreeTextButtonText}>Add</Text>
+              )}
             </TouchableOpacity>
           </View>
           {searching && <ActivityIndicator style={styles.searchSpinner} color={colors.textSecondary} />}
@@ -422,6 +463,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
   },
+  mealTypeChipTextSelected: {
+    color: '#FFFFFF',
+  },
   itemsCard: {
     backgroundColor: colors.card,
     borderRadius: radii.card,
@@ -475,10 +519,30 @@ const styles = StyleSheet.create({
   itemEditUnit: {
     flex: 1,
   },
+  addFoodHint: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  addFreeTextButton: {
+    borderRadius: radii.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addFreeTextButtonDisabled: {
+    opacity: 0.4,
+  },
+  addFreeTextButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   searchInput: {
     borderWidth: 1,
