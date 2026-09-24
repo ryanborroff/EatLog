@@ -10,6 +10,7 @@ import {
   NutritionReference,
   UserProfile,
   WaterLog,
+  WeightEntry,
 } from '../types';
 import { ParsedFoodResult } from '../types/foodParser';
 import { supabase, withClockSkewRetry } from './supabaseClient';
@@ -370,6 +371,52 @@ export const addWater = async (date: string, amountMl: number): Promise<void> =>
     .insert({ user_id: userId, date, amount_ml: amountMl });
 
   if (error) throw error;
+};
+
+// Weight
+
+export const getWeightEntries = async (): Promise<WeightEntry[]> => withClockSkewRetry(async () => {
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from('weight_entries')
+    .select('date, weight_kg')
+    .eq('user_id', userId)
+    .order('date', { ascending: true });
+
+  if (error) throw error;
+
+  return (data as { date: string; weight_kg: number }[]).map((row) => ({
+    date: row.date,
+    weightKg: Number(row.weight_kg),
+  }));
+});
+
+// Records a weigh-in (replacing any earlier one that day) and, when it's the newest,
+// makes it the profile's current weight so the calorie estimate stays up to date.
+export const logWeight = async (date: string, weightKg: number): Promise<void> => {
+  const userId = await getUserId();
+  const { error } = await supabase
+    .from('weight_entries')
+    .upsert({ user_id: userId, date, weight_kg: weightKg }, { onConflict: 'user_id,date' });
+
+  if (error) throw error;
+
+  const { data: newer, error: newerError } = await supabase
+    .from('weight_entries')
+    .select('date')
+    .eq('user_id', userId)
+    .gt('date', date)
+    .limit(1);
+
+  if (newerError) throw newerError;
+  if (newer.length > 0) return;
+
+  const { error: profileError } = await supabase
+    .from('users')
+    .update({ weight_kg: weightKg })
+    .eq('id', userId);
+
+  if (profileError) throw profileError;
 };
 
 // Personal foods (spec §19)

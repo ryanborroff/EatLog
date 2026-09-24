@@ -7,6 +7,8 @@ import { formatAmount } from '../utils/formatNumber';
 interface IntakeChartProps {
   metrics: ChartMetric[];
   buckets: ChartBucket[];
+  /** Extra panels appended to the row, e.g. the weight panel. */
+  children?: React.ReactNode;
 }
 
 // Headroom above the target line so a day that hits it exactly doesn't touch the top.
@@ -19,7 +21,7 @@ const formatValue = (metric: ChartMetric, value: number): string =>
  * Small-multiples bar chart: one panel per nutrient, side by side, each scaled to
  * its own target so grams and millilitres can sit next to each other.
  */
-export default function IntakeChart({ metrics, buckets }: IntakeChartProps) {
+export default function IntakeChart({ metrics, buckets, children }: IntakeChartProps) {
   const loggedBuckets = buckets.filter((bucket) => bucket.hasData);
   // Thin out axis labels once bars get narrower than the text (Month, Year).
   const labelEvery = buckets.length > 14 ? 5 : buckets.length > 7 ? 3 : 1;
@@ -91,6 +93,7 @@ export default function IntakeChart({ metrics, buckets }: IntakeChartProps) {
           </View>
         );
       })}
+      {children}
     </View>
   );
 }

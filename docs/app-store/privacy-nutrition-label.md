@@ -15,7 +15,9 @@ these answers are the App Store side of that same disclosure.
 
 ### Health & Fitness
 - **Other Health & Fitness Data** — the food diary itself: what the user
-  logged, quantities, calories, macros, meal type, dates.
+  logged, quantities, calories, macros, meal type, dates — plus optional
+  profile biometrics and body-weight weigh-ins the user types in (entered
+  manually, never read from Apple Health).
   - Linked to identity: **Yes**
   - Used for: App Functionality (the core product)
   - Not shared with data brokers or used for advertising.

@@ -66,6 +66,12 @@ export interface WaterLog {
   loggedAt: string;
 }
 
+export interface WeightEntry {
+  /** UTC day key (YYYY-MM-DD), same as DayEntry.date. */
+  date: string;
+  weightKg: number;
+}
+
 export interface DayEntry {
   date: string;
   meals: Meal[];

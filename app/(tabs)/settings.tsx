@@ -21,6 +21,7 @@ import {
   saveUserGoals,
   getUserProfile,
   saveUserProfile,
+  logWeight,
 } from '../../services/storageService';
 import { signOut } from '../../services/authService';
 import { ACTIVITY_LEVEL_LABELS, estimateMaintenanceCalories } from '../../services/calorieTarget';
@@ -262,9 +263,13 @@ export default function SettingsScreen() {
 
   const handleSaveNumericField = async () => {
     if (!profile || !editingNumericField) return;
-    const parsed = parseInt(numericFieldInput, 10);
+    const isWeight = editingNumericField === 'weightKg';
+    // Weight allows one decimal place (e.g. 72.5); the other fields are whole numbers.
+    const parsed = isWeight
+      ? Math.round(parseFloat(numericFieldInput.replace(',', '.')) * 10) / 10
+      : parseInt(numericFieldInput, 10);
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      Alert.alert('Invalid value', 'Enter a whole number greater than 0.');
+      Alert.alert('Invalid value', isWeight ? 'Enter a number greater than 0.' : 'Enter a whole number greater than 0.');
       return;
     }
 
@@ -272,6 +277,10 @@ export default function SettingsScreen() {
     setSaving(true);
     try {
       await saveUserProfile(updatedProfile);
+      if (isWeight) {
+        // Also record it as today's weigh-in, so it shows up in weight Insights.
+        await logWeight(new Date().toISOString().split('T')[0], parsed);
+      }
       setProfile(updatedProfile);
       setEditingNumericField(null);
     } catch (error) {
@@ -660,7 +669,7 @@ export default function SettingsScreen() {
                 style={styles.modalInput}
                 value={numericFieldInput}
                 onChangeText={setNumericFieldInput}
-                keyboardType="number-pad"
+                keyboardType={editingNumericField === 'weightKg' ? 'decimal-pad' : 'number-pad'}
                 placeholder={NUMERIC_PROFILE_CONFIG[editingNumericField].placeholder}
                 autoFocus
               />

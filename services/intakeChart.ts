@@ -60,18 +60,19 @@ const buildBucket = (label: string, dates: string[], byDate: Map<string, DailyTo
   return { label, values: averageOf(logged), hasData: logged.length > 0 };
 };
 
-/**
- * Groups history into chart bars for a period: one bar per day for Day/Week/Month,
- * one per week for 6 Months, and one per month for Year — so bars stay readable
- * across a landscape phone screen.
- */
-export const buildChartBuckets = (
-  history: DayEntry[],
-  period: ChartPeriod,
-  now: Date = new Date()
-): ChartBucket[] => {
-  const byDate = new Map(history.map((entry) => [entry.date, entry.totals]));
+export interface PeriodRange {
+  /** Short axis label, e.g. "Mon", "12", "Mar" — blank where the axis would crowd. */
+  label: string;
+  /** UTC day keys covered by this bar. */
+  dates: string[];
+}
 
+/**
+ * Splits a period into chart bars: one per day for Day/Week/Month, one per week
+ * for 6 Months, and one per month for Year — so bars stay readable across a
+ * landscape phone screen. Shared by the intake and weight charts so they line up.
+ */
+export const buildPeriodRanges = (period: ChartPeriod, now: Date = new Date()): PeriodRange[] => {
   if (period === 'day' || period === 'week' || period === 'month') {
     const days = period === 'day' ? 1 : period === 'week' ? 7 : 30;
     return Array.from({ length: days }, (_, index) => {
@@ -79,8 +80,8 @@ export const buildChartBuckets = (
       const label =
         period === 'month'
           ? String(date.getDate())
-          : date.toLocaleDateString('en-GB', { weekday: period === 'day' ? 'long' : 'narrow' });
-      return buildBucket(label, [toDateKey(date)], byDate);
+          : date.toLocaleDateString('en-GB', { weekday: 'short' });
+      return { label, dates: [toDateKey(date)] };
     });
   }
 
@@ -93,7 +94,7 @@ export const buildChartBuckets = (
       // Label roughly every fourth week so the axis doesn't crowd.
       const label =
         index % 4 === 0 ? weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
-      return buildBucket(label, dates, byDate);
+      return { label, dates };
     });
   }
 
@@ -106,6 +107,16 @@ export const buildChartBuckets = (
       toDateKey(new Date(monthStart.getFullYear(), monthStart.getMonth(), day + 1, 12))
     );
     const label = monthStart.toLocaleDateString('en-GB', { month: 'short' });
-    return buildBucket(label, dates, byDate);
+    return { label, dates };
   });
+};
+
+/** Groups history into one intake bar per period range (see buildPeriodRanges). */
+export const buildChartBuckets = (
+  history: DayEntry[],
+  period: ChartPeriod,
+  now: Date = new Date()
+): ChartBucket[] => {
+  const byDate = new Map(history.map((entry) => [entry.date, entry.totals]));
+  return buildPeriodRanges(period, now).map(({ label, dates }) => buildBucket(label, dates, byDate));
 };

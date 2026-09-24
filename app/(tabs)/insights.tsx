@@ -7,13 +7,16 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { DayEntry, DailyGoals } from '../../types';
-import { getHistory, getUserGoals } from '../../services/storageService';
+import { DayEntry, DailyGoals, WeightEntry } from '../../types';
+import { getHistory, getUserGoals, getWeightEntries, logWeight } from '../../services/storageService';
 import { track } from '../../services/analytics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { colors, spacing, radii } from '../../constants/theme';
@@ -22,6 +25,18 @@ import { formatAmount } from '../../utils/formatNumber';
 import { useIntakeChartMode } from '../../utils/useIntakeChartMode';
 import { buildChartBuckets, getChartMetrics, ChartPeriod } from '../../services/intakeChart';
 import IntakeChart from '../../components/IntakeChart';
+import WeightChartPanel from '../../components/WeightChartPanel';
+import {
+  buildWeightBuckets,
+  formatKg,
+  formatKgChange,
+  generateWeightObservation,
+  summarizeWeight,
+} from '../../services/weightInsights';
+
+// Sanity bounds for a typed weigh-in, in kg.
+const MIN_WEIGHT_KG = 20;
+const MAX_WEIGHT_KG = 400;
 
 type Period = ChartPeriod;
 
@@ -39,6 +54,10 @@ export default function InsightsScreen() {
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('week');
+  const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
+  const [weightModalVisible, setWeightModalVisible] = useState(false);
+  const [weightInput, setWeightInput] = useState('');
+  const [savingWeight, setSavingWeight] = useState(false);
   const showIntakeChart = useIntakeChartMode();
 
   useFocusEffect(
@@ -61,17 +80,55 @@ export default function InsightsScreen() {
 
   const loadInsights = async () => {
     try {
-      const [storedHistory, userGoals] = await Promise.all([
+      const [storedHistory, userGoals, storedWeights] = await Promise.all([
         getHistory(),
         getUserGoals(),
+        // Weight is an extra: a failure here shouldn't take down the rest of Insights.
+        getWeightEntries().catch((error) => {
+          console.warn('Error loading weight entries:', error);
+          return [] as WeightEntry[];
+        }),
       ]);
 
       setHistory(storedHistory);
       setGoals(userGoals);
+      setWeightEntries(storedWeights);
     } catch (error) {
       console.error('Error loading insights:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openWeightModal = () => {
+    const latest = weightEntries[weightEntries.length - 1];
+    setWeightInput(latest ? String(latest.weightKg) : '');
+    setWeightModalVisible(true);
+  };
+
+  const handleSaveWeight = async () => {
+    const parsed = parseFloat(weightInput.replace(',', '.'));
+    if (!Number.isFinite(parsed) || parsed < MIN_WEIGHT_KG || parsed > MAX_WEIGHT_KG) {
+      Alert.alert('Invalid weight', 'Enter your weight in kg, e.g. 72.5.');
+      return;
+    }
+
+    const weightKg = Math.round(parsed * 10) / 10;
+    const today = new Date().toISOString().split('T')[0];
+    setSavingWeight(true);
+    try {
+      await logWeight(today, weightKg);
+      setWeightEntries((entries) => [
+        ...entries.filter((entry) => entry.date !== today),
+        { date: today, weightKg },
+      ]);
+      setWeightModalVisible(false);
+      track('weight_logged');
+    } catch (error) {
+      console.error('Error logging weight:', error);
+      Alert.alert('Error', 'Failed to save your weight.');
+    } finally {
+      setSavingWeight(false);
     }
   };
 
@@ -86,6 +143,12 @@ export default function InsightsScreen() {
   }
 
   const activePeriod = PERIOD_OPTIONS.find((option) => option.id === period)!;
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - activePeriod.days);
+  const cutoffDateString = cutoff.toISOString().split('T')[0];
+
+  const weightSummary = summarizeWeight(weightEntries, cutoffDateString);
 
   const renderPeriodControl = (compact = false) => (
     <View style={[styles.segmentedControl, compact && styles.segmentedControlCompact]}>
@@ -123,15 +186,13 @@ export default function InsightsScreen() {
             </View>
             {renderPeriodControl(true)}
           </View>
-          <IntakeChart metrics={getChartMetrics(goals)} buckets={buildChartBuckets(history, period)} />
+          <IntakeChart metrics={getChartMetrics(goals)} buckets={buildChartBuckets(history, period)}>
+            <WeightChartPanel buckets={buildWeightBuckets(weightEntries, period)} change={weightSummary.change} />
+          </IntakeChart>
         </View>
       </SafeAreaView>
     );
   }
-
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - activePeriod.days);
-  const cutoffDateString = cutoff.toISOString().split('T')[0];
 
   const periodHistory = history.filter((entry) => entry.date >= cutoffDateString);
 
@@ -161,7 +222,16 @@ export default function InsightsScreen() {
   const calorieProgressRatio = periodHistory.length > 0 ? daysWithinCalorieTarget / periodHistory.length : 0;
   const proteinProgressRatio = periodHistory.length > 0 ? daysHittingProteinTarget / periodHistory.length : 0;
 
-  const observations = generateObservations(periodHistory, activePeriod.observationLabel);
+  const weightObservation = generateWeightObservation(
+    average((entry) => entry.totals.calories),
+    periodHistory.length,
+    weightSummary.change,
+    activePeriod.observationLabel
+  );
+  const observations = [
+    ...generateObservations(periodHistory, activePeriod.observationLabel),
+    ...(weightObservation ? [weightObservation] : []),
+  ];
 
   const macroSquares: { label: string; value: string; infoTitle: string; infoMessage: string; tinted?: boolean }[] = [
     {
@@ -294,6 +364,36 @@ export default function InsightsScreen() {
           </View>
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Weight</Text>
+          <View style={styles.insightCard}>
+            {weightSummary.latest ? (
+              <>
+                <Text style={styles.insightLabel}>Latest weight</Text>
+                <Text style={styles.insightValue}>{formatKg(weightSummary.latest.weightKg)}</Text>
+                <Text style={styles.weightDetail}>
+                  {weightSummary.change !== null
+                    ? `${formatKgChange(weightSummary.change)} ${activePeriod.observationLabel}`
+                    : `Log another weigh-in ${activePeriod.observationLabel} to see your change`}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.weightDetail}>
+                Log your weight to see how it changes alongside what you eat.
+              </Text>
+            )}
+            <TouchableOpacity
+              style={[styles.weightButton, { backgroundColor: accentColor }]}
+              onPress={openWeightModal}
+              accessibilityRole="button"
+              accessibilityLabel="Log weight"
+            >
+              <Ionicons name="add" size={18} color="#000000" />
+              <Text style={styles.weightButtonText}>Log weight</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={[styles.section, styles.sectionLast]}>
           <Text style={styles.sectionTitle}>Observations</Text>
           {observations.map((observation, index) => (
@@ -309,6 +409,50 @@ export default function InsightsScreen() {
           ))}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={weightModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setWeightModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Today's weight (kg)</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={weightInput}
+              onChangeText={setWeightInput}
+              keyboardType="decimal-pad"
+              placeholder="e.g. 72.5"
+              placeholderTextColor={colors.textMuted}
+              autoFocus
+            />
+            <Text style={styles.modalNote}>
+              Logging again today replaces today's weigh-in. This also updates your weight in Settings.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => setWeightModalVisible(false)}
+                disabled={savingWeight}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: accentColor }]}
+                onPress={handleSaveWeight}
+                disabled={savingWeight}
+              >
+                <Text style={styles.modalButtonText}>{savingWeight ? 'Saving...' : 'Save'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -505,6 +649,79 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
     lineHeight: 23,
+  },
+  weightDetail: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  weightButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: spacing.md,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  // Black, not white, on the accent colour for contrast (as in Settings).
+  weightButtonText: {
+    marginLeft: 4,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  modalContent: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: radii.card,
+    borderTopRightRadius: radii.card,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: colors.divider,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  modalNote: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginTop: spacing.md,
+    lineHeight: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonSecondary: {
+    backgroundColor: '#F2F2F2',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000000',
   },
   loadingContainer: {
     flex: 1,
