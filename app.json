@@ -3,7 +3,7 @@
     "name": "EatLog",
     "slug": "EatLog",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
@@ -57,6 +57,12 @@
         }
       ],
       "expo-font",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT_UP"
+        }
+      ],
       "@kingstinct/react-native-healthkit",
       [
         "expo-build-properties",

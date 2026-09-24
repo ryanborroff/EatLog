@@ -266,26 +266,37 @@ export const getMostRecentMeal = async (date: string): Promise<Meal | null> => w
 
 export const getHistory = async (): Promise<DayEntry[]> => withClockSkewRetry(async () => {
   const userId = await getUserId();
-  const { data, error } = await supabase
-    .from('meals')
-    .select('id, date, meal_type, created_at, meal_items(*)')
-    .eq('user_id', userId)
-    .order('date', { ascending: false });
+  const [mealsResult, waterResult] = await Promise.all([
+    supabase
+      .from('meals')
+      .select('id, date, meal_type, created_at, meal_items(*)')
+      .eq('user_id', userId)
+      .order('date', { ascending: false }),
+    supabase.from('water_logs').select('date, amount_ml').eq('user_id', userId),
+  ]);
 
-  if (error) throw error;
+  if (mealsResult.error) throw mealsResult.error;
+  if (waterResult.error) throw waterResult.error;
 
   const byDate = new Map<string, MealRow[]>();
-  for (const row of data as (MealRow & { date: string })[]) {
+  for (const row of mealsResult.data as (MealRow & { date: string })[]) {
     const existing = byDate.get(row.date) ?? [];
     existing.push(row);
     byDate.set(row.date, existing);
   }
 
+  const waterByDate = new Map<string, number>();
+  for (const row of waterResult.data as { date: string; amount_ml: number }[]) {
+    waterByDate.set(row.date, (waterByDate.get(row.date) ?? 0) + row.amount_ml);
+  }
+
+  // A day is a history entry when it has meals; water logged that day is folded
+  // into its totals (water-only days would otherwise read as 0 kcal days).
   return Array.from(byDate.entries()).map(([date, rows]) => {
     const meals = rows.map(toMeal);
-    // History doesn't surface water logs (only Today does), so this is
-    // always empty here rather than an extra query per historical day.
-    return { date, meals, totals: calculateTotals(meals), waterLogs: [] };
+    const totals = { ...calculateTotals(meals), water: waterByDate.get(date) ?? 0 };
+    // Only the daily water total is needed here, so individual logs aren't returned.
+    return { date, meals, totals, waterLogs: [] };
   });
 });
 

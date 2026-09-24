@@ -3,21 +3,27 @@ import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { colors } from '../../constants/theme';
+import { useIntakeChartMode } from '../../utils/useIntakeChartMode';
 
 export default function TabLayout() {
   const { accentTextColor } = useTheme();
+  const showIntakeChart = useIntakeChartMode();
 
   return (
     <Tabs
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.background,
-          borderTopWidth: 1,
-          borderTopColor: '#E0E0E0',
-          paddingTop: 10,
-          paddingBottom: 8,
-        },
+        // Insights' landscape intake chart takes the full screen.
+        tabBarStyle:
+          showIntakeChart && route.name === 'insights'
+            ? { display: 'none' }
+            : {
+                backgroundColor: colors.background,
+                borderTopWidth: 1,
+                borderTopColor: '#E0E0E0',
+                paddingTop: 10,
+                paddingBottom: 8,
+              },
         // Darkened variant, not the raw accent swatch: the active tab's icon
         // AND its label text share this color, and the label needs WCAG AA
         // 4.5:1 against the white tab bar (see docs/accessibility-audit.md).
@@ -32,7 +38,7 @@ export default function TabLayout() {
           fontWeight: '500',
           marginTop: 4,
         },
-      }}
+      })}
     >
       <Tabs.Screen
         name="index"

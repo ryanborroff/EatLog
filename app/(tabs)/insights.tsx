@@ -6,10 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { DayEntry, DailyGoals } from '../../types';
 import { getHistory, getUserGoals } from '../../services/storageService';
 import { track } from '../../services/analytics';
@@ -17,8 +19,11 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { colors, spacing, radii } from '../../constants/theme';
 import { generateObservations } from '../../utils/insightsObservations';
 import { formatAmount } from '../../utils/formatNumber';
+import { useIntakeChartMode } from '../../utils/useIntakeChartMode';
+import { buildChartBuckets, getChartMetrics, ChartPeriod } from '../../services/intakeChart';
+import IntakeChart from '../../components/IntakeChart';
 
-type Period = 'day' | 'week' | 'month' | '6months' | 'year';
+type Period = ChartPeriod;
 
 const PERIOD_OPTIONS: { id: Period; label: string; days: number; sectionTitle: string; observationLabel: string }[] = [
   { id: 'day', label: 'Day', days: 1, sectionTitle: 'Today', observationLabel: 'today' },
@@ -34,11 +39,23 @@ export default function InsightsScreen() {
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('week');
+  const showIntakeChart = useIntakeChartMode();
 
   useFocusEffect(
     useCallback(() => {
       loadInsights();
       track('weekly_summary_viewed');
+    }, [])
+  );
+
+  // Insights is the one screen that may rotate: turning the phone sideways swaps
+  // in the intake chart. Re-lock to portrait on the way out.
+  useFocusEffect(
+    useCallback(() => {
+      ScreenOrientation.unlockAsync().catch(() => {});
+      return () => {
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      };
     }, [])
   );
 
@@ -69,6 +86,49 @@ export default function InsightsScreen() {
   }
 
   const activePeriod = PERIOD_OPTIONS.find((option) => option.id === period)!;
+
+  const renderPeriodControl = (compact = false) => (
+    <View style={[styles.segmentedControl, compact && styles.segmentedControlCompact]}>
+      {PERIOD_OPTIONS.map((option) => {
+        const isActive = option.id === period;
+        return (
+          <TouchableOpacity
+            key={option.id}
+            style={[styles.segment, compact && styles.segmentCompact, isActive && { backgroundColor: accentColor }]}
+            onPress={() => setPeriod(option.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${option.label} view`}
+            accessibilityState={{ selected: isActive }}
+          >
+            <Text
+              style={[styles.segmentText, isActive && styles.segmentTextActive]}
+              numberOfLines={1}
+            >
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  if (showIntakeChart) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.chartScreen}>
+          <View style={styles.chartHeader}>
+            <View style={styles.chartTitleBlock}>
+              <Text style={styles.chartTitle}>{activePeriod.sectionTitle}</Text>
+              <Text style={styles.chartSubtitle}>Average daily intake · line shows target</Text>
+            </View>
+            {renderPeriodControl(true)}
+          </View>
+          <IntakeChart metrics={getChartMetrics(goals)} buckets={buildChartBuckets(history, period)} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - activePeriod.days);
   const cutoffDateString = cutoff.toISOString().split('T')[0];
@@ -168,28 +228,14 @@ export default function InsightsScreen() {
           <Text style={styles.title}>Insights</Text>
         </View>
 
-        <View style={styles.segmentedControl}>
-          {PERIOD_OPTIONS.map((option) => {
-            const isActive = option.id === period;
-            return (
-              <TouchableOpacity
-                key={option.id}
-                style={[styles.segment, isActive && { backgroundColor: accentColor }]}
-                onPress={() => setPeriod(option.id)}
-                accessibilityRole="button"
-                accessibilityLabel={`${option.label} view`}
-                accessibilityState={{ selected: isActive }}
-              >
-                <Text
-                  style={[styles.segmentText, isActive && styles.segmentTextActive]}
-                  numberOfLines={1}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {renderPeriodControl()}
+
+        {!(Platform.OS === 'ios' && Platform.isPad) && (
+          <View style={styles.rotateHint}>
+            <Ionicons name="phone-landscape-outline" size={16} color={colors.textMuted} />
+            <Text style={styles.rotateHintText}>Turn your phone sideways to chart protein, carbs, fat, fibre and water</Text>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{activePeriod.sectionTitle}</Text>
@@ -297,6 +343,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     padding: 4,
   },
+  segmentedControlCompact: {
+    marginHorizontal: 0,
+    marginBottom: 0,
+    width: 360,
+  },
   segment: {
     flex: 1,
     paddingVertical: 10,
@@ -305,6 +356,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  segmentCompact: {
+    paddingVertical: 6,
+  },
   segmentText: {
     fontSize: 13,
     fontWeight: '600',
@@ -312,6 +366,43 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     color: '#FFFFFF',
+  },
+  rotateHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.lg,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  rotateHintText: {
+    flex: 1,
+    marginLeft: 6,
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  chartScreen: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  chartTitleBlock: {
+    flexShrink: 1,
+    marginRight: spacing.md,
+  },
+  chartTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  chartSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   section: {
     marginBottom: spacing.xl,

@@ -5,6 +5,7 @@ import { Session } from '@supabase/supabase-js';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { getSession, onAuthStateChange, handleAuthRedirectUrl } from '../services/authService';
 import { track } from '../services/analytics';
 import { ThemeProvider } from '../contexts/ThemeContext';
@@ -100,6 +101,12 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  // The app is portrait-only; the Insights tab unlocks rotation while it's focused
+  // so turning the phone sideways shows the intake chart.
+  useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+  }, []);
+
   return (
     <OnboardingProvider>
       <RootNavigator />
