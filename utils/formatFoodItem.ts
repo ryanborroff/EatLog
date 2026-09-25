@@ -40,7 +40,7 @@ export const formatFoodItemLine = (item: Pick<FoodItem, 'quantity' | 'unit' | 'd
   }
 
   if (GLUED_UNITS.has(unit)) {
-    return capitalizeFirstLetter(`${item.quantity}${unit} ${description}`);
+    return `${item.quantity}${unit} ${description}`;
   }
 
   return capitalizeFirstLetter(`${item.quantity} ${pluralizeUnit(unit, item.quantity)} of ${description}`);
