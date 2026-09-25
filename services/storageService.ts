@@ -14,6 +14,7 @@ import {
 } from '../types';
 import { ParsedFoodResult } from '../types/foodParser';
 import { supabase, withClockSkewRetry } from './supabaseClient';
+import { sortMealsForDisplay } from '../utils/mealOrder';
 
 const getUserId = async (): Promise<string> => {
   const {
@@ -169,7 +170,7 @@ export const getMealsForDate = async (date: string): Promise<Meal[]> => withCloc
 
   if (error) throw error;
 
-  return (data as MealRow[]).map(toMeal);
+  return sortMealsForDisplay((data as MealRow[]).map(toMeal));
 });
 
 export const saveMealForDate = async (date: string, meal: Meal): Promise<string> => {
