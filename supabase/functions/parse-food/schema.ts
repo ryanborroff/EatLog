@@ -61,6 +61,90 @@ export interface ParsedFoodResult {
   clarification_options: string[] | null;
 }
 
+// JSON Schema for Groq's strict structured outputs (constrained decoding).
+// Strict mode requires every property listed in `required` and
+// `additionalProperties: false`; optional values are expressed as nullable.
+const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: 'null' }] });
+
+const ITEM_JSON_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'description',
+    'brand',
+    'quantity',
+    'unit',
+    'grams_per_unit',
+    'preparation',
+    'confidence',
+    'estimated_nutrition',
+  ],
+  properties: {
+    description: { type: 'string' },
+    brand: { type: ['string', 'null'] },
+    quantity: { type: 'number' },
+    unit: { type: 'string' },
+    grams_per_unit: { type: ['number', 'null'] },
+    preparation: { type: ['string', 'null'] },
+    confidence: { type: 'string', enum: [...CONFIDENCE_LEVELS] },
+    estimated_nutrition: nullable({
+      type: 'object',
+      additionalProperties: false,
+      required: ['serving_size', 'serving_unit', 'calories', 'protein', 'carbohydrate', 'fat', 'fibre', 'sodium', 'sugar'],
+      properties: {
+        serving_size: { type: 'number' },
+        serving_unit: { type: 'string' },
+        calories: { type: 'number' },
+        protein: { type: 'number' },
+        carbohydrate: { type: 'number' },
+        fat: { type: 'number' },
+        fibre: { type: ['number', 'null'] },
+        sodium: { type: ['number', 'null'] },
+        sugar: { type: ['number', 'null'] },
+      },
+    }),
+  },
+};
+
+export const PARSED_FOOD_JSON_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'intent',
+    'meal_type',
+    'items',
+    'operations',
+    'needs_clarification',
+    'clarification_question',
+    'clarification_options',
+  ],
+  $defs: { item: ITEM_JSON_SCHEMA },
+  properties: {
+    intent: { type: 'string', enum: ['log_food', 'correction'] },
+    meal_type: nullable({ type: 'string', enum: [...MEAL_TYPES] }),
+    items: nullable({ type: 'array', items: { $ref: '#/$defs/item' } }),
+    operations: nullable({
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['type', 'target_description', 'item', 'new_quantity', 'new_unit', 'meal_type'],
+        properties: {
+          type: { type: 'string', enum: [...OPERATION_TYPES] },
+          target_description: { type: ['string', 'null'] },
+          item: nullable({ $ref: '#/$defs/item' }),
+          new_quantity: { type: ['number', 'null'] },
+          new_unit: { type: ['string', 'null'] },
+          meal_type: nullable({ type: 'string', enum: [...MEAL_TYPES] }),
+        },
+      },
+    }),
+    needs_clarification: { type: 'boolean' },
+    clarification_question: { type: ['string', 'null'] },
+    clarification_options: nullable({ type: 'array', items: { type: 'string' } }),
+  },
+};
+
 const isConfidence = (v: unknown): v is ConfidenceLevel => CONFIDENCE_LEVELS.includes(v as ConfidenceLevel);
 
 const isPositiveNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;

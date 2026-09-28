@@ -5,7 +5,7 @@
 // this function returns structured items only; the client resolves foods and
 // computes totals.
 
-import { validateParsedFoodResult } from './schema.ts';
+import { validateParsedFoodResult, ParsedFoodResult, PARSED_FOOD_JSON_SCHEMA } from './schema.ts';
 import { verifyUser, unauthorizedResponse } from '../_shared/auth.ts';
 import { isRateLimited, rateLimitedResponse } from '../_shared/rateLimit.ts';
 
@@ -17,6 +17,7 @@ const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'openai/gpt-oss-20b';
 
 const MAX_TRANSCRIPT_LENGTH = 500;
 const RATE_LIMIT_PER_MINUTE = 10;
+const MAX_ATTEMPTS = 2;
 
 const JSON_SHAPE_DESCRIPTION = `Respond with a single JSON object, no prose, matching exactly this shape:
 {
@@ -127,6 +128,42 @@ Deno.serve(async (req: Request) => {
     .filter(Boolean)
     .join('\n');
 
+  // Model output is non-deterministic, so one bad generation shouldn't fail
+  // the user's entry — retry once before giving up.
+  let failure: ParseFailure | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // If Groq rejected the strict schema request itself (a 400), fall back to
+    // plain JSON mode for the retry rather than failing the same way twice.
+    const useStrictSchema = !(failure && failure.upstreamStatus === 400);
+    const outcome = await attemptParse(userMessage, useStrictSchema);
+    if ('result' in outcome) {
+      return new Response(JSON.stringify(outcome.result), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    failure = outcome;
+    // Visible in the Supabase dashboard's function logs.
+    console.error(`parse-food attempt ${attempt}/${MAX_ATTEMPTS} failed: ${outcome.error}`, outcome.detail ?? '');
+  }
+
+  return new Response(JSON.stringify({ error: failure!.error }), {
+    status: failure!.status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+});
+
+interface ParseFailure {
+  status: number;
+  error: string;
+  detail?: string;
+  upstreamStatus?: number;
+}
+
+async function attemptParse(
+  userMessage: string,
+  useStrictSchema: boolean
+): Promise<{ result: ParsedFoodResult } | ParseFailure> {
   let groqResponse: Response;
   try {
     groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -141,54 +178,50 @@ Deno.serve(async (req: Request) => {
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userMessage },
         ],
-        response_format: { type: 'json_object' },
+        // Strict structured outputs: Groq constrains decoding to this schema, so
+        // the reply is always well-formed. Plain JSON mode instead rejected
+        // whole requests with a 400 whenever the model emitted invalid JSON.
+        response_format: useStrictSchema
+          ? { type: 'json_schema', json_schema: { name: 'parsed_food', strict: true, schema: PARSED_FOOD_JSON_SCHEMA } }
+          : { type: 'json_object' },
         temperature: 0.2,
       }),
     });
-  } catch {
-    return new Response(JSON.stringify({ error: 'Could not reach the AI parser' }), {
-      status: 502,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err) {
+    return { status: 502, error: 'Could not reach the AI parser', detail: String(err) };
   }
 
   if (!groqResponse.ok) {
-    return new Response(JSON.stringify({ error: 'AI parser request failed' }), {
+    const detail = (await groqResponse.text().catch(() => '')).slice(0, 1000);
+    return {
       status: 502,
-      headers: { 'Content-Type': 'application/json' },
-    });
+      error: `AI parser request failed (${groqResponse.status})`,
+      detail,
+      upstreamStatus: groqResponse.status,
+    };
   }
 
   const completion = await groqResponse.json();
   const rawContent = completion?.choices?.[0]?.message?.content;
 
   if (typeof rawContent !== 'string') {
-    return new Response(JSON.stringify({ error: 'AI parser returned no content' }), {
-      status: 502,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return { status: 502, error: 'AI parser returned no content' };
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawContent);
   } catch {
-    return new Response(JSON.stringify({ error: 'AI parser returned invalid JSON' }), {
-      status: 422,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return { status: 422, error: 'AI parser returned invalid JSON', detail: rawContent.slice(0, 1000) };
   }
 
   try {
-    const validated = validateParsedFoodResult(parsed);
-    return new Response(JSON.stringify(validated), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return { result: validateParsedFoodResult(parsed) };
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: `AI parser output failed validation: ${(err as Error).message}` }),
-      { status: 422, headers: { 'Content-Type': 'application/json' } }
-    );
+    return {
+      status: 422,
+      error: `AI parser output failed validation: ${(err as Error).message}`,
+      detail: rawContent.slice(0, 1000),
+    };
   }
-});
+}
