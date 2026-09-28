@@ -5,6 +5,7 @@
 import { FoodItem, Meal } from '../types';
 import { ParsedFoodResult, RecentMealContext, ResolvedFoodItem } from '../types/foodParser';
 import { applyCorrections } from './correctionApplier';
+import { hasCorrectionCue } from '../utils/correctionCue';
 import { matchDefault } from './defaultsMatcher';
 import { resolveFoodItems } from './foodResolver';
 import { calculateNutrition, ReferenceNutrition } from './nutritionCalculator';
@@ -161,7 +162,9 @@ export const processTranscript = async (
     return { status: 'logged', meal: savedMeal, skipped: [] };
   }
 
-  const recentMeal = await getMostRecentMeal(date);
+  // Only offer the last meal as correction context when the wording asks for a
+  // correction — otherwise the parser could "correct" it with a new entry.
+  const recentMeal = hasCorrectionCue(transcript) ? await getMostRecentMeal(date) : null;
   const parsed = await parseTranscript(transcript, date, mealHint, toRecentMealContext(recentMeal));
 
   await saveVoiceLog(transcript, parsed);

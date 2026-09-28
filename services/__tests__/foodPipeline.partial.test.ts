@@ -22,7 +22,7 @@ jest.mock('../healthKitService', () => ({
 
 import { processTranscript, parseFoodItemsFreeText, FoodParseError } from '../foodPipeline';
 import { resolveFoodItems } from '../foodResolver';
-import { saveMealForDate } from '../storageService';
+import { getMostRecentMeal, saveMealForDate } from '../storageService';
 import { supabase } from '../supabaseClient';
 
 const parsed: LogFoodResult = {
@@ -83,6 +83,18 @@ describe('foodPipeline partial resolution', () => {
       unresolvedItems: ['sesame oil', 'oyster sauce'],
     });
     expect(saveMealForDate).not.toHaveBeenCalled();
+  });
+
+  it('never sends the recent meal as context for a plain food entry', async () => {
+    (resolveFoodItems as jest.Mock).mockResolvedValue([resolved('Vermicelli noodles', 371)]);
+
+    await processTranscript('vercelli noodles', '2026-09-28');
+
+    expect(getMostRecentMeal).not.toHaveBeenCalled();
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(
+      'parse-food',
+      expect.objectContaining({ body: expect.objectContaining({ recentMeal: null }) })
+    );
   });
 
   it('returns skipped items from the free-text add too', async () => {
