@@ -1,0 +1,96 @@
+import { LogFoodResult, ResolvedFoodItem } from '../../types/foodParser';
+
+jest.mock('../defaultsMatcher', () => ({ matchDefault: jest.fn().mockResolvedValue(null) }));
+jest.mock('../correctionApplier', () => ({ applyCorrections: jest.fn() }));
+jest.mock('../foodResolver', () => ({ resolveFoodItems: jest.fn() }));
+jest.mock('../supabaseClient', () => ({
+  supabase: { functions: { invoke: jest.fn() } },
+}));
+jest.mock('../storageService', () => ({
+  getMostRecentMeal: jest.fn().mockResolvedValue(null),
+  saveMealForDate: jest.fn().mockResolvedValue('new-meal-id'),
+  saveVoiceLog: jest.fn().mockResolvedValue(undefined),
+  updateMeal: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('../healthSyncPreference', () => ({
+  getAppleHealthSyncEnabled: jest.fn().mockResolvedValue(false),
+}));
+jest.mock('../healthKitService', () => ({
+  writeMealToHealthKit: jest.fn(),
+  resyncMealToHealthKit: jest.fn(),
+}));
+
+import { processTranscript, parseFoodItemsFreeText, FoodParseError } from '../foodPipeline';
+import { resolveFoodItems } from '../foodResolver';
+import { saveMealForDate } from '../storageService';
+import { supabase } from '../supabaseClient';
+
+const parsed: LogFoodResult = {
+  intent: 'log_food',
+  meal_type: 'dinner',
+  items: [],
+  needs_clarification: false,
+  clarification_question: null,
+  clarification_options: null,
+};
+
+const resolved = (description: string, calories: number, unresolved = false): ResolvedFoodItem => ({
+  description,
+  quantity: 1,
+  unit: 'serving',
+  calories,
+  protein: 0,
+  carbohydrate: 0,
+  fat: 0,
+  confidence: unresolved ? 'low' : 'medium',
+  estimated: true,
+  ...(unresolved ? { unresolved: true } : {}),
+});
+
+describe('foodPipeline partial resolution', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (supabase.functions.invoke as jest.Mock).mockResolvedValue({ data: parsed, error: null });
+  });
+
+  it('logs the identified items and reports the rest as skipped', async () => {
+    (resolveFoodItems as jest.Mock).mockResolvedValue([
+      resolved('Chicken breast', 165),
+      resolved('Sesame oil', 0, true),
+    ]);
+
+    const result = await processTranscript('chicken breast, sesame oil', '2026-09-28');
+
+    expect(result.status).toBe('logged');
+    if (result.status !== 'logged') return;
+    expect(result.meal.items.map((i) => i.description)).toEqual(['Chicken breast']);
+    expect(result.meal.totalCalories).toBe(165);
+    expect(result.skipped).toEqual(['sesame oil']);
+    expect(saveMealForDate).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails with a message naming the items when nothing could be identified', async () => {
+    (resolveFoodItems as jest.Mock).mockResolvedValue([
+      resolved('Sesame oil', 0, true),
+      resolved('Oyster sauce', 0, true),
+    ]);
+
+    const attempt = processTranscript('sesame oil, oyster sauce', '2026-09-28');
+
+    await expect(attempt).rejects.toBeInstanceOf(FoodParseError);
+    await expect(attempt).rejects.toMatchObject({
+      message: "Couldn't work out sesame oil and oyster sauce – try describing them another way.",
+      unresolvedItems: ['sesame oil', 'oyster sauce'],
+    });
+    expect(saveMealForDate).not.toHaveBeenCalled();
+  });
+
+  it('returns skipped items from the free-text add too', async () => {
+    (resolveFoodItems as jest.Mock).mockResolvedValue([resolved('Rice', 200), resolved('Mystery sauce', 0, true)]);
+
+    const { items, skipped } = await parseFoodItemsFreeText('rice, mystery sauce', '2026-09-28');
+
+    expect(items.map((i) => i.description)).toEqual(['Rice']);
+    expect(skipped).toEqual(['mystery sauce']);
+  });
+});

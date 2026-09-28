@@ -152,6 +152,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const [clarificationQuestion, setClarificationQuestion] = useState('');
   const [loggedMeal, setLoggedMeal] = useState<Meal | null>(null);
   const [wasCorrection, setWasCorrection] = useState(false);
+  const [skippedItems, setSkippedItems] = useState<string[]>([]);
   const [targetDate, setTargetDate] = useState(todayDate());
   const [showCalendar, setShowCalendar] = useState(false);
   const mealHintRef = useRef<string | undefined>(undefined);
@@ -306,6 +307,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
       } else {
         setLoggedMeal(result.meal);
         setWasCorrection(result.status === 'updated');
+        setSkippedItems(result.status === 'logged' ? result.skipped : []);
         setState('logged');
         setTimeout(() => setState('result'), 450);
         track('voice_log_completed');
@@ -318,6 +320,9 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     } catch (err) {
       if (err instanceof FoodParseError && err.message === 'Nothing to correct') {
         setErrorMessage("Nothing recent to correct – try logging the food instead.");
+      } else if (err instanceof FoodParseError && err.unresolvedItems?.length) {
+        // Names the items that couldn't be identified, so it's written for the user.
+        setErrorMessage(err.message);
       } else if (err instanceof FoodParseError) {
         setErrorMessage(err.kind === 'network' ? ERROR_COPY.network : ERROR_COPY.ai);
       } else {
@@ -359,6 +364,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     track('food_logged', { source: 'barcode', mealType: meal.type, itemCount: meal.items.length });
     setLoggedMeal(meal);
     setWasCorrection(false);
+    setSkippedItems([]);
     setState('logged');
     setTimeout(() => setState('result'), 450);
   };
@@ -476,6 +482,11 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
                 ? `Updated · ${kcal} kcal`
                 : `${kcal} kcal · ${protein}g protein · Logged`}
             </Text>
+            {skippedItems.length > 0 && (
+              <Text style={styles.skippedNotice}>
+                Couldn't work out: {skippedItems.join(', ')} – tap the mic to add {skippedItems.length === 1 ? 'it' : 'them'}.
+              </Text>
+            )}
             <Text style={styles.followUpHint}>Tap the mic to add or correct something</Text>
             <ListeningIndicator active={false} size={64} color={accentColor} showMicIcon />
           </TouchableOpacity>
@@ -645,6 +656,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginTop: spacing.md,
     textAlign: 'center',
+  },
+  skippedNotice: {
+    ...typography.secondary,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
   followUpHint: {
     ...typography.small,

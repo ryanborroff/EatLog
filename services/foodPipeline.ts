@@ -3,7 +3,7 @@
 // clarification). Shared by voice and text input (spec §9).
 
 import { FoodItem, Meal } from '../types';
-import { ParsedFoodResult, RecentMealContext } from '../types/foodParser';
+import { ParsedFoodResult, RecentMealContext, ResolvedFoodItem } from '../types/foodParser';
 import { applyCorrections } from './correctionApplier';
 import { matchDefault } from './defaultsMatcher';
 import { resolveFoodItems } from './foodResolver';
@@ -38,10 +38,40 @@ const resyncMealToHealthIfEnabled = async (meal: Meal): Promise<void> => {
 };
 
 export class FoodParseError extends Error {
-  constructor(message: string, readonly kind: 'network' | 'invalid') {
+  constructor(
+    message: string,
+    readonly kind: 'network' | 'invalid',
+    // Set when the failure is specific items that couldn't be identified — the
+    // message then names them and is safe to show the user as-is.
+    readonly unresolvedItems?: string[]
+  ) {
     super(message);
   }
 }
+
+const formatList = (names: string[]): string =>
+  names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+
+/**
+ * Splits resolved items into the usable ones and the names of those nothing
+ * could identify. One unidentifiable condiment shouldn't sink a whole meal, so
+ * callers keep the usable items and tell the user what was skipped; only when
+ * nothing resolved does this throw, naming the items.
+ */
+const partitionResolved = (resolvedItems: ResolvedFoodItem[]): { usable: ResolvedFoodItem[]; skipped: string[] } => {
+  const usable = resolvedItems.filter((item) => !item.unresolved);
+  const skipped = resolvedItems.filter((item) => item.unresolved).map((item) => item.description.toLowerCase());
+
+  if (usable.length === 0) {
+    const message =
+      skipped.length > 0
+        ? `Couldn't work out ${formatList(skipped)} – try describing ${skipped.length === 1 ? 'it' : 'them'} another way.`
+        : "Couldn't work that out – try again.";
+    throw new FoodParseError(message, 'invalid', skipped);
+  }
+
+  return { usable, skipped };
+};
 
 const todayDate = (): string => new Date().toISOString().split('T')[0];
 
@@ -85,6 +115,8 @@ const parseTranscript = async (
 export interface LoggedOutcome {
   status: 'logged';
   meal: Meal;
+  /** Items the user mentioned that couldn't be identified and were left out of the meal. */
+  skipped: string[];
 }
 
 export interface UpdatedOutcome {
@@ -126,7 +158,7 @@ export const processTranscript = async (
     const savedId = await saveMealForDate(date, defaultMeal);
     const savedMeal = { ...defaultMeal, id: savedId };
     await syncMealToHealthIfEnabled(savedMeal);
-    return { status: 'logged', meal: savedMeal };
+    return { status: 'logged', meal: savedMeal, skipped: [] };
   }
 
   const recentMeal = await getMostRecentMeal(date);
@@ -152,14 +184,9 @@ export const processTranscript = async (
     return { status: 'updated', meal: updated };
   }
 
-  const resolvedItems = await resolveFoodItems(parsed.items);
-
-  // Rather than silently logging a phantom zero-calorie item, fail the whole
-  // entry so the user hits the normal error UI (retry / scan barcode instead)
-  // when nothing could identify what they meant.
-  if (resolvedItems.some((item) => item.unresolved)) {
-    throw new FoodParseError("Couldn't identify one or more items", 'invalid');
-  }
+  // Never log a phantom zero-calorie item: unidentifiable items are left out
+  // and reported back as `skipped` so the user can add them another way.
+  const { usable: resolvedItems, skipped } = partitionResolved(await resolveFoodItems(parsed.items));
 
   const meal: Meal = {
     id: '', // assigned by storageService/Supabase on insert
@@ -179,7 +206,7 @@ export const processTranscript = async (
   meal.id = savedId;
   await syncMealToHealthIfEnabled(meal);
 
-  return { status: 'logged', meal };
+  return { status: 'logged', meal, skipped };
 };
 
 /**
@@ -189,7 +216,10 @@ export const processTranscript = async (
  * path, but never persists — the caller owns saving. Always treated as a
  * fresh addition (recentMeal: null) since there is no meal being corrected.
  */
-export const parseFoodItemsFreeText = async (description: string, date: string): Promise<FoodItem[]> => {
+export const parseFoodItemsFreeText = async (
+  description: string,
+  date: string
+): Promise<{ items: FoodItem[]; skipped: string[] }> => {
   const parsed = await parseTranscript(description, date, undefined, null);
 
   if (parsed.needs_clarification) {
@@ -203,13 +233,12 @@ export const parseFoodItemsFreeText = async (description: string, date: string):
     throw new FoodParseError("Couldn't work that out – try again.", 'invalid');
   }
 
-  const resolvedItems = await resolveFoodItems(parsed.items);
+  const { usable, skipped } = partitionResolved(await resolveFoodItems(parsed.items));
 
-  if (resolvedItems.some((item) => item.unresolved)) {
-    throw new FoodParseError("Couldn't identify one or more items", 'invalid');
-  }
-
-  return resolvedItems.map((item, index) => ({ id: `${Date.now()}-${index}`, ...item }));
+  return {
+    items: usable.map((item, index) => ({ id: `${Date.now()}-${index}`, ...item })),
+    skipped,
+  };
 };
 
 /**
