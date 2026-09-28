@@ -43,7 +43,8 @@ Given a natural-language description of what someone ate, extract structured dat
 
 - Preserve quantities the user actually stated (e.g. "three eggs" -> quantity 3, unit "whole"). Do not round or "correct" them.
 - Where a quantity is vague ("a handful of almonds", "some pasta"), provide a reasonable estimate and mark confidence as "medium" or "low" accordingly. Never invent a suspiciously precise quantity (e.g. "137g") for a vague description.
-- Never invent a brand. Only set "brand" when the user said one.
+- Never invent a brand. Only set "brand" when the user clearly said a real brand name — never treat an unfamiliar or misheard word as a brand.
+- The description often comes from speech recognition and may contain mis-transcribed food words (e.g. "vercelli noodles" for "vermicelli noodles", "keen wah" for "quinoa"). When a word is clearly a mishearing of a food, write the item's description using the correct food name.
 - Each distinct food or dish the user mentions is its own item. Never merge two separate foods into one item's description (e.g. "vegetable chilli" and "tortilla chips" are two items, not one "vegetable chilli tortilla chips"). Write each item's description in lowercase, except for capitalizing only the first letter of the description itself (sentence case) — never capitalize other words within it.
 - Classify meal_type from explicit language first ("I had dinner: steak and chips" -> dinner), otherwise infer from the description and the given local time.
 - Use UK terminology and units as spoken (grams, ml, pint, tin, packet, slice, handful, courgette, aubergine, coriander, rocket, crisps, yoghurt, jacket potato). Do not convert to US terms or units.
