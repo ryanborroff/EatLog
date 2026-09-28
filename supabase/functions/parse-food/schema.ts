@@ -63,33 +63,31 @@ export interface ParsedFoodResult {
 
 const isConfidence = (v: unknown): v is ConfidenceLevel => CONFIDENCE_LEVELS.includes(v as ConfidenceLevel);
 
-function validateItem(raw: unknown, path: string): ParsedFoodItem {
+const isPositiveNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
+const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
+
+/**
+ * Validates one item, repairing what can be repaired rather than failing the
+ * whole parse over one sloppy field (a multi-item meal gives the model many
+ * chances to slip). Returns null only when the item has no usable description.
+ */
+function validateItem(raw: unknown): ParsedFoodItem | null {
+  if (typeof raw !== 'object' || raw === null) return null;
   const item = raw as Record<string, unknown>;
-  if (typeof item.description !== 'string' || item.description.trim() === '') {
-    throw new Error(`${path}.description is invalid`);
-  }
-  if (typeof item.quantity !== 'number' || !Number.isFinite(item.quantity) || item.quantity <= 0) {
-    throw new Error(`${path}.quantity is invalid`);
-  }
-  if (typeof item.unit !== 'string' || item.unit.trim() === '') {
-    throw new Error(`${path}.unit is invalid`);
-  }
-  if (!isConfidence(item.confidence)) {
-    throw new Error(`${path}.confidence is invalid`);
-  }
+  if (!isNonEmptyString(item.description)) return null;
 
   let estimated_nutrition: ParsedFoodItem['estimated_nutrition'] = null;
-  if (item.estimated_nutrition !== null && item.estimated_nutrition !== undefined) {
-    const n = item.estimated_nutrition as Record<string, unknown>;
-    const numericFields = ['serving_size', 'calories', 'protein', 'carbohydrate', 'fat'] as const;
-    for (const field of numericFields) {
-      if (typeof n[field] !== 'number' || !Number.isFinite(n[field] as number)) {
-        throw new Error(`${path}.estimated_nutrition.${field} is invalid`);
-      }
-    }
-    if (typeof n.serving_unit !== 'string' || n.serving_unit.trim() === '') {
-      throw new Error(`${path}.estimated_nutrition.serving_unit is invalid`);
-    }
+  const n = item.estimated_nutrition as Record<string, unknown> | null | undefined;
+  const nutritionIsValid =
+    typeof n === 'object' &&
+    n !== null &&
+    (['serving_size', 'calories', 'protein', 'carbohydrate', 'fat'] as const).every(
+      (field) => typeof n[field] === 'number' && Number.isFinite(n[field] as number)
+    ) &&
+    isPositiveNumber(n.serving_size) &&
+    isNonEmptyString(n.serving_unit);
+
+  if (nutritionIsValid) {
     estimated_nutrition = {
       serving_size: n.serving_size as number,
       serving_unit: n.serving_unit as string,
@@ -103,11 +101,28 @@ function validateItem(raw: unknown, path: string): ParsedFoodItem {
     };
   }
 
+  // A missing/zero quantity or unit falls back to one of the model's own
+  // estimated servings (a typical portion), and failing that to "1 serving".
+  // Either way the amount was guessed, so confidence drops to low.
+  const quantityIsValid = isPositiveNumber(item.quantity);
+  const unitIsValid = isNonEmptyString(item.unit);
+  const unit = unitIsValid ? (item.unit as string) : estimated_nutrition?.serving_unit ?? 'serving';
+  // The serving size only makes sense as a quantity in the serving's own unit.
+  const servingMatchesUnit =
+    estimated_nutrition !== null && estimated_nutrition.serving_unit.trim().toLowerCase() === unit.trim().toLowerCase();
+  const quantity = quantityIsValid
+    ? (item.quantity as number)
+    : servingMatchesUnit
+      ? estimated_nutrition!.serving_size
+      : 1;
+  const confidence: ConfidenceLevel =
+    quantityIsValid && unitIsValid && isConfidence(item.confidence) ? item.confidence : 'low';
+
   return {
     description: item.description,
     brand: typeof item.brand === 'string' ? item.brand : null,
-    quantity: item.quantity,
-    unit: item.unit,
+    quantity,
+    unit,
     // Optional hint: a missing or nonsensical weight just means the client can't
     // convert count units for this item, so drop it rather than reject the parse.
     grams_per_unit:
@@ -115,7 +130,7 @@ function validateItem(raw: unknown, path: string): ParsedFoodItem {
         ? item.grams_per_unit
         : null,
     preparation: typeof item.preparation === 'string' ? item.preparation : null,
-    confidence: item.confidence,
+    confidence,
     estimated_nutrition,
   };
 }
@@ -147,7 +162,10 @@ export function validateParsedFoodResult(value: unknown): ParsedFoodResult {
     if (!Array.isArray(v.items)) {
       throw new Error('items is not an array');
     }
-    const items = v.items.map((raw, i) => validateItem(raw, `items[${i}]`));
+    const items = v.items.map(validateItem).filter((item): item is ParsedFoodItem => item !== null);
+    if (v.items.length > 0 && items.length === 0) {
+      throw new Error('No item had a usable description');
+    }
 
     return {
       intent: 'log_food',
@@ -172,7 +190,7 @@ export function validateParsedFoodResult(value: unknown): ParsedFoodResult {
     return {
       type: op.type as OperationType,
       target_description: typeof op.target_description === 'string' ? op.target_description : null,
-      item: op.item && typeof op.item === 'object' ? validateItem(op.item, `operations[${i}].item`) : null,
+      item: validateItem(op.item),
       new_quantity: typeof op.new_quantity === 'number' ? op.new_quantity : null,
       new_unit: typeof op.new_unit === 'string' ? op.new_unit : null,
       meal_type: MEAL_TYPES.includes(op.meal_type as MealType) ? (op.meal_type as MealType) : null,

@@ -149,10 +149,13 @@ export default function EditMealScreen() {
 
     setAddingFreeText(true);
     try {
-      const newItems = await parseFoodItemsFreeText(description, date);
+      const { items: newItems, skipped } = await parseFoodItemsFreeText(description, date);
       setItems((current) => [...current, ...newItems]);
       setSearchQuery('');
       setSearchResults([]);
+      if (skipped.length > 0) {
+        Alert.alert('Some food not added', `Couldn't work out: ${skipped.join(', ')}. Try adding it another way.`);
+      }
     } catch (error) {
       console.error('Error adding food by text:', error);
       const message = error instanceof FoodParseError ? error.message : "Couldn't work that out – try again.";
