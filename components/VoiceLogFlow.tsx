@@ -150,6 +150,11 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const [transcript, setTranscript] = useState('');
   const [errorMessage, setErrorMessage] = useState<string>(ERROR_COPY.ai);
   const [clarificationQuestion, setClarificationQuestion] = useState('');
+  const [clarificationOptions, setClarificationOptions] = useState<string[]>([]);
+  // The entry a clarification question is about. The answer on its own
+  // ("about 100g") means nothing to the parser, so it's submitted together
+  // with the original description and the question.
+  const pendingClarificationRef = useRef<{ transcript: string; question: string } | null>(null);
   const [loggedMeal, setLoggedMeal] = useState<Meal | null>(null);
   const [wasCorrection, setWasCorrection] = useState(false);
   const [skippedItems, setSkippedItems] = useState<string[]>([]);
@@ -297,13 +302,21 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
 
   const submitTranscript = async (text: string) => {
     setState('processing');
+    const pending = pendingClarificationRef.current;
+    pendingClarificationRef.current = null;
+    const fullText = pending ? `${pending.transcript}. ${pending.question} ${text}` : text;
     try {
-      const result = await processTranscript(text, targetDate, mealHintRef.current);
+      const result = await processTranscript(fullText, targetDate, mealHintRef.current);
       if (result.status === 'needs_clarification') {
+        // Wait for an answer on the clarification screen — listening straight
+        // away would replace the question with "I'm listening…".
+        pendingClarificationRef.current = { transcript: fullText, question: result.question };
+        submittedRef.current = false;
         setClarificationQuestion(result.question);
+        setClarificationOptions(result.options);
+        setTextValue('');
         setState('clarification');
         track('clarification_requested');
-        void startListening();
       } else {
         setLoggedMeal(result.meal);
         setWasCorrection(result.status === 'updated');
@@ -344,6 +357,11 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     setTextValue('');
     setTranscript(value);
     finishWith(value, 200);
+  };
+
+  const handleClarificationOption = (option: string) => {
+    setTranscript(option);
+    finishWith(option, 200);
   };
 
   // Result → tap mic again to say a correction ("Actually it was three eggs").
@@ -388,6 +406,9 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
                 showMicIcon={state === 'listening'}
               />
             </TouchableOpacity>
+            {pendingClarificationRef.current && (
+              <Text style={styles.prompt}>{pendingClarificationRef.current.question}</Text>
+            )}
             {state === 'listening' ? (
               <Text style={styles.prompt}>{LISTENING_COPY}</Text>
             ) : (
@@ -430,8 +451,30 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         return (
           <View style={styles.content}>
             <Text style={styles.prompt}>{clarificationQuestion}</Text>
-            <ListeningIndicator active size={88} color={accentColor} />
-            {transcript.length > 0 && <Text style={styles.transcript}>{transcript}</Text>}
+            <View style={styles.optionList}>
+              {clarificationOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[styles.optionChip, { borderColor: accentColor }]}
+                  onPress={() => handleClarificationOption(option)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.optionText}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Or type your answer"
+              placeholderTextColor={colors.textMuted}
+              value={textValue}
+              onChangeText={setTextValue}
+              onSubmitEditing={handleTextSubmit}
+              returnKeyType="done"
+            />
+            <TouchableOpacity onPress={() => void startListening()}>
+              <Text style={styles.linkText}>Answer by voice</Text>
+            </TouchableOpacity>
           </View>
         );
 
@@ -656,6 +699,22 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginTop: spacing.md,
     textAlign: 'center',
+  },
+  optionList: {
+    alignSelf: 'stretch',
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  optionChip: {
+    borderWidth: 1,
+    borderRadius: radii.pill,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+  },
+  optionText: {
+    ...typography.body,
+    color: colors.textPrimary,
   },
   skippedNotice: {
     ...typography.secondary,

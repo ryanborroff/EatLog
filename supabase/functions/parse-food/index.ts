@@ -8,14 +8,19 @@
 import { validateParsedFoodResult, ParsedFoodResult, PARSED_FOOD_JSON_SCHEMA } from './schema.ts';
 import { verifyUser, unauthorizedResponse } from '../_shared/auth.ts';
 import { isRateLimited, rateLimitedResponse } from '../_shared/rateLimit.ts';
+import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 // Groq's API is OpenAI-compatible (same request/response shape), so this is
 // otherwise unchanged from an OpenAI integration — just a different base URL,
 // key, and default model. Free tier: https://console.groq.com
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
 const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'openai/gpt-oss-20b';
+// Used for the retry: slower, but far more reliable at long structured replies.
+const GROQ_FALLBACK_MODEL = Deno.env.get('GROQ_FALLBACK_MODEL') ?? 'openai/gpt-oss-120b';
 
-const MAX_TRANSCRIPT_LENGTH = 500;
+// Room for a clarification answer, which is sent together with the original
+// description and the question it answers.
+const MAX_TRANSCRIPT_LENGTH = 1000;
 const RATE_LIMIT_PER_MINUTE = 10;
 const MAX_ATTEMPTS = 2;
 
@@ -129,13 +134,16 @@ Deno.serve(async (req: Request) => {
     .join('\n');
 
   // Model output is non-deterministic, so one bad generation shouldn't fail
-  // the user's entry — retry once before giving up.
+  // the user's entry — retry once, on the larger model, before giving up.
   let failure: ParseFailure | null = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    // If Groq rejected the strict schema request itself (a 400), fall back to
-    // plain JSON mode for the retry rather than failing the same way twice.
-    const useStrictSchema = !(failure && failure.upstreamStatus === 400);
-    const outcome = await attemptParse(userMessage, useStrictSchema);
+    const model = attempt === 1 ? GROQ_MODEL : GROQ_FALLBACK_MODEL;
+    // A 400 other than json_validate_failed means Groq rejected the strict
+    // schema request itself, so fall back to plain JSON mode for the retry.
+    const schemaRejected =
+      failure?.upstreamStatus === 400 && failure.upstreamError?.code !== 'json_validate_failed';
+    const strict = !schemaRejected;
+    const outcome = await attemptParse(userMessage, model, strict);
     if ('result' in outcome) {
       return new Response(JSON.stringify(outcome.result), {
         status: 200,
@@ -144,7 +152,8 @@ Deno.serve(async (req: Request) => {
     }
     failure = outcome;
     // Visible in the Supabase dashboard's function logs.
-    console.error(`parse-food attempt ${attempt}/${MAX_ATTEMPTS} failed: ${outcome.error}`, outcome.detail ?? '');
+    console.error(`parse-food attempt ${attempt}/${MAX_ATTEMPTS} (${model}) failed: ${outcome.error}`, outcome.detail ?? '');
+    await recordFailure(user.id, attempt, model, strict, outcome);
   }
 
   return new Response(JSON.stringify({ error: failure!.error }), {
@@ -158,11 +167,83 @@ interface ParseFailure {
   error: string;
   detail?: string;
   upstreamStatus?: number;
+  /** Groq's error type/code/message — describes the failure, never the diary content. */
+  upstreamError?: { type?: string; code?: string; message?: string };
+  /** Shape of the output that failed (lengths, error positions) — never its content. */
+  generation?: { length: number; validJson: boolean; parseErrorPosition: number | null; validationError: string | null };
+}
+
+const serviceClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+
+/**
+ * Records a failed attempt as an analytics event so failures can be diagnosed
+ * from the database. Per the analytics_events policy, no diary content: only
+ * error codes, messages and sizes, never the transcript or the model's output.
+ * Best-effort — never lets logging break the request.
+ */
+async function recordFailure(
+  userId: string,
+  attempt: number,
+  model: string,
+  strict: boolean,
+  failure: ParseFailure
+): Promise<void> {
+  try {
+    await serviceClient.from('analytics_events').insert({
+      user_id: userId,
+      event_name: 'parse_food_attempt_failed',
+      properties: {
+        attempt,
+        strict,
+        model,
+        error: failure.error.slice(0, 200),
+        upstream_status: failure.upstreamStatus ?? null,
+        upstream_type: failure.upstreamError?.type ?? null,
+        upstream_code: failure.upstreamError?.code ?? null,
+        upstream_message: failure.upstreamError?.message?.slice(0, 300) ?? null,
+        generation_length: failure.generation?.length ?? null,
+        generation_valid_json: failure.generation?.validJson ?? null,
+        generation_parse_error_position: failure.generation?.parseErrorPosition ?? null,
+        generation_validation_error: failure.generation?.validationError?.slice(0, 200) ?? null,
+      },
+    });
+  } catch (err) {
+    console.error('Failed to record parse failure:', err);
+  }
+}
+
+/**
+ * Parses and validates raw model output. V8's JSON.parse messages quote a
+ * snippet of the input, so only the error position is kept for diagnostics.
+ */
+function parseModelOutput(raw: string): { result: ParsedFoodResult } | { generation: NonNullable<ParseFailure['generation']> } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    const position = /position (\d+)/.exec((err as Error).message);
+    return {
+      generation: {
+        length: raw.length,
+        validJson: false,
+        parseErrorPosition: position ? Number(position[1]) : null,
+        validationError: null,
+      },
+    };
+  }
+  try {
+    return { result: validateParsedFoodResult(parsed) };
+  } catch (err) {
+    return {
+      generation: { length: raw.length, validJson: true, parseErrorPosition: null, validationError: (err as Error).message },
+    };
+  }
 }
 
 async function attemptParse(
   userMessage: string,
-  useStrictSchema: boolean
+  model: string,
+  strict: boolean
 ): Promise<{ result: ParsedFoodResult } | ParseFailure> {
   let groqResponse: Response;
   try {
@@ -173,15 +254,13 @@ async function attemptParse(
         Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: GROQ_MODEL,
+        model,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userMessage },
         ],
-        // Strict structured outputs: Groq constrains decoding to this schema, so
-        // the reply is always well-formed. Plain JSON mode instead rejected
-        // whole requests with a 400 whenever the model emitted invalid JSON.
-        response_format: useStrictSchema
+        // Strict structured outputs constrain the reply to this schema.
+        response_format: strict
           ? { type: 'json_schema', json_schema: { name: 'parsed_food', strict: true, schema: PARSED_FOOD_JSON_SCHEMA } }
           : { type: 'json_object' },
         temperature: 0.2,
@@ -192,12 +271,34 @@ async function attemptParse(
   }
 
   if (!groqResponse.ok) {
-    const detail = (await groqResponse.text().catch(() => '')).slice(0, 1000);
+    const body = await groqResponse.text().catch(() => '');
+    let upstreamError: ParseFailure['upstreamError'];
+    let failedGeneration: string | undefined;
+    try {
+      const e = JSON.parse(body)?.error;
+      upstreamError = { type: e?.type, code: e?.code, message: e?.message };
+      if (typeof e?.failed_generation === 'string') failedGeneration = e.failed_generation;
+    } catch {
+      // Non-JSON error body; the status alone will have to do.
+    }
+
+    // Groq rejects output that doesn't pass its own JSON/schema check, but
+    // hands back what the model wrote. Our validator is more forgiving (it
+    // repairs sloppy items), so try to salvage that before failing.
+    let generation: ParseFailure['generation'];
+    if (failedGeneration !== undefined) {
+      const salvaged = parseModelOutput(failedGeneration);
+      if ('result' in salvaged) return salvaged;
+      generation = salvaged.generation;
+    }
+
     return {
       status: 502,
       error: `AI parser request failed (${groqResponse.status})`,
-      detail,
+      detail: body.slice(0, 2000),
       upstreamStatus: groqResponse.status,
+      upstreamError,
+      generation,
     };
   }
 
@@ -208,20 +309,12 @@ async function attemptParse(
     return { status: 502, error: 'AI parser returned no content' };
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawContent);
-  } catch {
-    return { status: 422, error: 'AI parser returned invalid JSON', detail: rawContent.slice(0, 1000) };
-  }
-
-  try {
-    return { result: validateParsedFoodResult(parsed) };
-  } catch (err) {
-    return {
-      status: 422,
-      error: `AI parser output failed validation: ${(err as Error).message}`,
-      detail: rawContent.slice(0, 1000),
-    };
-  }
+  const outcome = parseModelOutput(rawContent);
+  if ('result' in outcome) return outcome;
+  return {
+    status: 422,
+    error: outcome.generation.validJson ? 'AI parser output failed validation' : 'AI parser returned invalid JSON',
+    detail: rawContent.slice(0, 1000),
+    generation: outcome.generation,
+  };
 }
