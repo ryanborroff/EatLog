@@ -57,13 +57,15 @@ export default function SettingsScreen() {
   // made on their own screens.
   useFocusEffect(
     useCallback(() => {
-      Promise.all([getUserGoals(), getUserProfile()])
-        .then(([userGoals, userProfile]) => {
-          setGoals(userGoals);
-          setProfile(userProfile);
-        })
-        .catch((error) => console.error('Error loading settings:', error))
+      getUserGoals()
+        .then(setGoals)
+        .catch((error) => console.error('Error loading goals:', error))
         .finally(() => setLoading(false));
+      // Loaded separately so a profile problem only blanks the Profile summary,
+      // not the whole screen.
+      getUserProfile()
+        .then(setProfile)
+        .catch((error) => console.error('Error loading profile:', error));
     }, [])
   );
 
