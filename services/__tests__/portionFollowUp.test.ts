@@ -66,22 +66,28 @@ describe('applyPortions', () => {
 
 describe('withUsualPortion', () => {
   it("sets a guessed amount to the user's usual portion, which isn't a guess", () => {
-    const updated = withUsualPortion(item({}), { quantity: 300, unit: 'g' });
+    const updated = withUsualPortion(item({}), { quantity: 300, unit: 'g', calories: null });
     expect(updated).toMatchObject({ quantity: 300, unit: 'g', calories: 504, portionAssumed: false });
   });
 
   it('converts a usual portion given in another measured unit', () => {
-    const updated = withUsualPortion(item({}), { quantity: 0.5, unit: 'kg' });
+    const updated = withUsualPortion(item({}), { quantity: 0.5, unit: 'kg', calories: null });
     expect(updated).toMatchObject({ quantity: 0.5, unit: 'kg', calories: 840 });
   });
 
-  it("leaves the item alone when the units can't be converted", () => {
+  it("scales to the usual portion's calories when the units can't be converted", () => {
+    // Usually "1 portion" at 338 kcal; this time the parser said 250 g at 420 kcal.
+    const updated = withUsualPortion(item({}), { quantity: 1, unit: 'portion', calories: 338 });
+    expect(updated).toMatchObject({ quantity: 200, unit: 'g', calories: 336, portionAssumed: false });
+  });
+
+  it("leaves the item alone when the units can't be converted and the calories aren't known", () => {
     const bowl = item({ quantity: 1, unit: 'bowl' });
-    expect(withUsualPortion(bowl, { quantity: 300, unit: 'g' })).toBe(bowl);
+    expect(withUsualPortion(bowl, { quantity: 300, unit: 'g', calories: null })).toBe(bowl);
   });
 
   it('never overrides an amount the user stated', () => {
     const stated = item({ portionAssumed: false });
-    expect(withUsualPortion(stated, { quantity: 300, unit: 'g' })).toBe(stated);
+    expect(withUsualPortion(stated, { quantity: 300, unit: 'g', calories: null })).toBe(stated);
   });
 });

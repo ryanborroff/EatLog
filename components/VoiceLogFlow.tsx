@@ -790,6 +790,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     alignSelf: 'stretch',
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
     paddingHorizontal: spacing.sm,
   },

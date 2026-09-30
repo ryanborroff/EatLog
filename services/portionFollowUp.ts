@@ -89,18 +89,26 @@ export const applyPortions = (items: FoodItem[], choices: Record<string, Portion
 
 /**
  * An item whose amount was guessed, set to the user's usual portion of that
- * food instead — or unchanged when the usual portion's unit can't be
- * converted to the item's ("2 slices" usual vs a "bowl" this time).
+ * food instead. The usual amount is converted into this time's unit when it
+ * can be ("300 g" -> "0.3 kg"); otherwise ("1 portion" usual, "200 g" this
+ * time) the item is scaled to the usual portion's calories. Unchanged when
+ * neither is possible.
  */
 export const withUsualPortion = (item: FoodItem, usual: UsualPortion): FoodItem => {
   if (!item.portionAssumed || item.quantity <= 0) return item;
   const converted = convertQuantity(usual.quantity, usual.unit, item.unit, null, densityFor(item.description));
-  if (!converted) return item;
-  return {
-    ...item,
-    ...scaleNutrition(item, converted.quantity / item.quantity),
-    quantity: usual.quantity,
-    unit: usual.unit,
-    portionAssumed: false,
-  };
+  if (converted) {
+    return {
+      ...item,
+      ...scaleNutrition(item, converted.quantity / item.quantity),
+      quantity: usual.quantity,
+      unit: usual.unit,
+      portionAssumed: false,
+    };
+  }
+  if (usual.calories && item.calories > 0) {
+    const quantity = roundQuantity((item.quantity * usual.calories) / item.calories);
+    return { ...item, ...scaleNutrition(item, quantity / item.quantity), quantity, portionAssumed: false };
+  }
+  return item;
 };
