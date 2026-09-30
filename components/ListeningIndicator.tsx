@@ -14,12 +14,19 @@ interface ListeningIndicatorProps {
   showCheckIcon?: boolean;
   /** Working state — an orbiting arc plus a slow breathe, so a wait reads as progress. */
   thinking?: boolean;
+  /**
+   * Live input loudness, 0 (silent) to 1 (loud). While active, drives a soft
+   * halo behind the mic so it visibly reacts to the speaker's voice.
+   */
+  level?: Animated.Value;
 }
 
 /**
  * Shared mic visual for the Listening and Transcribing states. Deliberately
  * restrained — a slow "breathing" scale plus one or two fading pulse rings,
- * not a nightclub equalizer. Scale variance is kept under ~10% (spec).
+ * not a nightclub equalizer. Scale variance of the mic itself is kept under
+ * ~10% (spec); the voice halo behind it can swell further, since it's a
+ * faint tint that reads as "I can hear you" rather than motion.
  */
 const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
   active,
@@ -28,6 +35,7 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
   showMicIcon = false,
   showCheckIcon = false,
   thinking = false,
+  level,
 }) => {
   const breathe = useRef(new Animated.Value(0)).current;
   const ring = useRef(new Animated.Value(0)).current;
@@ -132,6 +140,8 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
   const spinRotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
   const arcSize = size * 1.35;
+  const haloScale = level?.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45], extrapolate: 'clamp' });
+  const haloOpacity = level?.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.28], extrapolate: 'clamp' });
 
   let coreTransform: { scale: Animated.AnimatedInterpolation<number> | number }[] = [{ scale: 1 }];
   if (active) coreTransform = [{ scale: coreScale }];
@@ -139,6 +149,22 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
 
   return (
     <View style={[styles.container, { width: size * 1.8, height: size * 1.8 }]}>
+      {active && haloScale && haloOpacity && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.halo,
+            {
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              backgroundColor: color,
+              opacity: haloOpacity,
+              transform: [{ scale: haloScale }],
+            },
+          ]}
+        />
+      )}
       {active && (
         <Animated.View
           pointerEvents="none"
@@ -216,6 +242,9 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  halo: {
+    position: 'absolute',
   },
   ring: {
     position: 'absolute',

@@ -122,7 +122,8 @@ const formatLogDate = (date: string): string => {
 
 // Same conversational voice for every failure mode — no system-error strings.
 const ERROR_COPY = {
-  stt: "Didn't catch that. Try again, or type your entry instead.",
+  stt: "Didn't quite catch that. Tap the mic to try again, or type it below.",
+  permission: 'EatLog needs speech recognition to hear you. You can turn it on in the Settings app, or type it below.',
   network: "Couldn't connect. Nothing's been logged yet.",
   ai: "Couldn't work that out – try again.",
 } as const;
@@ -146,6 +147,8 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const { accentColor } = useTheme();
   const [state, setState] = useState<FlowState>(initialTranscript ? 'confirmed' : 'listening');
   const [showTextInput, setShowTextInput] = useState(false);
+  // False once speech permission is refused — retrying by voice can't work then.
+  const [voiceAllowed, setVoiceAllowed] = useState(true);
   const [textValue, setTextValue] = useState('');
   const [transcript, setTranscript] = useState('');
   const [errorMessage, setErrorMessage] = useState<string>(ERROR_COPY.ai);
@@ -163,6 +166,8 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const mealHintRef = useRef<string | undefined>(undefined);
   const startedRef = useRef(false);
   const contentOpacity = useRef(new Animated.Value(1)).current;
+  // Mic loudness, 0–1, for the listening halo.
+  const voiceLevel = useRef(new Animated.Value(0)).current;
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptRef = useRef('');
   // Silence timer, the native isFinal result, and the "tap to finish" button
@@ -231,6 +236,13 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     }
   });
 
+  // Reported from -2 to 10, with anything below 0 inaudible. Normal speech sits
+  // around 2–8, so scale 0–8 to the halo's full range.
+  useSpeechRecognitionEvent('volumechange', (event) => {
+    const target = Math.min(Math.max(event.value, 0) / 8, 1);
+    Animated.timing(voiceLevel, { toValue: target, duration: 100, useNativeDriver: true }).start();
+  });
+
   useSpeechRecognitionEvent('error', () => {
     clearSilenceTimer();
     if (submittedRef.current) return;
@@ -259,7 +271,8 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     mealHintRef.current = mealHint;
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!permission.granted) {
-      setErrorMessage(ERROR_COPY.stt);
+      setVoiceAllowed(false);
+      setErrorMessage(ERROR_COPY.permission);
       setShowTextInput(true);
       setState('error');
       return;
@@ -268,6 +281,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     setTranscript('');
     transcriptRef.current = '';
     submittedRef.current = false;
+    voiceLevel.setValue(0);
     setState('listening');
     track('voice_log_started');
     // `continuous: true` on both platforms hands end-of-speech detection to
@@ -278,6 +292,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
       continuous: true,
       contextualStrings: FOOD_CONTEXTUAL_STRINGS,
       addsPunctuation: false,
+      volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
       androidIntentOptions: {
         EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: SILENCE_TIMEOUT_MS,
         EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: SILENCE_TIMEOUT_MS,
@@ -404,6 +419,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
                 size={100}
                 color={accentColor}
                 showMicIcon={state === 'listening'}
+                level={voiceLevel}
               />
             </TouchableOpacity>
             {pendingClarificationRef.current && (
@@ -479,30 +495,48 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         );
 
       case 'error':
+        // Voice stays the main way forward: a failed attempt shows the mic
+        // again, with typing as the alternative rather than the replacement.
         return (
           <View style={styles.content}>
             <Text style={styles.errorMessage}>{errorMessage}</Text>
+            {voiceAllowed && (
+              <>
+                <TouchableOpacity
+                  onPress={() => void startListening()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Try again by voice"
+                  activeOpacity={0.7}
+                >
+                  <ListeningIndicator active={false} size={80} color={accentColor} showMicIcon />
+                </TouchableOpacity>
+                <Text style={styles.retryLabel}>Tap to try again</Text>
+              </>
+            )}
             {showTextInput ? (
               <>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Log what you've eaten"
+                  placeholder="Or type it instead"
                   placeholderTextColor={colors.textMuted}
                   value={textValue}
                   onChangeText={setTextValue}
-                  autoFocus
                   multiline
                   onSubmitEditing={handleTextSubmit}
+                  accessibilityLabel="Type what you ate"
                 />
-                <TouchableOpacity style={[styles.primaryButton, { backgroundColor: accentColor }]} onPress={handleTextSubmit}>
-                  <Text style={styles.primaryButtonText}>Log it</Text>
-                </TouchableOpacity>
+                {textValue.trim().length > 0 && (
+                  <TouchableOpacity
+                    style={[styles.primaryButton, { backgroundColor: accentColor }]}
+                    onPress={handleTextSubmit}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.primaryButtonText}>Log it</Text>
+                  </TouchableOpacity>
+                )}
               </>
             ) : null}
-            <TouchableOpacity onPress={() => void startListening()}>
-              <Text style={styles.linkText}>Try again</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setState('barcode')}>
+            <TouchableOpacity onPress={() => setState('barcode')} accessibilityRole="button">
               <Text style={styles.linkText}>Scan barcode instead</Text>
             </TouchableOpacity>
           </View>
@@ -669,7 +703,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -682,6 +716,13 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textPrimary,
     textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  retryLabel: {
+    ...typography.small,
+    color: colors.textSecondary,
+    // Pulls the label up into the indicator's padding (it's sized for rings the idle mic doesn't show).
+    marginTop: -spacing.md,
     marginBottom: spacing.sm,
   },
   resultMealType: {
