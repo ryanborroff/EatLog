@@ -12,6 +12,11 @@ jest.mock('../storageService', () => ({
   saveVoiceLog: jest.fn().mockResolvedValue(undefined),
   updateMeal: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('../usualPortions', () => ({
+  ...jest.requireActual('../usualPortions'),
+  getUsualPortions: jest.fn().mockResolvedValue(new Map()),
+  saveUsualPortions: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../healthSyncPreference', () => ({
   getAppleHealthSyncEnabled: jest.fn().mockResolvedValue(false),
 }));
@@ -24,6 +29,7 @@ import { processTranscript, parseFoodItemsFreeText, confirmPortions, FoodParseEr
 import { resolveFoodItems } from '../foodResolver';
 import { getMostRecentMeal, saveMealForDate } from '../storageService';
 import { supabase } from '../supabaseClient';
+import { getUsualPortions, saveUsualPortions } from '../usualPortions';
 
 const parsed: LogFoodResult = {
   intent: 'log_food',
@@ -119,6 +125,44 @@ describe('foodPipeline partial resolution', () => {
       ['Pasta', 380, false],
       ['Side salad', 1, true],
     ]);
+  });
+
+  it("remembers the answered sizes as the user's usual portions when asked to", async () => {
+    (resolveFoodItems as jest.Mock).mockResolvedValue([
+      { ...resolved('Pasta', 420), quantity: 250, unit: 'g', portionAssumed: true },
+    ]);
+    const result = await processTranscript('pasta', '2026-09-28');
+    if (result.status !== 'needs_portion') throw new Error('expected a portion question');
+
+    await confirmPortions(result.pending, { [result.questions[0].itemId]: 'small' }, true);
+
+    expect(saveUsualPortions).toHaveBeenCalledWith([expect.objectContaining({ description: 'Pasta', quantity: 150, unit: 'g' })]);
+    expect(saveMealForDate).toHaveBeenCalledTimes(1);
+  });
+
+  it('still logs the meal if remembering the portion fails', async () => {
+    (saveUsualPortions as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    (resolveFoodItems as jest.Mock).mockResolvedValue([
+      { ...resolved('Pasta', 420), quantity: 250, unit: 'g', portionAssumed: true },
+    ]);
+    const result = await processTranscript('pasta', '2026-09-28');
+    if (result.status !== 'needs_portion') throw new Error('expected a portion question');
+
+    const logged = await confirmPortions(result.pending, { [result.questions[0].itemId]: 'small' }, true);
+    expect(logged.status).toBe('logged');
+  });
+
+  it("uses the user's usual portion instead of asking again", async () => {
+    (getUsualPortions as jest.Mock).mockResolvedValueOnce(new Map([['pasta', { quantity: 300, unit: 'g' }]]));
+    (resolveFoodItems as jest.Mock).mockResolvedValue([
+      { ...resolved('Pasta', 420), quantity: 250, unit: 'g', portionAssumed: true },
+    ]);
+
+    const result = await processTranscript('pasta', '2026-09-28');
+
+    expect(result.status).toBe('logged');
+    if (result.status !== 'logged') return;
+    expect(result.meal.items[0]).toMatchObject({ quantity: 300, calories: 504, portionAssumed: false });
   });
 
   it('logs straight away when no guessed portion is worth asking about', async () => {

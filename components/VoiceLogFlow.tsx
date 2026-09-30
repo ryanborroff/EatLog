@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   NativeModules,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -173,6 +174,8 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const [portionQuestions, setPortionQuestions] = useState<PortionQuestion[]>([]);
   const [portionChoices, setPortionChoices] = useState<Record<string, PortionSize>>({});
   const [portionSaveFailed, setPortionSaveFailed] = useState(false);
+  // Whether to remember the chosen sizes as this user's usual portions.
+  const [rememberPortions, setRememberPortions] = useState(false);
   const [loggedMeal, setLoggedMeal] = useState<Meal | null>(null);
   const [wasCorrection, setWasCorrection] = useState(false);
   const [skippedItems, setSkippedItems] = useState<string[]>([]);
@@ -353,6 +356,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         setPortionQuestions(result.questions);
         setPortionChoices({});
         setPortionSaveFailed(false);
+        setRememberPortions(false);
         setState('portion');
         track('portion_requested', { itemCount: result.questions.length });
       } else {
@@ -400,9 +404,10 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     track('portion_answered', {
       itemCount: portionQuestions.length,
       answeredCount: Object.keys(portionChoices).length,
+      remember: rememberPortions,
     });
     try {
-      const result = await confirmPortions(pending, portionChoices);
+      const result = await confirmPortions(pending, portionChoices, rememberPortions);
       pendingMealRef.current = null;
       showLogged(result);
     } catch (err) {
@@ -473,7 +478,13 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
               <Text style={styles.prompt}>{pendingClarificationRef.current.question}</Text>
             )}
             {state === 'listening' ? (
-              <Text style={styles.prompt}>{LISTENING_COPY}</Text>
+              <>
+                <Text style={styles.prompt}>{LISTENING_COPY}</Text>
+                {!pendingClarificationRef.current && (
+                  // Amounts make the biggest difference to accuracy, so show how to give one.
+                  <Text style={styles.exampleHint}>Say how much, e.g. "two slices of toast and a large latte"</Text>
+                )}
+              </>
             ) : (
               <Text style={styles.transcript}>{transcript}</Text>
             )}
@@ -576,6 +587,16 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
                 </View>
               </View>
             ))}
+            {Object.keys(portionChoices).length > 0 && (
+              <View style={styles.rememberRow}>
+                <Text style={styles.rememberLabel}>Remember as my usual portion</Text>
+                <Switch
+                  value={rememberPortions}
+                  onValueChange={setRememberPortions}
+                  accessibilityLabel="Remember as my usual portion"
+                />
+              </View>
+            )}
             {portionSaveFailed && <Text style={styles.skippedNotice}>{ERROR_COPY.network}</Text>}
             <TouchableOpacity
               style={[styles.primaryButton, { backgroundColor: accentColor }]}
@@ -610,7 +631,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
               <>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Or type it instead"
+                  placeholder="Or type it, e.g. 2 slices of toast and a large latte"
                   placeholderTextColor={colors.textMuted}
                   value={textValue}
                   onChangeText={setTextValue}
@@ -756,6 +777,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
     marginBottom: spacing.md,
+  },
+  exampleHint: {
+    ...typography.small,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.lg,
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignSelf: 'stretch',
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  rememberLabel: {
+    ...typography.secondary,
+    flex: 1,
+    marginRight: spacing.sm,
   },
   tapToFinishHint: {
     ...typography.small,

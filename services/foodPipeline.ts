@@ -10,7 +10,8 @@ import { FoodParseError } from './foodParseError';
 import { matchDefault } from './defaultsMatcher';
 import { resolveFoodItems } from './foodResolver';
 import { calculateNutrition, ReferenceNutrition } from './nutritionCalculator';
-import { applyPortions, PortionQuestion, PortionSize, portionQuestions } from './portionFollowUp';
+import { applyPortions, PortionQuestion, PortionSize, portionQuestions, withUsualPortion } from './portionFollowUp';
+import { getUsualPortions, saveUsualPortions, usualPortionKey } from './usualPortions';
 import { getMostRecentMeal, saveMealForDate, saveVoiceLog, updateMeal } from './storageService';
 import { supabase } from './supabaseClient';
 import { getAppleHealthSyncEnabled } from './healthSyncPreference';
@@ -150,6 +151,17 @@ const withItems = (meal: Omit<Meal, 'items' | `total${string}`>, items: FoodItem
   totalSugar: items.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
 });
 
+/** Items whose amount was guessed, set to the user's usual portion of that food when they have one. */
+const applyUsualPortions = async (items: FoodItem[]): Promise<FoodItem[]> => {
+  const guessed = items.filter((item) => item.portionAssumed);
+  if (guessed.length === 0) return items;
+  const usual = await getUsualPortions(guessed.map((item) => item.description));
+  return items.map((item) => {
+    const portion = usual.get(usualPortionKey(item.description));
+    return portion ? withUsualPortion(item, portion) : item;
+  });
+};
+
 const saveNewMeal = async ({ date, meal, skipped }: PendingMeal): Promise<LoggedOutcome> => {
   const saved = { ...meal, id: await saveMealForDate(date, meal) };
   await syncMealToHealthIfEnabled(saved);
@@ -222,7 +234,8 @@ export const processTranscript = async (
       type: parsed.meal_type,
       loggedAt: new Date().toISOString(),
     },
-    resolvedItems.map((item, index) => ({ id: String(index), ...item }))
+    // A food the user has sized before gets their usual portion, not a question.
+    await applyUsualPortions(resolvedItems.map((item, index) => ({ id: String(index), ...item })))
   );
 
   // No amount given for a big item: ask small/medium/large before saving.
@@ -237,13 +250,23 @@ export const processTranscript = async (
 /**
  * Finishes a meal held back for portion questions: applies the sizes the user
  * picked (unanswered items keep their typical portion, flagged as a guess)
- * and saves it.
+ * and saves it. With `remember`, the answered sizes become the user's usual
+ * portions of those foods, so they aren't asked again.
  */
 export const confirmPortions = async (
   pending: PendingMeal,
-  choices: Record<string, PortionSize>
-): Promise<LoggedOutcome> =>
-  saveNewMeal({ ...pending, meal: withItems(pending.meal, applyPortions(pending.meal.items, choices)) });
+  choices: Record<string, PortionSize>,
+  remember = false
+): Promise<LoggedOutcome> => {
+  const items = applyPortions(pending.meal.items, choices);
+  if (remember) {
+    // Best effort: failing to remember must not stop the meal being logged.
+    await saveUsualPortions(items.filter((item) => choices[item.id])).catch((error) =>
+      console.warn('Could not save usual portions:', error)
+    );
+  }
+  return saveNewMeal({ ...pending, meal: withItems(pending.meal, items) });
+};
 
 /**
  * Free-text add for screens that hold their own in-progress item list (Edit
@@ -272,7 +295,7 @@ export const parseFoodItemsFreeText = async (
   const { usable, skipped } = partitionResolved(await resolveFoodItems(parsed.items));
 
   return {
-    items: usable.map((item, index) => ({ id: `${Date.now()}-${index}`, ...item })),
+    items: await applyUsualPortions(usable.map((item, index) => ({ id: `${Date.now()}-${index}`, ...item }))),
     skipped,
   };
 };
