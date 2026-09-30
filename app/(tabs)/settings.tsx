@@ -129,7 +129,7 @@ export default function SettingsScreen() {
           <Text style={styles.title}>Settings</Text>
         </View>
 
-        <SettingsGroup title="You">
+        <SettingsGroup>
           <SettingsRow label="Profile" value={profileSummary(profile)} onPress={() => router.push('/settings/profile')} />
           <SettingsRow
             label="Daily targets"
