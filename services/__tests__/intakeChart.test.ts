@@ -1,11 +1,18 @@
-import { buildChartBuckets, getChartMetrics } from '../intakeChart';
+import {
+  buildChartBuckets,
+  getCalorieMetric,
+  getChartMetrics,
+  getMacroCalorieSplit,
+  getNutrientMetrics,
+  getTargetStatus,
+} from '../intakeChart';
 import { DayEntry } from '../../types';
 
-const day = (date: string, protein: number, water = 0): DayEntry => ({
+const day = (date: string, protein: number, water = 0, calories = 0): DayEntry => ({
   date,
   meals: [],
   waterLogs: [],
-  totals: { calories: 0, protein, carbohydrate: 0, fat: 0, fibre: 0, sodium: 0, sugar: 0, water },
+  totals: { calories, protein, carbohydrate: 0, fat: 0, fibre: 0, sodium: 0, sugar: 0, water },
 });
 
 // Midday so the UTC day key matches the local calendar day in any test timezone.
@@ -21,6 +28,15 @@ describe('buildChartBuckets', () => {
     expect(buckets[6].values.protein).toBe(100);
     expect(buckets[6].values.water).toBe(1500);
     expect(buckets.filter((b) => b.hasData)).toHaveLength(2);
+  });
+
+  it('averages calories alongside the other nutrients', () => {
+    const history = [day('2026-09-24', 100, 0, 1800), day('2026-09-22', 50, 0, 2200)];
+    const buckets = buildChartBuckets(history, 'week', NOW);
+
+    expect(buckets[6].values.calories).toBe(1800);
+    expect(buckets[4].values.calories).toBe(2200);
+    expect(buckets[5].values.calories).toBe(0);
   });
 
   it('ignores entries older than the period', () => {
@@ -56,5 +72,52 @@ describe('getChartMetrics', () => {
     expect(target('carbohydrate')).toBe(260);
     expect(target('fat')).toBe(70);
     expect(target('water')).toBe(2000);
+  });
+});
+
+describe('getNutrientMetrics', () => {
+  it('adds sodium and sugar to the landscape chart metrics, in order', () => {
+    const keys = getNutrientMetrics({ calories: 2000, protein: 120 }).map((m) => m.key);
+    expect(keys).toEqual(['protein', 'carbohydrate', 'fat', 'fibre', 'water', 'sodium', 'sugar']);
+  });
+});
+
+describe('getTargetStatus', () => {
+  const goals = { calories: 2000, protein: 100 };
+  const protein = getChartMetrics(goals).find((m) => m.key === 'protein')!;
+  const calories = getCalorieMetric(goals);
+
+  it('flags a goal only when well short of it', () => {
+    expect(getTargetStatus(protein, 85)).toBe('onTrack');
+    expect(getTargetStatus(protein, 79)).toBe('below');
+    expect(getTargetStatus(protein, 150)).toBe('onTrack');
+  });
+
+  it('flags a limit only when clearly over it', () => {
+    expect(getTargetStatus(calories, 2150)).toBe('onTrack');
+    expect(getTargetStatus(calories, 2300)).toBe('above');
+    expect(getTargetStatus(calories, 500)).toBe('onTrack');
+  });
+
+  it('never flags a metric without a target', () => {
+    expect(getTargetStatus({ ...calories, target: 0 }, 3000)).toBe('onTrack');
+  });
+});
+
+describe('getMacroCalorieSplit', () => {
+  it('weights fat at 9 kcal/g and protein and carbs at 4', () => {
+    const split = getMacroCalorieSplit({ protein: 50, carbohydrate: 100, fat: 20 });
+    // 200 + 400 + 180 = 780 kcal
+    expect(split.protein).toBeCloseTo(200 / 780);
+    expect(split.carbohydrate).toBeCloseTo(400 / 780);
+    expect(split.fat).toBeCloseTo(180 / 780);
+  });
+
+  it('is all zero for an empty day', () => {
+    expect(getMacroCalorieSplit({ protein: 0, carbohydrate: 0, fat: 0 })).toEqual({
+      protein: 0,
+      carbohydrate: 0,
+      fat: 0,
+    });
   });
 });

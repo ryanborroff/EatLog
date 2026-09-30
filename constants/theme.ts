@@ -11,6 +11,12 @@ export const colors = {
   textSecondary: '#6B6B6B',
   textMuted: '#8A8A8A',
   danger: '#FF3B30',
+  // Off-target flag. Dark enough (about 5:1 on white) to use as text too.
+  warning: '#B25E09',
+  progressTrack: '#E4E4E4',
+  // Text and icons on an accent-coloured fill. None of the light accent
+  // swatches reach 4.5:1 with white text, but all of them do with black.
+  onAccent: '#000000',
   observationTint: '#EAF4FB',
 };
 

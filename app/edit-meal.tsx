@@ -386,7 +386,7 @@ export default function EditMealScreen() {
               accessibilityRole="button"
             >
               {addingFreeText ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={colors.onAccent} />
               ) : (
                 <Text style={styles.addFreeTextButtonText}>Add</Text>
               )}
@@ -447,11 +447,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginBottom: spacing.xs,
     marginTop: spacing.md,
   },
@@ -472,7 +470,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   mealTypeChipTextSelected: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   itemsCard: {
     backgroundColor: colors.card,
@@ -550,7 +548,7 @@ const styles = StyleSheet.create({
   addFreeTextButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   searchInput: {
     borderWidth: 1,

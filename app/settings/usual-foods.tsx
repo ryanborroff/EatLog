@@ -9,7 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { colors, radii, spacing } from '../../constants/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import { PersonalFood, UserDefault } from '../../types';
 import {
   getUserDefaults,
@@ -27,7 +28,6 @@ interface DraftItem {
 }
 
 export default function UsualFoodsScreen() {
-  const router = useRouter();
   const [defaults, setDefaults] = useState<UserDefault[]>([]);
   const [personalFoods, setPersonalFoods] = useState<PersonalFood[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,12 +134,7 @@ export default function UsualFoodsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Quick-log shortcuts</Text>
-        </View>
+        <ScreenHeader title="Quick-log shortcuts" />
 
         {!loading &&
           defaults.map((def) => (
@@ -175,7 +170,7 @@ export default function UsualFoodsScreen() {
             <TextInput
               style={styles.input}
               placeholder={mode === 'meal' ? 'Default name (e.g. usual breakfast)' : 'Default name (e.g. coffee)'}
-              placeholderTextColor="#999999"
+              placeholderTextColor={colors.textMuted}
               value={name}
               onChangeText={setName}
             />
@@ -200,7 +195,7 @@ export default function UsualFoodsScreen() {
                   <TextInput
                     style={[styles.input, styles.inputHalf]}
                     placeholder="Quantity"
-                    placeholderTextColor="#999999"
+                    placeholderTextColor={colors.textMuted}
                     keyboardType="numeric"
                     value={singleQuantity}
                     onChangeText={setSingleQuantity}
@@ -208,7 +203,7 @@ export default function UsualFoodsScreen() {
                   <TextInput
                     style={[styles.input, styles.inputHalf]}
                     placeholder="Unit"
-                    placeholderTextColor="#999999"
+                    placeholderTextColor={colors.textMuted}
                     value={singleUnit}
                     onChangeText={setSingleUnit}
                   />
@@ -250,46 +245,43 @@ export default function UsualFoodsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: colors.background },
   scrollView: { flex: 1 },
-  header: { padding: 20 },
-  backButtonText: { fontSize: 16, color: '#000000', marginBottom: 12 },
-  title: { fontSize: 28, fontWeight: '700', color: '#000000' },
   card: {
-    marginHorizontal: 20,
+    marginHorizontal: spacing.lg,
     marginBottom: 12,
     padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
   },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#000000' },
-  cardSubtitle: { fontSize: 14, color: '#666666', marginTop: 4 },
-  emptyText: { textAlign: 'center', color: '#6B6B6B', marginTop: 20, marginBottom: 20 },
-  hintText: { textAlign: 'center', color: '#6B6B6B', marginHorizontal: 20, marginTop: 20 },
-  modeButtons: { paddingHorizontal: 20, gap: 12, marginTop: 8, marginBottom: 40 },
-  form: { paddingHorizontal: 20, marginTop: 12 },
-  sectionLabel: { fontSize: 14, color: '#666666', marginBottom: 8, marginTop: 4 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  cardSubtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
+  emptyText: { textAlign: 'center', color: colors.textSecondary, marginTop: 20, marginBottom: 20 },
+  hintText: { textAlign: 'center', color: colors.textSecondary, marginHorizontal: spacing.lg, marginTop: 20 },
+  modeButtons: { paddingHorizontal: spacing.lg, gap: 12, marginTop: 8, marginBottom: 40 },
+  form: { paddingHorizontal: spacing.lg, marginTop: 12 },
+  sectionLabel: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, marginTop: 4 },
   foodOption: {
     padding: 14,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
     marginBottom: 8,
   },
   foodOptionSelected: { backgroundColor: '#000000' },
-  foodOptionText: { fontSize: 15, color: '#000000' },
+  foodOptionText: { fontSize: 15, color: colors.textPrimary },
   foodOptionTextSelected: { color: '#FFFFFF' },
   mealItemRow: { paddingVertical: 8 },
-  mealItemText: { fontSize: 15, color: '#000000' },
+  mealItemText: { fontSize: 15, color: colors.textPrimary },
   row: { flexDirection: 'row', gap: 12 },
   inputHalf: { flex: 1 },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderColor: colors.cardBorder,
+    borderRadius: radii.card,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#000000',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   saveButton: {
@@ -300,13 +292,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   saveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  cancelText: { textAlign: 'center', color: '#666666', marginTop: 16, marginBottom: 24 },
+  cancelText: { textAlign: 'center', color: colors.textSecondary, marginTop: 16, marginBottom: 24 },
   addButton: {
     paddingVertical: 16,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: '#000000',
+    borderColor: colors.textPrimary,
     alignItems: 'center',
   },
-  addButtonText: { fontSize: 16, fontWeight: '600', color: '#000000' },
+  addButtonText: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
 });
