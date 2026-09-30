@@ -10,8 +10,10 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
+import ScreenHeader from '../../components/ScreenHeader';
+import { SettingsGroup, SettingsRow } from '../../components/SettingsList';
 import { colors as theme, spacing, radii } from '../../constants/theme';
 import {
   ReminderPermission,
@@ -54,37 +56,38 @@ interface StepperProps {
 
 function TimeStepper({ label, value, step, min, max, onChange }: StepperProps) {
   return (
-    <View style={styles.settingItem}>
-      <Text style={styles.settingLabel}>{label}</Text>
-      <View style={styles.stepper}>
-        <TouchableOpacity
-          style={styles.stepperButton}
-          onPress={() => onChange(clamp(value - step, min, max))}
-          disabled={value <= min}
-          accessibilityRole="button"
-          accessibilityLabel={`${label} earlier`}
-        >
-          <Text style={[styles.stepperButtonText, value <= min && styles.stepperButtonDisabled]}>−</Text>
-        </TouchableOpacity>
-        <Text style={styles.stepperValue} accessibilityLabel={`${label} ${formatMinuteOfDay(value)}`}>
-          {formatMinuteOfDay(value)}
-        </Text>
-        <TouchableOpacity
-          style={styles.stepperButton}
-          onPress={() => onChange(clamp(value + step, min, max))}
-          disabled={value >= max}
-          accessibilityRole="button"
-          accessibilityLabel={`${label} later`}
-        >
-          <Text style={[styles.stepperButtonText, value >= max && styles.stepperButtonDisabled]}>+</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    <SettingsRow
+      label={label}
+      accessory={
+        <View style={styles.stepper}>
+          <TouchableOpacity
+            style={styles.stepperButton}
+            onPress={() => onChange(clamp(value - step, min, max))}
+            disabled={value <= min}
+            accessibilityRole="button"
+            accessibilityLabel={`${label} earlier`}
+          >
+            <Text style={[styles.stepperButtonText, value <= min && styles.stepperButtonDisabled]}>−</Text>
+          </TouchableOpacity>
+          <Text style={styles.stepperValue} accessibilityLabel={`${label} ${formatMinuteOfDay(value)}`}>
+            {formatMinuteOfDay(value)}
+          </Text>
+          <TouchableOpacity
+            style={styles.stepperButton}
+            onPress={() => onChange(clamp(value + step, min, max))}
+            disabled={value >= max}
+            accessibilityRole="button"
+            accessibilityLabel={`${label} later`}
+          >
+            <Text style={[styles.stepperButtonText, value >= max && styles.stepperButtonDisabled]}>+</Text>
+          </TouchableOpacity>
+        </View>
+      }
+    />
   );
 }
 
 export default function RemindersScreen() {
-  const router = useRouter();
   const { accentColor } = useTheme();
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
   const [permission, setPermission] = useState<ReminderPermission>('undetermined');
@@ -148,12 +151,7 @@ export default function RemindersScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Reminders</Text>
-        </View>
+        <ScreenHeader title="Reminders" />
 
         {permission === 'denied' && (
           <View style={styles.notice}>
@@ -166,52 +164,60 @@ export default function RemindersScreen() {
           </View>
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Meals</Text>
-          {REMINDER_MEAL_TYPES.map((mealType) => {
+        <SettingsGroup
+          title="Meals"
+          footer="A reminder is skipped if you’ve already logged that meal. Tapping it opens voice logging."
+        >
+          {REMINDER_MEAL_TYPES.flatMap((mealType) => {
             const meal = settings.meals[mealType];
-            return (
-              <View key={mealType}>
-                <View style={styles.settingItem}>
-                  <Text style={styles.settingLabel}>{MEAL_LABELS[mealType]}</Text>
+            const rows = [
+              <SettingsRow
+                key={mealType}
+                label={MEAL_LABELS[mealType]}
+                accessory={
                   <Switch
                     value={meal.enabled}
                     onValueChange={(enabled) => setMealEnabled(mealType, enabled)}
                     accessibilityLabel={`${MEAL_LABELS[mealType]} reminder`}
                   />
-                </View>
-                {meal.enabled && (
-                  <TimeStepper
-                    label="Remind at"
-                    value={meal.minuteOfDay}
-                    step={MEAL_STEP_MINUTES}
-                    min={0}
-                    max={LATEST_MINUTE_OF_DAY}
-                    onChange={(minuteOfDay) => setMealTime(mealType, minuteOfDay)}
-                  />
-                )}
-              </View>
-            );
+                }
+              />,
+            ];
+            if (meal.enabled) {
+              rows.push(
+                <TimeStepper
+                  key={`${mealType}-time`}
+                  label="Remind at"
+                  value={meal.minuteOfDay}
+                  step={MEAL_STEP_MINUTES}
+                  min={0}
+                  max={LATEST_MINUTE_OF_DAY}
+                  onChange={(minuteOfDay) => setMealTime(mealType, minuteOfDay)}
+                />
+              );
+            }
+            return rows;
           })}
-          <Text style={styles.disclaimer}>
-            A reminder is skipped if you’ve already logged that meal. Tapping it opens voice logging.
-          </Text>
-        </View>
+        </SettingsGroup>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Water</Text>
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Remind me to drink water</Text>
-            <Switch
-              value={settings.water.enabled}
-              onValueChange={(enabled) => setWater({ enabled })}
-              accessibilityLabel="Water reminders"
-            />
-          </View>
+        <SettingsGroup
+          title="Water"
+          footer="The timer restarts each time you log a drink, so you won’t be nudged if you’re keeping up. Use “Add 250ml” on a reminder to log a glass straight away."
+        >
+          <SettingsRow
+            label="Remind me to drink water"
+            accessory={
+              <Switch
+                value={settings.water.enabled}
+                onValueChange={(enabled) => setWater({ enabled })}
+                accessibilityLabel="Water reminders"
+              />
+            }
+          />
           {settings.water.enabled && (
-            <>
-              <View style={styles.settingItem}>
-                <Text style={styles.settingLabel}>Every</Text>
+            <SettingsRow
+              label="Every"
+              accessory={
                 <View style={styles.chipRow}>
                   {WATER_INTERVAL_OPTIONS_MINUTES.map((minutes) => {
                     const selected = settings.water.intervalMinutes === minutes;
@@ -224,37 +230,35 @@ export default function RemindersScreen() {
                         accessibilityState={{ selected }}
                         accessibilityLabel={`Every ${formatInterval(minutes)}`}
                       >
-                        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                          {formatInterval(minutes)}
-                        </Text>
+                        <Text style={styles.chipText}>{formatInterval(minutes)}</Text>
                       </TouchableOpacity>
                     );
                   })}
                 </View>
-              </View>
-              <TimeStepper
-                label="From"
-                value={settings.water.startMinuteOfDay}
-                step={WATER_WINDOW_STEP_MINUTES}
-                min={0}
-                max={settings.water.endMinuteOfDay - WATER_WINDOW_STEP_MINUTES}
-                onChange={(startMinuteOfDay) => setWater({ startMinuteOfDay })}
-              />
-              <TimeStepper
-                label="Until"
-                value={settings.water.endMinuteOfDay}
-                step={WATER_WINDOW_STEP_MINUTES}
-                min={settings.water.startMinuteOfDay + WATER_WINDOW_STEP_MINUTES}
-                max={23 * 60}
-                onChange={(endMinuteOfDay) => setWater({ endMinuteOfDay })}
-              />
-            </>
+              }
+            />
           )}
-          <Text style={styles.disclaimer}>
-            The timer restarts each time you log a drink, so you won’t be nudged if you’re keeping
-            up. Use “Add 250ml” on a reminder to log a glass straight away.
-          </Text>
-        </View>
+          {settings.water.enabled && (
+            <TimeStepper
+              label="From"
+              value={settings.water.startMinuteOfDay}
+              step={WATER_WINDOW_STEP_MINUTES}
+              min={0}
+              max={settings.water.endMinuteOfDay - WATER_WINDOW_STEP_MINUTES}
+              onChange={(startMinuteOfDay) => setWater({ startMinuteOfDay })}
+            />
+          )}
+          {settings.water.enabled && (
+            <TimeStepper
+              label="Until"
+              value={settings.water.endMinuteOfDay}
+              step={WATER_WINDOW_STEP_MINUTES}
+              min={settings.water.startMinuteOfDay + WATER_WINDOW_STEP_MINUTES}
+              max={23 * 60}
+              onChange={(endMinuteOfDay) => setWater({ endMinuteOfDay })}
+            />
+          )}
+        </SettingsGroup>
       </ScrollView>
     </SafeAreaView>
   );
@@ -264,9 +268,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: spacing.xl },
-  header: { padding: 20 },
-  backButtonText: { fontSize: 16, color: theme.textPrimary, marginBottom: 12 },
-  title: { fontSize: 28, fontWeight: '700', color: theme.textPrimary },
   notice: {
     marginHorizontal: spacing.lg,
     marginBottom: spacing.lg,
@@ -276,26 +277,6 @@ const styles = StyleSheet.create({
   },
   noticeText: { fontSize: 15, color: theme.textPrimary, lineHeight: 21 },
   noticeLink: { fontSize: 15, fontWeight: '600', color: '#007AFF', marginTop: spacing.xs },
-  section: { marginBottom: spacing.xl },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    lineHeight: 30,
-    color: theme.textPrimary,
-    marginBottom: spacing.md,
-    marginHorizontal: spacing.lg,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    minHeight: 64,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: theme.background,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.divider,
-  },
-  settingLabel: { fontSize: 16, color: theme.textPrimary },
   stepper: { flexDirection: 'row', alignItems: 'center' },
   stepperButton: {
     width: 44,
@@ -321,13 +302,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.cardBorder,
   },
+  // Black in both states: selected chips are filled with the accent colour, where white fails WCAG AA.
   chipText: { fontSize: 14, fontWeight: '600', color: theme.textPrimary },
-  chipTextSelected: { color: '#FFFFFF' },
-  disclaimer: {
-    fontSize: 14,
-    color: theme.textMuted,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    lineHeight: 20,
-  },
 });
