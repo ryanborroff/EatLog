@@ -28,7 +28,7 @@ import {
 } from '../../services/reminderService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
-import { formatFoodItemLine } from '../../utils/formatFoodItem';
+import FoodItemLine from '../../components/FoodItemLine';
 import { formatAmount, formatCalories } from '../../utils/formatNumber';
 import { formatLoggedTime } from '../../utils/formatTime';
 import { colors, spacing, radii, typography } from '../../constants/theme';
@@ -321,9 +321,7 @@ export default function TodayScreen() {
               </View>
               {meal.items.map((item) => (
                 <View key={item.id} style={styles.foodItem}>
-                  <Text style={styles.foodDescription}>
-                    {formatFoodItemLine(item)}
-                  </Text>
+                  <FoodItemLine item={item} style={styles.foodDescription} />
                 </View>
               ))}
             </TouchableOpacity>

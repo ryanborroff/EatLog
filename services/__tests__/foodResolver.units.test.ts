@@ -169,6 +169,24 @@ describe('resolveFoodItems preparation', () => {
   });
 });
 
+describe('resolveFoodItems portion guesses', () => {
+  it('flags an item whose amount the parser assumed', async () => {
+    const [pasta] = await resolveFoodItems([
+      parsed({ description: 'Pasta', quantity: 250, unit: 'g', quantity_source: 'assumed' }),
+    ]);
+    expect(pasta.portionAssumed).toBe(true);
+  });
+
+  it('does not flag stated or rough amounts', async () => {
+    const [stated, vague] = await resolveFoodItems([
+      parsed({ description: 'Pasta', quantity: 250, unit: 'g', quantity_source: 'stated' }),
+      parsed({ description: 'Rice', quantity: 200, unit: 'g', quantity_source: 'vague' }),
+    ]);
+    expect(stated.portionAssumed).toBeUndefined();
+    expect(vague.portionAssumed).toBeUndefined();
+  });
+});
+
 describe('resolveFoodItems source', () => {
   it('records the reference food it matched', async () => {
     const [egg] = await resolveFoodItems([parsed({ grams_per_unit: 50 })]);

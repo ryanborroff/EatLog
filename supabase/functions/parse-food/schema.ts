@@ -9,6 +9,10 @@
 
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 export const CONFIDENCE_LEVELS = ['high', 'medium', 'low'] as const;
+// stated: an amount the user gave ("200 g", "two slices", "a banana").
+// vague: a rough amount ("some", "a handful", "a big plate").
+// assumed: no amount at all — the parser picked a typical portion.
+export const QUANTITY_SOURCES = ['stated', 'vague', 'assumed'] as const;
 export const OPERATION_TYPES = [
   'replace_item',
   'remove_item',
@@ -19,6 +23,7 @@ export const OPERATION_TYPES = [
 
 export type MealType = (typeof MEAL_TYPES)[number];
 export type ConfidenceLevel = (typeof CONFIDENCE_LEVELS)[number];
+export type QuantitySource = (typeof QUANTITY_SOURCES)[number];
 export type OperationType = (typeof OPERATION_TYPES)[number];
 
 export interface ParsedFoodItem {
@@ -26,6 +31,7 @@ export interface ParsedFoodItem {
   brand: string | null;
   quantity: number;
   unit: string;
+  quantity_source: QuantitySource | null;
   grams_per_unit: number | null;
   preparation: string | null;
   confidence: ConfidenceLevel;
@@ -74,6 +80,7 @@ const ITEM_JSON_SCHEMA = {
     'brand',
     'quantity',
     'unit',
+    'quantity_source',
     'grams_per_unit',
     'preparation',
     'confidence',
@@ -84,6 +91,7 @@ const ITEM_JSON_SCHEMA = {
     brand: { type: ['string', 'null'] },
     quantity: { type: 'number' },
     unit: { type: 'string' },
+    quantity_source: { type: 'string', enum: [...QUANTITY_SOURCES] },
     grams_per_unit: { type: ['number', 'null'] },
     preparation: { type: ['string', 'null'] },
     confidence: { type: 'string', enum: [...CONFIDENCE_LEVELS] },
@@ -146,6 +154,7 @@ export const PARSED_FOOD_JSON_SCHEMA = {
 };
 
 const isConfidence = (v: unknown): v is ConfidenceLevel => CONFIDENCE_LEVELS.includes(v as ConfidenceLevel);
+const isQuantitySource = (v: unknown): v is QuantitySource => QUANTITY_SOURCES.includes(v as QuantitySource);
 
 const isPositiveNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
 const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
@@ -207,6 +216,8 @@ function validateItem(raw: unknown): ParsedFoodItem | null {
     brand: typeof item.brand === 'string' ? item.brand : null,
     quantity,
     unit,
+    // An amount we had to fill in was assumed, whatever the model said.
+    quantity_source: !quantityIsValid || !unitIsValid ? 'assumed' : isQuantitySource(item.quantity_source) ? item.quantity_source : null,
     // Optional hint: a missing or nonsensical weight just means the client can't
     // convert count units for this item, so drop it rather than reject the parse.
     grams_per_unit:

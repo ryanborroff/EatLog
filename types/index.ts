@@ -16,6 +16,8 @@ export interface FoodItem {
   source?: FoodSource;
   /** The foods-table row the nutrition came from, when there was one. */
   foodId?: string;
+  /** True when the user gave no amount and a typical portion was assumed. */
+  portionAssumed?: boolean;
 }
 
 /**

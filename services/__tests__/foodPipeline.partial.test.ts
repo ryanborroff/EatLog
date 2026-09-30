@@ -20,7 +20,7 @@ jest.mock('../healthKitService', () => ({
   resyncMealToHealthKit: jest.fn(),
 }));
 
-import { processTranscript, parseFoodItemsFreeText, FoodParseError } from '../foodPipeline';
+import { processTranscript, parseFoodItemsFreeText, confirmPortions, FoodParseError } from '../foodPipeline';
 import { resolveFoodItems } from '../foodResolver';
 import { getMostRecentMeal, saveMealForDate } from '../storageService';
 import { supabase } from '../supabaseClient';
@@ -95,6 +95,39 @@ describe('foodPipeline partial resolution', () => {
       'parse-food',
       expect.objectContaining({ body: expect.objectContaining({ recentMeal: null }) })
     );
+  });
+
+  it('holds a meal back, unsaved, when a big portion was guessed', async () => {
+    (resolveFoodItems as jest.Mock).mockResolvedValue([
+      { ...resolved('Pasta', 420), quantity: 250, unit: 'g', portionAssumed: true },
+      { ...resolved('Side salad', 30), portionAssumed: true },
+    ]);
+
+    const result = await processTranscript('pasta and a side salad', '2026-09-28');
+
+    expect(result.status).toBe('needs_portion');
+    if (result.status !== 'needs_portion') return;
+    // The salad was guessed too, but isn't worth asking about.
+    expect(result.questions.map((q) => q.item.description)).toEqual(['Pasta']);
+    expect(saveMealForDate).not.toHaveBeenCalled();
+
+    const logged = await confirmPortions(result.pending, { [result.questions[0].itemId]: 'large' });
+
+    expect(saveMealForDate).toHaveBeenCalledWith('2026-09-28', expect.objectContaining({ totalCalories: 668.4 }));
+    expect(logged.meal.id).toBe('new-meal-id');
+    expect(logged.meal.items.map((i) => [i.description, i.quantity, i.portionAssumed])).toEqual([
+      ['Pasta', 380, false],
+      ['Side salad', 1, true],
+    ]);
+  });
+
+  it('logs straight away when no guessed portion is worth asking about', async () => {
+    (resolveFoodItems as jest.Mock).mockResolvedValue([{ ...resolved('Apple', 80), portionAssumed: true }]);
+
+    const result = await processTranscript('an apple', '2026-09-28');
+
+    expect(result.status).toBe('logged');
+    expect(saveMealForDate).toHaveBeenCalledTimes(1);
   });
 
   it('returns skipped items from the free-text add too', async () => {
