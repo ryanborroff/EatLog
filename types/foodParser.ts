@@ -1,6 +1,8 @@
 // Mirrors supabase/functions/parse-food/schema.ts (kept as a separate copy
 // since Edge Functions run on Deno and can't share an import with the RN app).
 
+import { FoodSource } from './index';
+
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
@@ -81,6 +83,8 @@ export interface ResolvedFoodItem {
   sugar?: number;
   confidence: ConfidenceLevel;
   estimated: boolean;
+  source?: FoodSource;
+  foodId?: string;
   /** True when nothing—reference DB, personal food, nor a usable AI estimate—could identify this item. */
   unresolved?: boolean;
 }

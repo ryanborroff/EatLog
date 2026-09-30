@@ -13,6 +13,17 @@ const mockAliases: Record<string, object> = {
   beer: mockFood('Beer, bitter, average (<4% ABV)', 'ml', 30),
   strawberry: mockFood('Strawberries, raw', 'g', 30),
   brownie: mockFood('Brownies, chocolate, homemade', 'g', 506),
+  oats: mockFood('Porridge oats, unfortified', 'g', 381),
+  'porridge with water': mockFood('Porridge, made with water', 'g', 47),
+  pasta: mockFood('Pasta, white, dried, boiled in unsalted water', 'g', 169),
+  'dry pasta': mockFood('Pasta, white, dried, raw', 'g', 343),
+  rice: mockFood('Rice, white, long grain, boiled in unsalted water', 'g', 131),
+  'dry rice': mockFood('Rice, white, long grain, raw', 'g', 355),
+  'egg fried rice': mockFood('Rice, egg fried, takeaway', 'g', 186),
+  chicken: mockFood('Chicken, breast, grilled without skin, meat only', 'g', 148),
+  'fried chicken': mockFood('Chicken pieces, coated, takeaway', 'g', 272),
+  'deep fried chicken': mockFood('Chicken pieces, coated, takeaway', 'g', 272),
+  chips: mockFood('Potato chips, fried in commercial oil, from takeaway fish and chip shops', 'g', 204),
 };
 
 jest.mock('../supabaseClient', () => {
@@ -118,5 +129,127 @@ describe('resolveFoodItems unit reconciliation', () => {
   it('marks the item unresolved instead of logging a wrong number when nothing converts', async () => {
     const [egg] = await resolveFoodItems([parsed({})]);
     expect(egg.unresolved).toBe(true);
+  });
+});
+
+describe('resolveFoodItems preparation', () => {
+  const buttered = {
+    serving_size: 1, serving_unit: 'slice', calories: 110, protein: 3, carbohydrate: 13, fat: 5, fibre: 1, sodium: 150, sugar: 1,
+  };
+
+  it('uses the fried alias for fried chicken', async () => {
+    const [chicken] = await resolveFoodItems([parsed({ description: 'Chicken', preparation: 'fried', quantity: 200, unit: 'g' })]);
+    expect(chicken.calories).toBe(544);
+  });
+
+  it('finds the alias whatever the hyphenation ("deep-fried")', async () => {
+    const [chicken] = await resolveFoodItems([
+      parsed({ description: 'Chicken', preparation: 'deep-fried', quantity: 100, unit: 'g' }),
+    ]);
+    expect(chicken.calories).toBe(272);
+  });
+
+  it('never falls back from a fat-adding preparation to the plain food', async () => {
+    const [toast] = await resolveFoodItems([
+      parsed({ description: 'Toast', preparation: 'buttered', quantity: 2, unit: 'slice', grams_per_unit: 36, estimated_nutrition: buttered }),
+    ]);
+    // The AI's buttered-toast estimate, not 180 kcal of dry toast.
+    expect(toast.calories).toBe(220);
+    expect(toast.source).toBe('ai_estimate');
+  });
+
+  it('keeps the plain food when it was already prepared that way ("fried" chips)', async () => {
+    const [chips] = await resolveFoodItems([parsed({ description: 'Chips', preparation: 'fried', quantity: 100, unit: 'g' })]);
+    expect(chips.calories).toBe(204);
+  });
+
+  it('keeps the plain food for preparations that add no fat', async () => {
+    const [chicken] = await resolveFoodItems([parsed({ description: 'Chicken', preparation: 'grilled', quantity: 100, unit: 'g' })]);
+    expect(chicken.calories).toBe(148);
+  });
+});
+
+describe('resolveFoodItems source', () => {
+  it('records the reference food it matched', async () => {
+    const [egg] = await resolveFoodItems([parsed({ grams_per_unit: 50 })]);
+    expect(egg.source).toBe('reference');
+    expect(egg.foodId).toBe('Eggs, chicken, whole, boiled');
+  });
+
+  it('records an AI estimate, with no food row', async () => {
+    const [egg] = await resolveFoodItems([
+      parsed({
+        estimated_nutrition: { serving_size: 1, serving_unit: 'whole', calories: 72, protein: 6.3, carbohydrate: 0.4, fat: 4.8, fibre: 0, sodium: 70, sugar: 0.2 },
+      }),
+    ]);
+    expect(egg.source).toBe('ai_estimate');
+    expect(egg.foodId).toBeUndefined();
+  });
+});
+
+describe('resolveFoodItems volume measures', () => {
+  it('weighs a cup of oats by its density, not as 250 g of water', async () => {
+    const [oats] = await resolveFoodItems([parsed({ description: 'Oats', quantity: 1, unit: 'cup' })]);
+    // 250 ml x 0.36 g/ml = 90 g -> 342.9 kcal (was 952.5)
+    expect(oats.calories).toBeCloseTo(342.9, 0);
+    expect(oats.estimated).toBe(true);
+  });
+
+  it("uses the AI's weight for a spoon measure of a food with no known density", async () => {
+    const [brownie] = await resolveFoodItems([
+      parsed({ description: 'Brownies', quantity: 2, unit: 'tbsp', grams_per_unit: 10 }),
+    ]);
+    expect(brownie.calories).toBeCloseTo(101.2, 0);
+  });
+
+  it('still treats a drink as water when measured by volume', async () => {
+    const [coffee] = await resolveFoodItems([parsed({ description: 'black coffee', quantity: 1, unit: 'cup' })]);
+    expect(coffee.calories).toBe(5);
+  });
+});
+
+describe('resolveFoodItems dry vs cooked grains', () => {
+  it('reads a small weight of pasta as dry', async () => {
+    const [pasta] = await resolveFoodItems([parsed({ description: 'Pasta', quantity: 100, unit: 'g' })]);
+    expect(pasta.calories).toBe(343);
+    expect(pasta.confidence).toBe('medium');
+    expect(pasta.estimated).toBe(true);
+  });
+
+  it('reads a large weight of pasta as cooked, but flags the guess', async () => {
+    const [pasta] = await resolveFoodItems([parsed({ description: 'Pasta', quantity: 250, unit: 'g' })]);
+    expect(pasta.calories).toBeCloseTo(422.5);
+    expect(pasta.confidence).toBe('medium');
+  });
+
+  it('follows what the user said over the weight', async () => {
+    const [dry] = await resolveFoodItems([parsed({ description: 'Uncooked rice', quantity: 200, unit: 'g' })]);
+    expect(dry.calories).toBe(710);
+    expect(dry.confidence).toBe('high');
+
+    const [cooked] = await resolveFoodItems([
+      parsed({ description: 'Rice', preparation: 'cooked', quantity: 100, unit: 'g' }),
+    ]);
+    expect(cooked.calories).toBe(131);
+    expect(cooked.confidence).toBe('high');
+  });
+
+  it('leaves fried rice alone — it is never weighed dry', async () => {
+    const [rice] = await resolveFoodItems([parsed({ description: 'Egg fried rice', quantity: 100, unit: 'g' })]);
+    expect(rice.calories).toBe(186);
+    expect(rice.confidence).toBe('high');
+  });
+
+  it('reads a bowl of oats as porridge, weighed as eaten', async () => {
+    const [oats] = await resolveFoodItems([
+      parsed({ description: 'Oats', quantity: 1, unit: 'bowl', grams_per_unit: 250 }),
+    ]);
+    expect(oats.calories).toBeCloseTo(117.5);
+  });
+
+  it('keeps weighed oats dry', async () => {
+    const [oats] = await resolveFoodItems([parsed({ description: 'Oats', quantity: 40, unit: 'g' })]);
+    expect(oats.calories).toBeCloseTo(152.4);
+    expect(oats.confidence).toBe('high');
   });
 });

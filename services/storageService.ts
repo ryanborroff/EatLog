@@ -1,5 +1,6 @@
 import {
   FoodItem,
+  FoodSource,
   Meal,
   DailyGoals,
   DayEntry,
@@ -139,7 +140,27 @@ interface MealItemRow {
   sugar: number | null;
   confidence: FoodItem['confidence'];
   estimated: boolean;
+  source: FoodSource | null;
+  food_id: string | null;
 }
+
+const toItemRow = (mealId: string, item: FoodItem) => ({
+  meal_id: mealId,
+  description: item.description,
+  quantity: item.quantity,
+  unit: item.unit,
+  calories: item.calories,
+  protein: item.protein,
+  carbohydrate: item.carbohydrate,
+  fat: item.fat,
+  fibre: item.fibre ?? null,
+  sodium: item.sodium ?? null,
+  sugar: item.sugar ?? null,
+  confidence: item.confidence,
+  estimated: item.estimated,
+  source: item.source ?? null,
+  food_id: item.foodId ?? null,
+});
 
 const toFoodItem = (row: MealItemRow): FoodItem => ({
   id: row.id,
@@ -155,6 +176,8 @@ const toFoodItem = (row: MealItemRow): FoodItem => ({
   sugar: row.sugar ?? undefined,
   confidence: row.confidence,
   estimated: row.estimated,
+  source: row.source ?? undefined,
+  foodId: row.food_id ?? undefined,
 });
 
 const sumBy = (items: FoodItem[], key: keyof Pick<FoodItem, 'calories' | 'protein' | 'carbohydrate' | 'fat' | 'fibre' | 'sodium' | 'sugar'>) =>
@@ -201,21 +224,7 @@ export const saveMealForDate = async (date: string, meal: Meal): Promise<string>
 
   if (mealError) throw mealError;
 
-  const itemRows = meal.items.map((item) => ({
-    meal_id: insertedMeal.id,
-    description: item.description,
-    quantity: item.quantity,
-    unit: item.unit,
-    calories: item.calories,
-    protein: item.protein,
-    carbohydrate: item.carbohydrate,
-    fat: item.fat,
-    fibre: item.fibre ?? null,
-    sodium: item.sodium ?? null,
-    sugar: item.sugar ?? null,
-    confidence: item.confidence,
-    estimated: item.estimated,
-  }));
+  const itemRows = meal.items.map((item) => toItemRow(insertedMeal.id, item));
 
   if (itemRows.length > 0) {
     const { error: itemsError } = await supabase.from('meal_items').insert(itemRows);
@@ -237,21 +246,7 @@ export const updateMeal = async (date: string, mealId: string, updatedMeal: Meal
   const { error: deleteError } = await supabase.from('meal_items').delete().eq('meal_id', mealId);
   if (deleteError) throw deleteError;
 
-  const itemRows = updatedMeal.items.map((item) => ({
-    meal_id: mealId,
-    description: item.description,
-    quantity: item.quantity,
-    unit: item.unit,
-    calories: item.calories,
-    protein: item.protein,
-    carbohydrate: item.carbohydrate,
-    fat: item.fat,
-    fibre: item.fibre ?? null,
-    sodium: item.sodium ?? null,
-    sugar: item.sugar ?? null,
-    confidence: item.confidence,
-    estimated: item.estimated,
-  }));
+  const itemRows = updatedMeal.items.map((item) => toItemRow(mealId, item));
 
   if (itemRows.length > 0) {
     const { error: itemsError } = await supabase.from('meal_items').insert(itemRows);

@@ -6,6 +6,7 @@ import { FoodItem, Meal } from '../types';
 import { ParsedFoodResult, RecentMealContext, ResolvedFoodItem } from '../types/foodParser';
 import { applyCorrections } from './correctionApplier';
 import { hasCorrectionCue } from '../utils/correctionCue';
+import { FoodParseError } from './foodParseError';
 import { matchDefault } from './defaultsMatcher';
 import { resolveFoodItems } from './foodResolver';
 import { calculateNutrition, ReferenceNutrition } from './nutritionCalculator';
@@ -38,17 +39,7 @@ const resyncMealToHealthIfEnabled = async (meal: Meal): Promise<void> => {
   }
 };
 
-export class FoodParseError extends Error {
-  constructor(
-    message: string,
-    readonly kind: 'network' | 'invalid',
-    // Set when the failure is specific items that couldn't be identified — the
-    // message then names them and is safe to show the user as-is.
-    readonly unresolvedItems?: string[]
-  ) {
-    super(message);
-  }
-}
+export { FoodParseError };
 
 const formatList = (names: string[]): string =>
   names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
@@ -270,6 +261,7 @@ export const logBarcodeItem = async (
         ...calculated,
         confidence: 'high',
         estimated: false,
+        source: 'barcode',
       },
     ],
     totalCalories: calculated.calories,

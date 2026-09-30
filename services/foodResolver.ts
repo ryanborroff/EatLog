@@ -2,10 +2,11 @@
 // order: 1) personal foods, 2) saved defaults, 3-4) standard reference DB
 // (exact name, then alias), 5) the AI's own estimate.
 
-import { FoodItem } from '../types';
+import { FoodItem, FoodSource } from '../types';
 import { ParsedFoodItem, ResolvedFoodItem } from '../types/foodParser';
 import { calculateNutrition, CalculatedNutrition, ReferenceNutrition } from './nutritionCalculator';
-import { convertQuantity } from './unitConversion';
+import { densityFor } from './foodDensity';
+import { convertQuantity, isMeasuredUnit, toGrams } from './unitConversion';
 import { supabase } from './supabaseClient';
 
 export interface FoodRow {
@@ -79,18 +80,101 @@ const singularForms = (text: string): string[] => {
   return [];
 };
 
+const DRY_WORDS = /\b(dry|uncooked|raw)\b/;
+const COOKED_WORDS = /\b(cooked|boiled|steamed)\b/;
+const stripCookingState = (text: string): string =>
+  text.replace(/\b(dry|uncooked|raw|cooked)\b/g, ' ').replace(/\s+/g, ' ').trim();
+
+// Grains and pulses that CoFID lists both dry and cooked, ~2.5x apart per 100 g.
+const DRY_WEIGHED_GRAIN = /\b(pasta|spaghetti|penne|fusilli|macaroni|rice|noodles?|couscous|lentils?|quinoa)$/;
+const OATS = /\boats?$/;
+// Above this many grams, an unqualified weight of pasta/rice reads as cooked:
+// a typical dry portion is 60–100 g, a cooked one 150–250 g.
+const MAX_LIKELY_DRY_GRAMS = 120;
+
+interface CookingState {
+  /** Alias lookup keys for the right form of the food, tried before any other. */
+  aliases: string[];
+  /** True when the state was assumed from the amount rather than said. */
+  assumed: boolean;
+}
+
 /**
- * Alias lookup keys for an item, most specific first: the preparation plus the
- * food ("boiled egg") beats the bare food ("egg"), and each is also tried in
- * singular form ("scrambled eggs" -> "scrambled egg").
+ * Works out whether a grain was measured dry or cooked. Unqualified aliases
+ * ("pasta", "rice") point at the cooked food, so "100 g pasta" — almost always
+ * weighed dry — was counted at half its calories. Oats are the reverse: "oats"
+ * is dry, but "a bowl of oats" is a bowl of porridge.
  */
-const aliasCandidates = (item: ParsedFoodItem): string[] => {
+const cookingState = (item: ParsedFoodItem): CookingState | null => {
+  const description = normalize(item.description);
+  const said = `${item.preparation ? normalize(item.preparation) : ''} ${description}`;
+  const base = stripCookingState(description);
+  // Mixed dishes and fried rice are never weighed dry.
+  if (/\b(and|with|fried)\b/.test(said)) return null;
+
+  const saidDry = DRY_WORDS.test(said);
+  const saidCooked = COOKED_WORDS.test(said);
+
+  if (OATS.test(base)) {
+    const byThePortion = !isMeasuredUnit(item.unit);
+    return !saidDry && (saidCooked || byThePortion) ? { aliases: ['porridge with water'], assumed: !saidCooked } : null;
+  }
+
+  if (!DRY_WEIGHED_GRAIN.test(base) || saidCooked) return null;
+  if (saidDry) return { aliases: [`dry ${base}`], assumed: false };
+
+  const grams = toGrams(item.quantity, item.unit);
+  if (grams === null) return null;
+  return grams <= MAX_LIKELY_DRY_GRAMS
+    ? { aliases: [`dry ${base}`], assumed: true }
+    : // The cooked aliases are the defaults, so no special lookup — but it's still a guess.
+      { aliases: [], assumed: true };
+};
+
+/**
+ * Alias lookup keys for an item, most specific first: the right cooking state
+ * ("dry pasta"), then the preparation plus the food ("boiled egg") beats the
+ * bare food ("egg"); the description is also tried without a stated state
+ * ("uncooked rice" -> "rice") and in singular form ("scrambled eggs" ->
+ * "scrambled egg").
+ */
+const aliasCandidates = (item: ParsedFoodItem, state: CookingState | null): string[] => {
   const description = normalize(item.description);
   const preparation = item.preparation ? normalize(item.preparation) : '';
-  const forms = [description, ...singularForms(description)];
+  const forms = [...new Set([description, stripCookingState(description)])].flatMap((form) => [
+    form,
+    ...singularForms(form),
+  ]);
   const withPreparation =
     preparation && !description.includes(preparation) ? forms.map((form) => `${preparation} ${form}`) : [];
-  return [...new Set([...withPreparation, ...forms])];
+  const candidates = [...(state?.aliases ?? []), ...withPreparation, ...forms];
+  // "deep-fried chicken" should find the "deep fried chicken" alias too.
+  return [...new Set(candidates.flatMap((candidate) => [candidate, candidate.replace(/-/g, ' ')]))];
+};
+
+// Preparations that add a lot of fat, and the words CoFID uses in a food's
+// name when it was prepared that way.
+const FAT_ADDING_PREPARATIONS: { said: RegExp; shown: RegExp }[] = [
+  { said: /\b(fried|fry|sauteed|sautéed)\b/, shown: /fried|fry|batter|coated/ },
+  { said: /\bbatter(ed)?\b|\btempura\b/, shown: /batter/ },
+  { said: /\b(breaded|crumbed|coated)\b|\bbreadcrumbs?\b/, shown: /coated|breadcrumb/ },
+  { said: /\broast(ed)?\b/, shown: /roast/ },
+  { said: /\bbutter(ed)?\b/, shown: /butter/ },
+  { said: /\boil\b/, shown: /oil/ },
+];
+
+/**
+ * Whether an alias match keeps a fat-adding preparation. The bare alias for
+ * "fried chicken" is "chicken" — grilled skinless breast — so without this a
+ * fried, battered or buttered food was logged as its plain version. A match
+ * counts only if the alias itself names the preparation ("fried egg") or the
+ * food it points at was prepared that way ("chips" -> fried chips).
+ */
+const keepsPreparation = (item: ParsedFoodItem, alias: string, food: FoodRow): boolean => {
+  const preparation = item.preparation ? normalize(item.preparation) : '';
+  if (!preparation || alias.includes(preparation)) return true;
+  const name = food.name.toLowerCase();
+  return FAT_ADDING_PREPARATIONS.every(({ said, shown }) => !said.test(preparation) || shown.test(name));
 };
 
 /**
@@ -98,7 +182,7 @@ const aliasCandidates = (item: ParsedFoodItem): string[] => {
  * (everyday names like "egg" for CoFID's "Eggs, chicken, whole, boiled").
  * Returns null if nothing matches (falls through to the AI's own estimate).
  */
-const findReferenceFood = async (item: ParsedFoodItem): Promise<FoodRow | null> => {
+const findReferenceFood = async (item: ParsedFoodItem, state: CookingState | null): Promise<FoodRow | null> => {
   const { data: exactMatch } = await supabase
     .from('foods')
     .select('id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar')
@@ -109,7 +193,7 @@ const findReferenceFood = async (item: ParsedFoodItem): Promise<FoodRow | null> 
   if (exactMatch) return exactMatch;
 
   // Aliases are stored lowercase, so an exact `in` match is case-insensitive here.
-  const candidates = aliasCandidates(item);
+  const candidates = aliasCandidates(item, state);
   const { data: aliasMatches } = await supabase
     .from('food_aliases')
     .select('alias, foods!inner(id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar)')
@@ -117,7 +201,8 @@ const findReferenceFood = async (item: ParsedFoodItem): Promise<FoodRow | null> 
 
   for (const candidate of candidates) {
     const match = aliasMatches?.find((row) => row.alias === candidate);
-    if (match) return match.foods as unknown as FoodRow;
+    const food = match?.foods as unknown as FoodRow | undefined;
+    if (food && keepsPreparation(item, candidate, food)) return food;
   }
   return null;
 };
@@ -151,9 +236,10 @@ const scaleToLoggedQuantity = (
   reference: ReferenceNutrition,
   quantity: number,
   unit: string,
-  gramsPerUnit: number | null | undefined
+  gramsPerUnit: number | null | undefined,
+  gramsPerMl: number | null
 ): { calculated: CalculatedNutrition; approximate: boolean } | null => {
-  const converted = convertQuantity(quantity, unit, reference.servingUnit, gramsPerUnit);
+  const converted = convertQuantity(quantity, unit, reference.servingUnit, gramsPerUnit, gramsPerMl);
   if (!converted) return null;
   return { calculated: calculateNutrition(reference, converted.quantity), approximate: converted.approximate };
 };
@@ -163,9 +249,11 @@ const fromFoodRow = (
   quantity: number,
   unit: string,
   gramsPerUnit: number | null | undefined,
-  confidence: ResolvedFoodItem['confidence']
+  gramsPerMl: number | null,
+  confidence: ResolvedFoodItem['confidence'],
+  source: FoodSource
 ): ResolvedFoodItem | null => {
-  const scaled = scaleToLoggedQuantity(toReference(food), quantity, unit, gramsPerUnit);
+  const scaled = scaleToLoggedQuantity(toReference(food), quantity, unit, gramsPerUnit, gramsPerMl);
   if (!scaled) return null;
 
   return {
@@ -175,38 +263,49 @@ const fromFoodRow = (
     ...scaled.calculated,
     confidence: scaled.approximate ? capConfidence(confidence, 'medium') : confidence,
     estimated: scaled.approximate,
+    source,
+    foodId: food.id,
   };
 };
 
 const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
   const userId = await getUserId();
+  const gramsPerMl = densityFor(item.description);
 
   if (userId) {
     const personalFood = await findPersonalFood(item.description, userId);
-    const fromPersonal = personalFood && fromFoodRow(personalFood, item.quantity, item.unit, item.grams_per_unit, 'high');
+    const fromPersonal =
+      personalFood && fromFoodRow(personalFood, item.quantity, item.unit, item.grams_per_unit, gramsPerMl, 'high', 'personal_food');
     if (fromPersonal) return fromPersonal;
 
     const foodDefault = await findFoodDefault(item.description, userId);
     // A default's saved quantity/unit takes priority — that's the point of a default.
     // (The AI's grams_per_unit describes the spoken unit, not the default's, so it doesn't apply.)
-    const fromDefault = foodDefault && fromFoodRow(foodDefault.food, foodDefault.quantity, foodDefault.unit, null, 'high');
+    const fromDefault =
+      foodDefault && fromFoodRow(foodDefault.food, foodDefault.quantity, foodDefault.unit, null, gramsPerMl, 'high', 'saved_default');
     if (fromDefault) return fromDefault;
   }
 
-  const referenceFood = await findReferenceFood(item);
+  const state = cookingState(item);
+  const referenceFood = await findReferenceFood(item, state);
   const fromReference =
-    referenceFood && scaleToLoggedQuantity(toReference(referenceFood), item.quantity, item.unit, item.grams_per_unit);
+    referenceFood &&
+    scaleToLoggedQuantity(toReference(referenceFood), item.quantity, item.unit, item.grams_per_unit, gramsPerMl);
 
   if (fromReference) {
+    // An estimated per-unit weight, a density, or a guess at dry vs cooked
+    // makes the result less trustworthy than an exact match — don't imply
+    // false precision.
+    const approximate = fromReference.approximate || Boolean(state?.assumed);
     return {
       description: item.description,
       quantity: item.quantity,
       unit: item.unit,
       ...fromReference.calculated,
-      // An estimated per-unit weight or ml≈g assumption makes the scaling less
-      // trustworthy than an exact unit match — don't imply false precision.
-      confidence: fromReference.approximate ? capConfidence(item.confidence, 'medium') : item.confidence,
-      estimated: fromReference.approximate,
+      confidence: approximate ? capConfidence(item.confidence, 'medium') : item.confidence,
+      estimated: approximate,
+      source: 'reference',
+      foodId: referenceFood.id,
     };
   }
 
@@ -234,7 +333,8 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
       sodium: est.sodium ?? undefined,
       sugar: est.sugar ?? undefined,
     };
-    const fromEstimate = !isBogusEstimate && scaleToLoggedQuantity(reference, item.quantity, item.unit, item.grams_per_unit);
+    const fromEstimate =
+      !isBogusEstimate && scaleToLoggedQuantity(reference, item.quantity, item.unit, item.grams_per_unit, gramsPerMl);
 
     if (fromEstimate) {
       return {
@@ -244,6 +344,7 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
         ...fromEstimate.calculated,
         confidence: fromEstimate.approximate ? capConfidence(item.confidence, 'medium') : item.confidence,
         estimated: true,
+        source: 'ai_estimate',
       };
     }
   }
@@ -309,4 +410,6 @@ export const foodRowToItem = (food: FoodRow): FoodItem => ({
   ...calculateNutrition(toReference(food), food.serving_size),
   confidence: 'high',
   estimated: false,
+  source: 'food_search',
+  foodId: food.id,
 });

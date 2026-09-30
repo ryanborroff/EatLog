@@ -54,6 +54,7 @@ export const matchDefault = async (transcript: string, mealHint?: string): Promi
           ...calculated,
           confidence: 'high',
           estimated: false,
+          source: 'saved_default',
         },
       ],
       totalCalories: calculated.calories,
@@ -78,6 +79,7 @@ export const matchDefault = async (transcript: string, mealHint?: string): Promi
         ...calculated,
         confidence: 'high' as const,
         estimated: false,
+        source: 'saved_default' as const,
       };
     });
 

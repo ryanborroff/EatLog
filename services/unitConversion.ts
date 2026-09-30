@@ -42,23 +42,35 @@ const normalizeUnit = (unit: string): string => {
 
 const measured = (unit: string) => MEASURED_UNITS[normalizeUnit(unit)] ?? null;
 
+/** Whether `unit` is a fixed weight or volume, as opposed to a count/portion ("slice", "bowl"). */
+export const isMeasuredUnit = (unit: string): boolean => measured(unit) !== null;
+
+/** `quantity` of `unit` in grams, or null unless `unit` is a mass unit. */
+export const toGrams = (quantity: number, unit: string): number | null => {
+  const from = measured(unit);
+  return from?.dimension === 'mass' ? quantity * from.factor : null;
+};
+
 export interface ConvertedQuantity {
   quantity: number;
-  /** True when the conversion relied on an estimate (a per-unit weight, or treating 1 ml as 1 g). */
+  /** True when the conversion relied on an estimate (a per-unit weight, or a density). */
   approximate: boolean;
 }
 
 /**
  * Converts `quantity` of `fromUnit` into `toUnit`. `gramsPerUnit` is the
  * estimated weight of one `fromUnit` for count units ("whole", "slice") that
- * have no fixed size. Returns null when there's no sound way to convert — the
+ * have no fixed size — or, for a spoon/cup measure, what one of it weighs.
+ * `gramsPerMl` is the food's known density, which takes priority for
+ * mass <-> volume. Returns null when there's no sound way to convert — the
  * caller must not scale nutrition in that case.
  */
 export const convertQuantity = (
   quantity: number,
   fromUnit: string,
   toUnit: string,
-  gramsPerUnit?: number | null
+  gramsPerUnit?: number | null,
+  gramsPerMl?: number | null
 ): ConvertedQuantity | null => {
   if (normalizeUnit(fromUnit) === normalizeUnit(toUnit)) {
     return { quantity, approximate: false };
@@ -70,8 +82,19 @@ export const convertQuantity = (
 
   if (from && to) {
     const base = quantity * from.factor;
-    // Mass <-> volume assumes water density: close enough for drinks, soups, milk.
-    return { quantity: base / to.factor, approximate: from.dimension !== to.dimension };
+    if (from.dimension === to.dimension) {
+      return { quantity: base / to.factor, approximate: false };
+    }
+    // Mass <-> volume needs a density. Water's is right for drinks, soups and
+    // milk, but a cup of oats weighs about a third of a cup of water.
+    const density =
+      gramsPerMl != null && gramsPerMl > 0
+        ? gramsPerMl
+        : from.dimension === 'volume' && hasUnitWeight
+          ? gramsPerUnit / from.factor
+          : 1;
+    const converted = from.dimension === 'volume' ? base * density : base / density;
+    return { quantity: converted / to.factor, approximate: true };
   }
 
   // Count unit -> measured unit, e.g. 1 whole egg (50 g each) -> 50 g.
