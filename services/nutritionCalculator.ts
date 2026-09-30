@@ -25,6 +25,17 @@ export interface CalculatedNutrition {
 
 const round = (value: number): number => Math.ceil(value * 10) / 10;
 
+/** Scales already-calculated nutrition (e.g. a logged item) by a factor. */
+export const scaleNutrition = (nutrition: CalculatedNutrition, scale: number): CalculatedNutrition => ({
+  calories: round(nutrition.calories * scale),
+  protein: round(nutrition.protein * scale),
+  carbohydrate: round(nutrition.carbohydrate * scale),
+  fat: round(nutrition.fat * scale),
+  fibre: nutrition.fibre !== undefined ? round(nutrition.fibre * scale) : undefined,
+  sodium: nutrition.sodium !== undefined ? round(nutrition.sodium * scale) : undefined,
+  sugar: nutrition.sugar !== undefined ? round(nutrition.sugar * scale) : undefined,
+});
+
 /**
  * Scales a food's reference nutrition (e.g. "per 100g") to a requested quantity.
  * Assumes quantity and reference are already in compatible units (the resolver

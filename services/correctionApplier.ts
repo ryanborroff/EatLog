@@ -9,6 +9,7 @@ import { CorrectionOperation, ParsedFoodItem } from '../types/foodParser';
 import { densityFor } from './foodDensity';
 import { FoodParseError } from './foodParseError';
 import { resolveFoodItems } from './foodResolver';
+import { scaleNutrition } from './nutritionCalculator';
 import { convertQuantity } from './unitConversion';
 
 const normalize = (text: string): string => text.trim().toLowerCase();
@@ -30,16 +31,6 @@ export const recalculateMealTotals = (meal: Meal, items: FoodItem[], type: Meal[
   totalFibre: items.reduce((sum, i) => sum + (i.fibre ?? 0), 0),
   totalSodium: items.reduce((sum, i) => sum + (i.sodium ?? 0), 0),
   totalSugar: items.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
-});
-
-const scaleItem = (item: FoodItem, scale: number): Partial<FoodItem> => ({
-  calories: Math.ceil(item.calories * scale * 10) / 10,
-  protein: Math.ceil(item.protein * scale * 10) / 10,
-  carbohydrate: Math.ceil(item.carbohydrate * scale * 10) / 10,
-  fat: Math.ceil(item.fat * scale * 10) / 10,
-  fibre: item.fibre !== undefined ? Math.ceil(item.fibre * scale * 10) / 10 : undefined,
-  sodium: item.sodium !== undefined ? Math.ceil(item.sodium * scale * 10) / 10 : undefined,
-  sugar: item.sugar !== undefined ? Math.ceil(item.sugar * scale * 10) / 10 : undefined,
 });
 
 /**
@@ -65,10 +56,12 @@ const requantify = async (
   if (converted && existing.quantity > 0) {
     return {
       ...existing,
-      ...scaleItem(existing, converted.quantity / existing.quantity),
+      ...scaleNutrition(existing, converted.quantity / existing.quantity),
       quantity: newQuantity,
       unit: newUnit,
       estimated: existing.estimated || converted.approximate,
+      // The user just said how much, so it's no longer a guess.
+      portionAssumed: false,
       confidence: converted.approximate && existing.confidence === 'high' ? 'medium' : existing.confidence,
     };
   }
@@ -93,7 +86,7 @@ const requantify = async (
       name,
     ]);
   }
-  return { ...resolved, id: existing.id };
+  return { ...resolved, id: existing.id, portionAssumed: false };
 };
 
 export const applyCorrections = async (meal: Meal, operations: CorrectionOperation[]): Promise<Meal> => {

@@ -10,6 +10,7 @@ import { FoodParseError } from './foodParseError';
 import { matchDefault } from './defaultsMatcher';
 import { resolveFoodItems } from './foodResolver';
 import { calculateNutrition, ReferenceNutrition } from './nutritionCalculator';
+import { applyPortions, PortionQuestion, PortionSize, portionQuestions } from './portionFollowUp';
 import { getMostRecentMeal, saveMealForDate, saveVoiceLog, updateMeal } from './storageService';
 import { supabase } from './supabaseClient';
 import { getAppleHealthSyncEnabled } from './healthSyncPreference';
@@ -122,7 +123,38 @@ export interface ClarificationOutcome {
   options: string[];
 }
 
-export type FoodPipelineResult = LoggedOutcome | UpdatedOutcome | ClarificationOutcome;
+/** A parsed meal held back, unsaved, until the user sizes its guessed portions. */
+export interface PendingMeal {
+  date: string;
+  meal: Meal;
+  skipped: string[];
+}
+
+export interface PortionOutcome {
+  status: 'needs_portion';
+  pending: PendingMeal;
+  questions: PortionQuestion[];
+}
+
+export type FoodPipelineResult = LoggedOutcome | UpdatedOutcome | ClarificationOutcome | PortionOutcome;
+
+const withItems = (meal: Omit<Meal, 'items' | `total${string}`>, items: FoodItem[]): Meal => ({
+  ...meal,
+  items,
+  totalCalories: items.reduce((sum, i) => sum + i.calories, 0),
+  totalProtein: items.reduce((sum, i) => sum + i.protein, 0),
+  totalCarbohydrate: items.reduce((sum, i) => sum + i.carbohydrate, 0),
+  totalFat: items.reduce((sum, i) => sum + i.fat, 0),
+  totalFibre: items.reduce((sum, i) => sum + (i.fibre ?? 0), 0),
+  totalSodium: items.reduce((sum, i) => sum + (i.sodium ?? 0), 0),
+  totalSugar: items.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
+});
+
+const saveNewMeal = async ({ date, meal, skipped }: PendingMeal): Promise<LoggedOutcome> => {
+  const saved = { ...meal, id: await saveMealForDate(date, meal) };
+  await syncMealToHealthIfEnabled(saved);
+  return { status: 'logged', meal: saved, skipped };
+};
 
 const toRecentMealContext = (meal: Meal | null): RecentMealContext | null =>
   meal
@@ -137,7 +169,9 @@ const toRecentMealContext = (meal: Meal | null): RecentMealContext | null =>
  * is needed, persists the result (a new meal, or a correction applied to the
  * day's most recent meal). Callers (VoiceModal) handle the clarification
  * branch themselves — this never guesses on the user's behalf when the AI
- * flagged a material ambiguity (spec §18/§39).
+ * flagged a material ambiguity (spec §18/§39). Likewise a new meal with a big
+ * guessed portion comes back unsaved as `needs_portion`; the caller asks the
+ * user and finishes it with confirmPortions.
  */
 export const processTranscript = async (
   transcript: string,
@@ -182,26 +216,34 @@ export const processTranscript = async (
   // and reported back as `skipped` so the user can add them another way.
   const { usable: resolvedItems, skipped } = partitionResolved(await resolveFoodItems(parsed.items));
 
-  const meal: Meal = {
-    id: '', // assigned by storageService/Supabase on insert
-    type: parsed.meal_type,
-    items: resolvedItems.map((item, index) => ({ id: String(index), ...item })),
-    totalCalories: resolvedItems.reduce((sum, i) => sum + i.calories, 0),
-    totalProtein: resolvedItems.reduce((sum, i) => sum + i.protein, 0),
-    totalCarbohydrate: resolvedItems.reduce((sum, i) => sum + i.carbohydrate, 0),
-    totalFat: resolvedItems.reduce((sum, i) => sum + i.fat, 0),
-    totalFibre: resolvedItems.reduce((sum, i) => sum + (i.fibre ?? 0), 0),
-    totalSodium: resolvedItems.reduce((sum, i) => sum + (i.sodium ?? 0), 0),
-    totalSugar: resolvedItems.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
-    loggedAt: new Date().toISOString(),
-  };
+  const meal = withItems(
+    {
+      id: '', // assigned by storageService/Supabase on insert
+      type: parsed.meal_type,
+      loggedAt: new Date().toISOString(),
+    },
+    resolvedItems.map((item, index) => ({ id: String(index), ...item }))
+  );
 
-  const savedId = await saveMealForDate(date, meal);
-  meal.id = savedId;
-  await syncMealToHealthIfEnabled(meal);
+  // No amount given for a big item: ask small/medium/large before saving.
+  const questions = portionQuestions(meal.items);
+  if (questions.length > 0) {
+    return { status: 'needs_portion', pending: { date, meal, skipped }, questions };
+  }
 
-  return { status: 'logged', meal, skipped };
+  return saveNewMeal({ date, meal, skipped });
 };
+
+/**
+ * Finishes a meal held back for portion questions: applies the sizes the user
+ * picked (unanswered items keep their typical portion, flagged as a guess)
+ * and saves it.
+ */
+export const confirmPortions = async (
+  pending: PendingMeal,
+  choices: Record<string, PortionSize>
+): Promise<LoggedOutcome> =>
+  saveNewMeal({ ...pending, meal: withItems(pending.meal, applyPortions(pending.meal.items, choices)) });
 
 /**
  * Free-text add for screens that hold their own in-progress item list (Edit

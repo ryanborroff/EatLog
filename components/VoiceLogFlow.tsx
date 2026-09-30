@@ -15,17 +15,26 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
-import { processTranscript, logBarcodeItem, FoodParseError } from '../services/foodPipeline';
+import {
+  processTranscript,
+  confirmPortions,
+  logBarcodeItem,
+  FoodParseError,
+  LoggedOutcome,
+  PendingMeal,
+  UpdatedOutcome,
+} from '../services/foodPipeline';
+import { PortionQuestion, PortionSize } from '../services/portionFollowUp';
 import { ReferenceNutrition } from '../services/nutritionCalculator';
 import { track } from '../services/analytics';
 import { Meal } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { colors, spacing, radii, typography } from '../constants/theme';
-import { formatFoodItemLine } from '../utils/formatFoodItem';
 import { formatAmount, formatCalories } from '../utils/formatNumber';
 import CalendarPicker from './CalendarPicker';
 import BarcodeScanFlow from './BarcodeScanFlow';
 import ListeningIndicator from './ListeningIndicator';
+import FoodItemLine from './FoodItemLine';
 
 // Flag: "I'm listening…" reads a bit "smart speaker" — worth A/B testing
 // against a quieter/no-copy variant once we can measure drop-off here.
@@ -70,6 +79,7 @@ type FlowState =
   | 'processing'
   | 'logged'
   | 'clarification'
+  | 'portion'
   | 'result'
   | 'error'
   | 'barcode';
@@ -155,6 +165,11 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   // ("about 100g") means nothing to the parser, so it's submitted together
   // with the original description and the question.
   const pendingClarificationRef = useRef<{ transcript: string; question: string } | null>(null);
+  // A parsed meal held back while the user sizes its guessed portions.
+  const pendingMealRef = useRef<PendingMeal | null>(null);
+  const [portionQuestions, setPortionQuestions] = useState<PortionQuestion[]>([]);
+  const [portionChoices, setPortionChoices] = useState<Record<string, PortionSize>>({});
+  const [portionSaveFailed, setPortionSaveFailed] = useState(false);
   const [loggedMeal, setLoggedMeal] = useState<Meal | null>(null);
   const [wasCorrection, setWasCorrection] = useState(false);
   const [skippedItems, setSkippedItems] = useState<string[]>([]);
@@ -317,18 +332,16 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         setTextValue('');
         setState('clarification');
         track('clarification_requested');
+      } else if (result.status === 'needs_portion') {
+        pendingMealRef.current = result.pending;
+        submittedRef.current = false;
+        setPortionQuestions(result.questions);
+        setPortionChoices({});
+        setPortionSaveFailed(false);
+        setState('portion');
+        track('portion_requested', { itemCount: result.questions.length });
       } else {
-        setLoggedMeal(result.meal);
-        setWasCorrection(result.status === 'updated');
-        setSkippedItems(result.status === 'logged' ? result.skipped : []);
-        setState('logged');
-        setTimeout(() => setState('result'), 450);
-        track('voice_log_completed');
-        if (result.status === 'logged') {
-          track('food_logged', { source: 'voice', mealType: result.meal.type, itemCount: result.meal.items.length });
-        } else {
-          track('food_edited', { source: 'voice' });
-        }
+        showLogged(result);
       }
     } catch (err) {
       if (err instanceof FoodParseError && err.message === 'Nothing to correct') {
@@ -347,6 +360,40 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
       setTextValue(text);
       setShowTextInput(true);
       setState('error');
+    }
+  };
+
+  const showLogged = (result: LoggedOutcome | UpdatedOutcome) => {
+    setLoggedMeal(result.meal);
+    setWasCorrection(result.status === 'updated');
+    setSkippedItems(result.status === 'logged' ? result.skipped : []);
+    setState('logged');
+    setTimeout(() => setState('result'), 450);
+    track('voice_log_completed');
+    if (result.status === 'logged') {
+      track('food_logged', { source: 'voice', mealType: result.meal.type, itemCount: result.meal.items.length });
+    } else {
+      track('food_edited', { source: 'voice' });
+    }
+  };
+
+  // Unanswered questions keep the typical portion, marked as a guess.
+  const handlePortionConfirm = async () => {
+    const pending = pendingMealRef.current;
+    if (!pending) return;
+    setState('processing');
+    track('portion_answered', {
+      itemCount: portionQuestions.length,
+      answeredCount: Object.keys(portionChoices).length,
+    });
+    try {
+      const result = await confirmPortions(pending, portionChoices);
+      pendingMealRef.current = null;
+      showLogged(result);
+    } catch (err) {
+      console.error('Error saving meal after portion question:', err);
+      setPortionSaveFailed(true);
+      setState('portion');
     }
   };
 
@@ -478,6 +525,52 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
           </View>
         );
 
+      case 'portion':
+        return (
+          <View style={styles.content}>
+            <Text style={styles.prompt}>
+              {portionQuestions.length === 1 ? 'How big a portion?' : 'How big were the portions?'}
+            </Text>
+            <Text style={styles.subPrompt}>Not sure? Just log it – we'll use a typical portion.</Text>
+            {portionQuestions.map((question) => (
+              <View key={question.itemId} style={styles.portionQuestion}>
+                <Text style={styles.portionItem}>{question.item.description}</Text>
+                <View style={styles.portionOptions}>
+                  {question.options.map((option) => {
+                    const selected = portionChoices[question.itemId] === option.size;
+                    return (
+                      <TouchableOpacity
+                        key={option.size}
+                        style={[styles.portionChip, { borderColor: accentColor }, selected && { backgroundColor: accentColor }]}
+                        onPress={() => setPortionChoices((current) => ({ ...current, [question.itemId]: option.size }))}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={`${option.label}, ${formatCalories(option.calories)} calories`}
+                      >
+                        <Text style={[styles.portionChipLabel, selected && styles.portionChipTextSelected]}>
+                          {option.label}
+                        </Text>
+                        <Text style={[styles.portionChipDetail, selected && styles.portionChipTextSelected]}>
+                          {option.grams !== null ? `${formatAmount(option.grams)}g · ` : ''}
+                          {formatCalories(option.calories)} kcal
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+            {portionSaveFailed && <Text style={styles.skippedNotice}>{ERROR_COPY.network}</Text>}
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: accentColor }]}
+              onPress={() => void handlePortionConfirm()}
+              accessibilityRole="button"
+            >
+              <Text style={styles.primaryButtonText}>Log it</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
       case 'error':
         return (
           <View style={styles.content}>
@@ -516,9 +609,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
           <TouchableOpacity style={styles.content} activeOpacity={1} onPress={handleFollowUp}>
             <Text style={styles.resultMealType}>{formatMealType(loggedMeal.type)}</Text>
             {loggedMeal.items.map((item) => (
-              <Text key={item.id} style={styles.resultItem}>
-                {formatFoodItemLine(item)}
-              </Text>
+              <FoodItemLine key={item.id} item={item} style={styles.resultItem} />
             ))}
             <Text style={styles.resultSummary}>
               {wasCorrection
@@ -628,6 +719,7 @@ const styles = StyleSheet.create({
   },
   subPrompt: {
     ...typography.secondary,
+    textAlign: 'center',
     marginTop: spacing.xs,
     marginBottom: spacing.md,
   },
@@ -715,6 +807,42 @@ const styles = StyleSheet.create({
   optionText: {
     ...typography.body,
     color: colors.textPrimary,
+  },
+  portionQuestion: {
+    alignSelf: 'stretch',
+    marginTop: spacing.md,
+  },
+  portionItem: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  portionOptions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  portionChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: radii.card,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    alignItems: 'center',
+  },
+  portionChipLabel: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  portionChipDetail: {
+    ...typography.small,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  portionChipTextSelected: {
+    color: '#FFFFFF',
   },
   skippedNotice: {
     ...typography.secondary,

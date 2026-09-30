@@ -5,6 +5,8 @@ import { FoodSource } from './index';
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
+/** stated: the user gave an amount. vague: a rough one ("a handful"). assumed: none — the parser picked a typical portion. */
+export type QuantitySource = 'stated' | 'vague' | 'assumed';
 
 export interface EstimatedNutrition {
   serving_size: number;
@@ -23,6 +25,8 @@ export interface ParsedFoodItem {
   brand: string | null;
   quantity: number;
   unit: string;
+  /** Null when the model didn't say; optional for older parse-food deployments. */
+  quantity_source?: QuantitySource | null;
   /** Estimated weight of one `unit` for count units ("whole", "slice"); null for measured units. Optional for older parse-food deployments. */
   grams_per_unit?: number | null;
   preparation: string | null;
@@ -85,6 +89,7 @@ export interface ResolvedFoodItem {
   estimated: boolean;
   source?: FoodSource;
   foodId?: string;
+  portionAssumed?: boolean;
   /** True when nothing—reference DB, personal food, nor a usable AI estimate—could identify this item. */
   unresolved?: boolean;
 }

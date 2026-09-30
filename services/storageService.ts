@@ -142,6 +142,7 @@ interface MealItemRow {
   estimated: boolean;
   source: FoodSource | null;
   food_id: string | null;
+  portion_assumed: boolean | null;
 }
 
 const toItemRow = (mealId: string, item: FoodItem) => ({
@@ -160,6 +161,7 @@ const toItemRow = (mealId: string, item: FoodItem) => ({
   estimated: item.estimated,
   source: item.source ?? null,
   food_id: item.foodId ?? null,
+  portion_assumed: item.portionAssumed ?? false,
 });
 
 const toFoodItem = (row: MealItemRow): FoodItem => ({
@@ -178,6 +180,7 @@ const toFoodItem = (row: MealItemRow): FoodItem => ({
   estimated: row.estimated,
   source: row.source ?? undefined,
   foodId: row.food_id ?? undefined,
+  portionAssumed: row.portion_assumed ?? false,
 });
 
 const sumBy = (items: FoodItem[], key: keyof Pick<FoodItem, 'calories' | 'protein' | 'carbohydrate' | 'fat' | 'fibre' | 'sodium' | 'sugar'>) =>

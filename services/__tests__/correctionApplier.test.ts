@@ -53,6 +53,11 @@ describe('applyCorrections update_quantity', () => {
     expect(mockResolve).not.toHaveBeenCalled();
   });
 
+  it('clears a guessed portion once the user says how much', async () => {
+    const updated = await applyCorrections(meal([item({ portionAssumed: true })]), [updateQuantity(3, 'slices')]);
+    expect(updated.items[0].portionAssumed).toBe(false);
+  });
+
   it('converts between measured units before scaling', async () => {
     const milk = item({ description: 'Milk', quantity: 200, unit: 'ml', calories: 100 });
     const updated = await applyCorrections(meal([milk]), [updateQuantity(1, 'pint', 'milk')]);

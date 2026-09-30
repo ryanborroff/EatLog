@@ -22,7 +22,7 @@ import { getAppleHealthSyncEnabled } from '../services/healthSyncPreference';
 import { resyncMealToHealthKit } from '../services/healthKitService';
 import { searchFoods, foodRowToItem, FoodRow } from '../services/foodResolver';
 import { calculateNutrition, ReferenceNutrition } from '../services/nutritionCalculator';
-import { formatFoodItemLine } from '../utils/formatFoodItem';
+import FoodItemLine from '../components/FoodItemLine';
 import { formatCalories } from '../utils/formatNumber';
 import { useTheme } from '../contexts/ThemeContext';
 import { colors, spacing, radii, typography } from '../constants/theme';
@@ -120,11 +120,15 @@ export default function EditMealScreen() {
         const validQuantity = Number.isFinite(newQuantity) && newQuantity > 0 ? newQuantity : item.quantity;
         const scale = item.quantity > 0 ? validQuantity / item.quantity : 1;
 
+        const amountChanged = validQuantity !== item.quantity || (unit !== '' && unit !== item.unit);
+
         return {
           ...item,
           description: description || item.description,
           quantity: validQuantity,
           unit: unit || item.unit,
+          // Setting the amount by hand replaces the guess.
+          portionAssumed: amountChanged ? false : item.portionAssumed,
           calories: Math.round(item.calories * scale * 10) / 10,
           protein: Math.round(item.protein * scale * 10) / 10,
           carbohydrate: Math.round(item.carbohydrate * scale * 10) / 10,
@@ -333,7 +337,7 @@ export default function EditMealScreen() {
                       accessibilityLabel={`Edit ${item.description}`}
                       accessibilityRole="button"
                     >
-                      <Text style={styles.itemDescription}>{formatFoodItemLine(item)}</Text>
+                      <FoodItemLine item={item} style={styles.itemDescription} />
                       <Text style={styles.itemCalories}>{formatCalories(item.calories)} kcal</Text>
                     </TouchableOpacity>
                   )}

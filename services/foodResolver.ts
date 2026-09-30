@@ -268,7 +268,7 @@ const fromFoodRow = (
   };
 };
 
-const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
+const resolveNutrition = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
   const userId = await getUserId();
   const gramsPerMl = densityFor(item.description);
 
@@ -364,6 +364,13 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
     estimated: true,
     unresolved: true,
   };
+};
+
+const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
+  const resolved = await resolveNutrition(item);
+  // A saved default brings its own amount, so nothing was guessed.
+  const portionAssumed = item.quantity_source === 'assumed' && resolved.source !== 'saved_default';
+  return portionAssumed ? { ...resolved, portionAssumed } : resolved;
 };
 
 /**
