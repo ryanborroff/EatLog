@@ -35,6 +35,8 @@ export interface ParsedFoodItem {
   grams_per_unit: number | null;
   preparation: string | null;
   confidence: ConfidenceLevel;
+  /** For a mixed dish: its main ingredients, weighed for the whole amount logged. */
+  ingredients: Ingredient[] | null;
   estimated_nutrition: {
     serving_size: number;
     serving_unit: string;
@@ -46,6 +48,12 @@ export interface ParsedFoodItem {
     sodium: number | null;
     sugar: number | null;
   } | null;
+}
+
+export interface Ingredient {
+  description: string;
+  grams: number;
+  preparation: string | null;
 }
 
 export interface CorrectionOperation {
@@ -84,6 +92,7 @@ const ITEM_JSON_SCHEMA = {
     'grams_per_unit',
     'preparation',
     'confidence',
+    'ingredients',
     'estimated_nutrition',
   ],
   properties: {
@@ -95,6 +104,19 @@ const ITEM_JSON_SCHEMA = {
     grams_per_unit: { type: ['number', 'null'] },
     preparation: { type: ['string', 'null'] },
     confidence: { type: 'string', enum: [...CONFIDENCE_LEVELS] },
+    ingredients: nullable({
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['description', 'grams', 'preparation'],
+        properties: {
+          description: { type: 'string' },
+          grams: { type: 'number' },
+          preparation: { type: ['string', 'null'] },
+        },
+      },
+    }),
     estimated_nutrition: nullable({
       type: 'object',
       additionalProperties: false,
@@ -158,6 +180,27 @@ const isQuantitySource = (v: unknown): v is QuantitySource => QUANTITY_SOURCES.i
 
 const isPositiveNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
 const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
+
+// A dish broken into more parts than this is being over-thought; keep the main ones.
+const MAX_INGREDIENTS = 8;
+
+/** A dish's ingredients, keeping only well-formed ones; null when none are usable. */
+function validateIngredients(raw: unknown): Ingredient[] | null {
+  if (!Array.isArray(raw)) return null;
+  const ingredients = raw
+    .filter(
+      (i): i is Record<string, unknown> =>
+        typeof i === 'object' && i !== null && isNonEmptyString(i.description) && isPositiveNumber(i.grams)
+    )
+    .slice(0, MAX_INGREDIENTS)
+    .map((i) => ({
+      description: i.description as string,
+      grams: i.grams as number,
+      preparation: typeof i.preparation === 'string' ? i.preparation : null,
+    }));
+  // One "ingredient" is just the dish again.
+  return ingredients.length >= 2 ? ingredients : null;
+}
 
 /**
  * Validates one item, repairing what can be repaired rather than failing the
@@ -226,6 +269,7 @@ function validateItem(raw: unknown): ParsedFoodItem | null {
         : null,
     preparation: typeof item.preparation === 'string' ? item.preparation : null,
     confidence,
+    ingredients: validateIngredients(item.ingredients),
     estimated_nutrition,
   };
 }

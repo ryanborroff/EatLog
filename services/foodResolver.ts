@@ -3,10 +3,11 @@
 // (exact name, then alias), 5) the AI's own estimate.
 
 import { FoodItem, FoodSource } from '../types';
-import { ParsedFoodItem, ResolvedFoodItem } from '../types/foodParser';
+import { Ingredient, ParsedFoodItem, ResolvedFoodItem } from '../types/foodParser';
 import { calculateNutrition, CalculatedNutrition, ReferenceNutrition } from './nutritionCalculator';
 import { densityFor } from './foodDensity';
 import { checkEstimate, plausibleGramsPerUnit } from './estimateChecks';
+import { matchFoods, MatchedFood, MatchQuery } from './foodMatcher';
 import { convertQuantity, isMeasuredUnit, toGrams } from './unitConversion';
 import { supabase } from './supabaseClient';
 
@@ -269,24 +270,28 @@ const fromFoodRow = (
   };
 };
 
-const resolveNutrition = async (parsedItem: ParsedFoodItem): Promise<ResolvedFoodItem> => {
-  // A per-unit weight the AI made up out of all proportion is worse than none.
-  const item = { ...parsedItem, grams_per_unit: plausibleGramsPerUnit(parsedItem.grams_per_unit) };
-  const userId = await getUserId();
+interface Known {
+  resolved: ResolvedFoodItem | null;
+  /** The dry-vs-cooked reading used for the reference lookup, when there was one. */
+  state: CookingState | null;
+}
+
+/** Tiers 1–4: the user's own foods and defaults, then the reference DB by name or alias. */
+const resolveKnown = async (item: ParsedFoodItem, userId: string | null): Promise<Known> => {
   const gramsPerMl = densityFor(item.description);
 
   if (userId) {
     const personalFood = await findPersonalFood(item.description, userId);
     const fromPersonal =
       personalFood && fromFoodRow(personalFood, item.quantity, item.unit, item.grams_per_unit, gramsPerMl, 'high', 'personal_food');
-    if (fromPersonal) return fromPersonal;
+    if (fromPersonal) return { resolved: fromPersonal, state: null };
 
     const foodDefault = await findFoodDefault(item.description, userId);
     // A default's saved quantity/unit takes priority — that's the point of a default.
     // (The AI's grams_per_unit describes the spoken unit, not the default's, so it doesn't apply.)
     const fromDefault =
       foodDefault && fromFoodRow(foodDefault.food, foodDefault.quantity, foodDefault.unit, null, gramsPerMl, 'high', 'saved_default');
-    if (fromDefault) return fromDefault;
+    if (fromDefault) return { resolved: fromDefault, state: null };
   }
 
   const state = cookingState(item);
@@ -301,17 +306,76 @@ const resolveNutrition = async (parsedItem: ParsedFoodItem): Promise<ResolvedFoo
     // false precision.
     const approximate = fromReference.approximate || Boolean(state?.assumed);
     return {
-      description: item.description,
-      quantity: item.quantity,
-      unit: item.unit,
-      ...fromReference.calculated,
-      confidence: approximate ? capConfidence(item.confidence, 'medium') : item.confidence,
-      estimated: approximate,
-      source: 'reference',
-      foodId: referenceFood.id,
+      resolved: {
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        ...fromReference.calculated,
+        confidence: approximate ? capConfidence(item.confidence, 'medium') : item.confidence,
+        estimated: approximate,
+        source: 'reference',
+        foodId: referenceFood.id,
+      },
+      state,
     };
   }
+  return { resolved: null, state };
+};
 
+/** Tier 5: a food the match-food function picked from a shortlist of real ones. */
+const fromMatchedFood = (item: ParsedFoodItem, food: MatchedFood): ResolvedFoodItem | null => {
+  const scaled = scaleToLoggedQuantity(
+    toReference({ ...food, id: food.id ?? '' }),
+    item.quantity,
+    item.unit,
+    item.grams_per_unit,
+    densityFor(item.description)
+  );
+  if (!scaled) return null;
+  return {
+    description: item.description,
+    quantity: item.quantity,
+    unit: item.unit,
+    ...scaled.calculated,
+    // The AI chose which food this is, so it's never certain.
+    confidence: capConfidence(item.confidence, 'medium'),
+    estimated: scaled.approximate,
+    source: food.source === 'cofid' ? 'reference' : 'open_food_facts',
+    ...(food.id ? { foodId: food.id } : {}),
+  };
+};
+
+const sumOptional = (values: (number | undefined)[]): number | undefined =>
+  values.some((v) => v !== undefined) ? values.reduce<number>((sum, v) => sum + (v ?? 0), 0) : undefined;
+
+/**
+ * Tier 6: a mixed dish added up from its ingredients, each matched to a real
+ * food. Only when every ingredient was found — one estimated by the AI would
+ * be no better than the AI's estimate for the whole dish.
+ */
+const fromIngredients = (item: ParsedFoodItem, parts: (CalculatedNutrition | null)[]): ResolvedFoodItem | null => {
+  if (parts.length === 0 || parts.some((part) => part === null)) return null;
+  const found = parts as CalculatedNutrition[];
+  return {
+    description: item.description,
+    quantity: item.quantity,
+    unit: item.unit,
+    calories: found.reduce((sum, p) => sum + p.calories, 0),
+    protein: found.reduce((sum, p) => sum + p.protein, 0),
+    carbohydrate: found.reduce((sum, p) => sum + p.carbohydrate, 0),
+    fat: found.reduce((sum, p) => sum + p.fat, 0),
+    fibre: sumOptional(found.map((p) => p.fibre)),
+    sodium: sumOptional(found.map((p) => p.sodium)),
+    sugar: sumOptional(found.map((p) => p.sugar)),
+    // The ingredient weights are the AI's guess.
+    confidence: capConfidence(item.confidence, 'medium'),
+    estimated: true,
+    source: 'ingredients',
+  };
+};
+
+/** Tier 7: the AI's own estimate, if it passes the sanity checks. Otherwise the item is unresolved. */
+const fromEstimate = (item: ParsedFoodItem): ResolvedFoodItem => {
   if (item.estimated_nutrition) {
     const est = item.estimated_nutrition;
     // A low-confidence, all-zero "estimate" isn't real nutrition data — it's the
@@ -339,19 +403,19 @@ const resolveNutrition = async (parsedItem: ParsedFoodItem): Promise<ResolvedFoo
       sodium: est.sodium ?? undefined,
       sugar: est.sugar ?? undefined,
     };
-    const fromEstimate =
+    const scaled =
       !isBogusEstimate &&
       verdict !== 'impossible' &&
-      scaleToLoggedQuantity(reference, item.quantity, item.unit, item.grams_per_unit, gramsPerMl);
+      scaleToLoggedQuantity(reference, item.quantity, item.unit, item.grams_per_unit, densityFor(item.description));
 
-    if (fromEstimate) {
+    if (scaled) {
       // Never "high": nothing but the model vouches for these numbers.
       const cap = verdict === 'inconsistent' ? 'low' : 'medium';
       return {
         description: item.description,
         quantity: item.quantity,
         unit: item.unit,
-        ...fromEstimate.calculated,
+        ...scaled.calculated,
         confidence: capConfidence(item.confidence, cap),
         estimated: true,
         source: 'ai_estimate',
@@ -376,8 +440,24 @@ const resolveNutrition = async (parsedItem: ParsedFoodItem): Promise<ResolvedFoo
   };
 };
 
-const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
-  const resolved = await resolveNutrition(item);
+/** An ingredient as a lookup: its weight in grams, as eaten. */
+const ingredientItem = (ingredient: Ingredient): ParsedFoodItem => ({
+  description: ingredient.description,
+  brand: null,
+  quantity: ingredient.grams,
+  unit: 'g',
+  grams_per_unit: null,
+  preparation: ingredient.preparation,
+  confidence: 'medium',
+  estimated_nutrition: null,
+});
+
+/** An ingredient's nutrition from a food row, or null if its unit can't take grams. */
+const ingredientNutrition = (ingredient: ParsedFoodItem, food: Omit<FoodRow, 'id'>): CalculatedNutrition | null =>
+  scaleToLoggedQuantity(toReference({ ...food, id: '' }), ingredient.quantity, 'g', null, densityFor(ingredient.description))
+    ?.calculated ?? null;
+
+const withPortionFlag = (item: ParsedFoodItem, resolved: ResolvedFoodItem): ResolvedFoodItem => {
   // A saved default brings its own amount, so nothing was guessed.
   const portionAssumed = item.quantity_source === 'assumed' && resolved.source !== 'saved_default';
   return portionAssumed ? { ...resolved, portionAssumed } : resolved;
@@ -400,8 +480,61 @@ const dedupeParsedItems = (items: ParsedFoodItem[]): ParsedFoodItem[] => {
   });
 };
 
-export const resolveFoodItems = async (items: ParsedFoodItem[]): Promise<ResolvedFoodItem[]> => {
-  return Promise.all(dedupeParsedItems(items).map(resolveOne));
+/**
+ * Resolves parsed items to nutrition, most trustworthy source first: the
+ * user's own foods and defaults, the reference DB by name/alias, a reference
+ * food picked from a shortlist by match-food, a mixed dish's matched
+ * ingredients added up, and last the AI's own estimate. Everything the
+ * alias lookup misses — items and dish ingredients alike — goes to
+ * match-food in one request.
+ */
+export const resolveFoodItems = async (parsedItems: ParsedFoodItem[]): Promise<ResolvedFoodItem[]> => {
+  // A per-unit weight the AI made up out of all proportion is worse than none.
+  const items = dedupeParsedItems(parsedItems).map((item) => ({
+    ...item,
+    grams_per_unit: plausibleGramsPerUnit(item.grams_per_unit),
+  }));
+  const userId = await getUserId();
+  const known = await Promise.all(items.map((item) => resolveKnown(item, userId)));
+
+  const queries: MatchQuery[] = [];
+  // Per item, per ingredient: its lookup item and nutrition once found.
+  const ingredients = await Promise.all(
+    items.map(async (item, i) => {
+      if (known[i].resolved) return [];
+      queries.push({ key: `${i}`, description: item.description, preparation: item.preparation, brand: item.brand });
+      return Promise.all(
+        (item.ingredients ?? []).map(async (ingredient, j) => {
+          const lookup = ingredientItem(ingredient);
+          // Ingredients are weighed as eaten, so skip the dry-vs-cooked guess.
+          const food = await findReferenceFood(lookup, null);
+          if (!food) queries.push({ key: `${i}.${j}`, description: lookup.description, preparation: lookup.preparation, brand: null });
+          return { lookup, nutrition: food ? ingredientNutrition(lookup, food) : null };
+        })
+      );
+    })
+  );
+
+  const matched = await matchFoods(queries);
+
+  return items.map((item, i) => {
+    const alreadyKnown = known[i].resolved;
+    if (alreadyKnown) return withPortionFlag(item, alreadyKnown);
+
+    const food = matched.get(`${i}`);
+    const fromMatch = food ? fromMatchedFood(item, food) : null;
+    if (fromMatch) return withPortionFlag(item, fromMatch);
+
+    const parts = ingredients[i].map(({ lookup, nutrition }, j) => {
+      if (nutrition) return nutrition;
+      const ingredientFood = matched.get(`${i}.${j}`);
+      return ingredientFood ? ingredientNutrition(lookup, ingredientFood) : null;
+    });
+    const fromParts = fromIngredients(item, parts);
+    if (fromParts) return withPortionFlag(item, fromParts);
+
+    return withPortionFlag(item, fromEstimate(item));
+  });
 };
 
 /** Free-text search over the reference food DB, for manual "add food" pickers (no AI involved). */
