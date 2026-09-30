@@ -86,13 +86,14 @@ export const getUserProfile = async (): Promise<UserProfile> => withClockSkewRet
   const userId = await getUserId();
   const { data, error } = await supabase
     .from('users')
-    .select('sex, birth_year, height_cm, weight_kg, activity_level')
+    .select('display_name, sex, birth_year, height_cm, weight_kg, activity_level')
     .eq('id', userId)
     .single();
 
   if (error) throw error;
 
   return {
+    name: data.display_name ?? undefined,
     sex: data.sex ?? undefined,
     birthYear: data.birth_year ?? undefined,
     heightCm: data.height_cm ?? undefined,
@@ -106,6 +107,7 @@ export const saveUserProfile = async (profile: UserProfile): Promise<void> => {
   const { error } = await supabase
     .from('users')
     .update({
+      display_name: profile.name?.trim() || null,
       sex: profile.sex ?? null,
       birth_year: profile.birthYear ?? null,
       height_cm: profile.heightCm ?? null,

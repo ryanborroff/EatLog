@@ -9,7 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { colors, radii, spacing } from '../../constants/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import { PersonalFood } from '../../types';
 import { getUserFoods, createUserFood, deleteUserFood } from '../../services/storageService';
 import { calculateNutrition, ReferenceNutrition } from '../../services/nutritionCalculator';
@@ -28,7 +29,6 @@ const emptyForm = {
 };
 
 export default function PersonalFoodsScreen() {
-  const router = useRouter();
   const [foods, setFoods] = useState<PersonalFood[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -123,12 +123,7 @@ export default function PersonalFoodsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>My foods</Text>
-        </View>
+        <ScreenHeader title="My foods" />
 
         {!loading &&
           foods.map((food) => (
@@ -150,14 +145,14 @@ export default function PersonalFoodsScreen() {
             <TextInput
               style={styles.input}
               placeholder="Food name (e.g. My Greek yoghurt)"
-              placeholderTextColor="#999999"
+              placeholderTextColor={colors.textMuted}
               value={form.name}
               onChangeText={(v) => setForm({ ...form, name: v })}
             />
             <TextInput
               style={styles.input}
               placeholder="Nickname (e.g. my yoghurt)"
-              placeholderTextColor="#999999"
+              placeholderTextColor={colors.textMuted}
               value={form.nickname}
               onChangeText={(v) => setForm({ ...form, nickname: v })}
             />
@@ -165,7 +160,7 @@ export default function PersonalFoodsScreen() {
               <TextInput
                 style={[styles.input, styles.inputHalf]}
                 placeholder="Serving size"
-                placeholderTextColor="#999999"
+                placeholderTextColor={colors.textMuted}
                 keyboardType="numeric"
                 value={form.servingSize}
                 onChangeText={(v) => setForm({ ...form, servingSize: v })}
@@ -173,7 +168,7 @@ export default function PersonalFoodsScreen() {
               <TextInput
                 style={[styles.input, styles.inputHalf]}
                 placeholder="Unit (g, ml...)"
-                placeholderTextColor="#999999"
+                placeholderTextColor={colors.textMuted}
                 value={form.servingUnit}
                 onChangeText={(v) => setForm({ ...form, servingUnit: v })}
               />
@@ -181,7 +176,7 @@ export default function PersonalFoodsScreen() {
             <TextInput
               style={styles.input}
               placeholder="Calories"
-              placeholderTextColor="#999999"
+              placeholderTextColor={colors.textMuted}
               keyboardType="numeric"
               value={form.calories}
               onChangeText={(v) => setForm({ ...form, calories: v })}
@@ -189,7 +184,7 @@ export default function PersonalFoodsScreen() {
             <TextInput
               style={styles.input}
               placeholder="Protein (g)"
-              placeholderTextColor="#999999"
+              placeholderTextColor={colors.textMuted}
               keyboardType="numeric"
               value={form.protein}
               onChangeText={(v) => setForm({ ...form, protein: v })}
@@ -197,7 +192,7 @@ export default function PersonalFoodsScreen() {
             <TextInput
               style={styles.input}
               placeholder="Carbohydrate (g)"
-              placeholderTextColor="#999999"
+              placeholderTextColor={colors.textMuted}
               keyboardType="numeric"
               value={form.carbohydrate}
               onChangeText={(v) => setForm({ ...form, carbohydrate: v })}
@@ -205,7 +200,7 @@ export default function PersonalFoodsScreen() {
             <TextInput
               style={styles.input}
               placeholder="Fat (g)"
-              placeholderTextColor="#999999"
+              placeholderTextColor={colors.textMuted}
               keyboardType="numeric"
               value={form.fat}
               onChangeText={(v) => setForm({ ...form, fat: v })}
@@ -233,32 +228,29 @@ export default function PersonalFoodsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: colors.background },
   scrollView: { flex: 1 },
-  header: { padding: 20 },
-  backButtonText: { fontSize: 16, color: '#000000', marginBottom: 12 },
-  title: { fontSize: 28, fontWeight: '700', color: '#000000' },
   card: {
-    marginHorizontal: 20,
+    marginHorizontal: spacing.lg,
     marginBottom: 12,
     padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
   },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#000000' },
-  cardSubtitle: { fontSize: 14, color: '#666666', marginTop: 4 },
-  emptyText: { textAlign: 'center', color: '#6B6B6B', marginTop: 20, marginBottom: 20 },
-  form: { paddingHorizontal: 20, marginTop: 12 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  cardSubtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
+  emptyText: { textAlign: 'center', color: colors.textSecondary, marginTop: 20, marginBottom: 20 },
+  form: { paddingHorizontal: spacing.lg, marginTop: 12 },
   row: { flexDirection: 'row', gap: 12 },
   inputHalf: { flex: 1 },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderColor: colors.cardBorder,
+    borderRadius: radii.card,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#000000',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   saveButton: {
@@ -269,11 +261,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   saveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  cancelText: { textAlign: 'center', color: '#666666', marginTop: 16, marginBottom: 24 },
+  cancelText: { textAlign: 'center', color: colors.textSecondary, marginTop: 16, marginBottom: 24 },
   addButtonRow: {
     flexDirection: 'row',
     gap: 12,
-    marginHorizontal: 20,
+    marginHorizontal: spacing.lg,
     marginTop: 8,
     marginBottom: 40,
   },
@@ -284,14 +276,14 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   addButton: {
-    marginHorizontal: 20,
+    marginHorizontal: spacing.lg,
     marginTop: 8,
     marginBottom: 40,
     paddingVertical: 16,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: '#000000',
+    borderColor: colors.textPrimary,
     alignItems: 'center',
   },
-  addButtonText: { fontSize: 16, fontWeight: '600', color: '#000000' },
+  addButtonText: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
 });
