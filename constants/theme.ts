@@ -11,6 +11,9 @@ export const colors = {
   textSecondary: '#6B6B6B',
   textMuted: '#8A8A8A',
   danger: '#FF3B30',
+  // Off-target flag. Dark enough (about 5:1 on white) to use as text too.
+  warning: '#B25E09',
+  progressTrack: '#E4E4E4',
   observationTint: '#EAF4FB',
 };
 

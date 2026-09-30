@@ -21,10 +21,21 @@ import { track } from '../../services/analytics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { colors, spacing, radii } from '../../constants/theme';
 import { generateObservations } from '../../utils/insightsObservations';
-import { formatAmount } from '../../utils/formatNumber';
+import { formatAmount, formatCalories } from '../../utils/formatNumber';
 import { useIntakeChartMode } from '../../utils/useIntakeChartMode';
-import { buildChartBuckets, getChartMetrics, ChartPeriod } from '../../services/intakeChart';
+import {
+  buildChartBuckets,
+  getCalorieMetric,
+  getChartMetrics,
+  getNutrientMetrics,
+  getTargetStatus,
+  ChartMetric,
+  ChartMetricKey,
+  ChartPeriod,
+  TargetStatus,
+} from '../../services/intakeChart';
 import IntakeChart from '../../components/IntakeChart';
+import BarPlot from '../../components/BarPlot';
 import WeightChartPanel from '../../components/WeightChartPanel';
 import {
   buildWeightBuckets,
@@ -39,6 +50,42 @@ const MIN_WEIGHT_KG = 20;
 const MAX_WEIGHT_KG = 400;
 
 type Period = ChartPeriod;
+
+const formatMetricValue = (metric: ChartMetric, value: number): string => {
+  if (metric.unit === 'kcal') return `${formatCalories(value)} kcal`;
+  if (metric.unit === 'ml') return `${Math.round(value)}ml`;
+  return `${formatAmount(value)}${metric.unit}`;
+};
+
+const STATUS_LABEL: Record<TargetStatus, string> = {
+  onTrack: '',
+  below: 'Below target',
+  above: 'Above target',
+};
+
+// Shown when a nutrient row is tapped. Keys without a user goal fall back to general guidelines.
+const nutrientInfo = (key: ChartMetricKey, goals: DailyGoals): string => {
+  const own = (target: number | undefined, unit: string) =>
+    target ? `Your target is ${target}${unit}/day, set in Settings.` : null;
+  switch (key) {
+    case 'protein':
+      return own(goals.protein, 'g')!;
+    case 'carbohydrate':
+      return own(goals.carbohydrate, 'g') ?? 'About 260g/day (45-65% of calories) is a common general guideline. Not medical advice.';
+    case 'fat':
+      return own(goals.fat, 'g') ?? 'About 70g/day (20-35% of calories) is a common general guideline. Not medical advice.';
+    case 'fibre':
+      return own(goals.fibre, 'g') ?? '25-30g/day is a common general guideline. Not medical advice.';
+    case 'water':
+      return 'About 2,000-2,500ml/day is a common general guideline. Not medical advice.';
+    case 'sodium':
+      return 'Under 2,300mg/day is a common general guideline. Not medical advice.';
+    case 'sugar':
+      return 'Under 50g/day (ideally under 25g) is a common general guideline. Not medical advice.';
+    default:
+      return `Your target is ${goals.calories} kcal/day, set in Settings.`;
+  }
+};
 
 const PERIOD_OPTIONS: { id: Period; label: string; days: number; sectionTitle: string; observationLabel: string }[] = [
   { id: 'day', label: 'Day', days: 1, sectionTitle: 'Today', observationLabel: 'today' },
@@ -202,14 +249,23 @@ export default function InsightsScreen() {
       ? periodHistory.reduce((sum, entry) => sum + selector(entry), 0) / periodHistory.length
       : 0;
 
-  const avgCalories = Math.round(average((entry) => entry.totals.calories));
-  const avgWater = Math.round(average((entry) => entry.totals.water));
-  const avgProtein = formatAmount(average((entry) => entry.totals.protein));
-  const avgCarbohydrate = formatAmount(average((entry) => entry.totals.carbohydrate));
-  const avgFat = formatAmount(average((entry) => entry.totals.fat));
-  const avgFibre = formatAmount(average((entry) => entry.totals.fibre));
-  const avgSodium = formatAmount(average((entry) => entry.totals.sodium));
-  const avgSugar = formatAmount(average((entry) => entry.totals.sugar));
+  const buckets = buildChartBuckets(history, period);
+  // A single-day period is one bar, so show a progress bar instead of a chart.
+  const showTrend = period !== 'day';
+
+  const calorieMetric = getCalorieMetric(goals);
+  const avgCalories = average((entry) => entry.totals.calories);
+  const calorieStatus = getTargetStatus(calorieMetric, avgCalories);
+  const caloriePercent = goals.calories > 0 ? Math.round((avgCalories / goals.calories) * 100) : 0;
+
+  const nutrientRows = getNutrientMetrics(goals).map((metric) => {
+    const value = average((entry) => entry.totals[metric.key]);
+    return {
+      metric,
+      value,
+      status: periodHistory.length > 0 ? getTargetStatus(metric, value) : ('onTrack' as TargetStatus),
+    };
+  });
 
   // Calculate days within targets
   const daysWithinCalorieTarget = periodHistory.filter(
@@ -233,64 +289,6 @@ export default function InsightsScreen() {
     ...(weightObservation ? [weightObservation] : []),
   ];
 
-  const macroSquares: { label: string; value: string; infoTitle: string; infoMessage: string; tinted?: boolean }[] = [
-    {
-      label: 'Average daily calories',
-      value: `${avgCalories} kcal`,
-      infoTitle: 'Recommended daily calories',
-      infoMessage: `Your target is ${goals.calories} kcal/day, set in Settings.`,
-    },
-    {
-      label: 'Average daily water',
-      value: `${avgWater}ml`,
-      infoTitle: 'Recommended daily water',
-      infoMessage: 'About 2,000-2,500ml/day is a common general guideline. Not medical advice.',
-      tinted: true,
-    },
-    {
-      label: 'Average daily protein',
-      value: `${avgProtein}g`,
-      infoTitle: 'Recommended daily protein',
-      infoMessage: `Your target is ${goals.protein}g/day, set in Settings.`,
-    },
-    {
-      label: 'Average daily carbs',
-      value: `${avgCarbohydrate}g`,
-      infoTitle: 'Recommended daily carbs',
-      infoMessage: goals.carbohydrate
-        ? `Your target is ${goals.carbohydrate}g/day, set in Settings.`
-        : 'About 260g/day (45-65% of calories) is a common general guideline. Not medical advice.',
-    },
-    {
-      label: 'Average daily fat',
-      value: `${avgFat}g`,
-      infoTitle: 'Recommended daily fat',
-      infoMessage: goals.fat
-        ? `Your target is ${goals.fat}g/day, set in Settings.`
-        : 'About 70g/day (20-35% of calories) is a common general guideline. Not medical advice.',
-    },
-    {
-      label: 'Average daily fibre',
-      value: `${avgFibre}g`,
-      infoTitle: 'Recommended daily fibre',
-      infoMessage: goals.fibre
-        ? `Your target is ${goals.fibre}g/day, set in Settings.`
-        : '25-30g/day is a common general guideline. Not medical advice.',
-    },
-    {
-      label: 'Average daily sodium',
-      value: `${avgSodium}mg`,
-      infoTitle: 'Recommended daily sodium',
-      infoMessage: 'Under 2,300mg/day is a common general guideline. Not medical advice.',
-    },
-    {
-      label: 'Average daily sugar',
-      value: `${avgSugar}g`,
-      infoTitle: 'Recommended daily sugar',
-      infoMessage: 'Under 50g/day (ideally under 25g) is a common general guideline. Not medical advice.',
-    },
-  ];
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -303,32 +301,44 @@ export default function InsightsScreen() {
         {!(Platform.OS === 'ios' && Platform.isPad) && (
           <View style={styles.rotateHint}>
             <Ionicons name="phone-landscape-outline" size={16} color={colors.textMuted} />
-            <Text style={styles.rotateHintText}>Turn your phone sideways to chart protein, carbs, fat, fibre and water</Text>
+            <Text style={styles.rotateHintText}>Turn your phone sideways to see every nutrient side by side</Text>
           </View>
         )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{activePeriod.sectionTitle}</Text>
-          <View style={styles.insightGrid}>
-            {macroSquares.map((square) => (
-              <View
-                key={square.label}
-                style={[styles.insightSquare, square.tinted && styles.insightSquareTinted]}
-              >
-                <View style={styles.insightSquareHeader}>
-                  <Text style={styles.insightSquareLabel}>{square.label}</Text>
-                  <TouchableOpacity
-                    onPress={() => Alert.alert(square.infoTitle, square.infoMessage)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${square.infoTitle} info`}
-                  >
-                    <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.insightSquareValue}>{square.value}</Text>
+          <View
+            style={styles.heroCard}
+            accessible
+            accessibilityLabel={`Average daily calories ${activePeriod.observationLabel}: ${formatMetricValue(calorieMetric, avgCalories)}, ${caloriePercent}% of your ${goals.calories} kcal target${calorieStatus === 'above' ? ', above target' : ''}`}
+          >
+            <Text style={styles.heroLabel}>Average daily calories</Text>
+            <Text style={styles.heroValue}>{formatMetricValue(calorieMetric, avgCalories)}</Text>
+            <Text style={[styles.heroTarget, calorieStatus === 'above' && styles.statusText]}>
+              {caloriePercent}% of your {formatCalories(goals.calories)} kcal target
+            </Text>
+            {showTrend ? (
+              <BarPlot
+                values={buckets.map((bucket) => bucket.values.calories)}
+                labels={buckets.map((bucket) => bucket.label)}
+                target={goals.calories}
+                color={accentColor}
+                kind="max"
+                style={styles.heroChart}
+              />
+            ) : (
+              <View style={[styles.progressTrack, styles.heroProgress]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.min(caloriePercent, 100)}%`,
+                      backgroundColor: calorieStatus === 'above' ? colors.warning : accentColor,
+                    },
+                  ]}
+                />
               </View>
-            ))}
+            )}
           </View>
         </View>
 
@@ -361,6 +371,61 @@ export default function InsightsScreen() {
                 ]}
               />
             </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Nutrients</Text>
+          <Text style={styles.sectionCaption}>Daily averages · tap a row for its target</Text>
+          <View style={styles.groupedCard}>
+            {nutrientRows.map(({ metric, value, status }, index) => {
+              const percent = metric.target > 0 ? Math.round((value / metric.target) * 100) : 0;
+              return (
+                <TouchableOpacity
+                  key={metric.key}
+                  style={[styles.nutrientRow, index > 0 && styles.nutrientRowDivider]}
+                  onPress={() => Alert.alert(`Recommended daily ${metric.label.toLowerCase()}`, nutrientInfo(metric.key, goals))}
+                  activeOpacity={0.6}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${metric.label}: ${formatMetricValue(metric, value)} a day, ${percent}% of ${formatMetricValue(metric, metric.target)}${status !== 'onTrack' ? `, ${STATUS_LABEL[status].toLowerCase()}` : ''}`}
+                  accessibilityHint="Shows the target for this nutrient"
+                >
+                  <View style={styles.nutrientText}>
+                    <View style={styles.nutrientLabelRow}>
+                      <View style={[styles.swatch, { backgroundColor: metric.color }]} />
+                      <Text style={styles.nutrientLabel}>{metric.label}</Text>
+                    </View>
+                    <Text style={styles.nutrientValue}>{formatMetricValue(metric, value)}</Text>
+                    <Text style={[styles.nutrientTarget, status !== 'onTrack' && styles.statusText]}>
+                      {status !== 'onTrack'
+                        ? `${STATUS_LABEL[status]} · ${percent}%`
+                        : `${percent}% of ${formatMetricValue(metric, metric.target)}`}
+                    </Text>
+                  </View>
+                  {showTrend ? (
+                    <BarPlot
+                      values={buckets.map((bucket) => bucket.values[metric.key])}
+                      target={metric.target}
+                      color={metric.color}
+                      kind={metric.kind}
+                      style={styles.sparkline}
+                    />
+                  ) : (
+                    <View style={[styles.progressTrack, styles.nutrientProgress]}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            width: `${Math.min(percent, 100)}%`,
+                            backgroundColor: status === 'onTrack' ? metric.color : colors.warning,
+                          },
+                        ]}
+                      />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -575,42 +640,101 @@ const styles = StyleSheet.create({
   insightCardLast: {
     marginBottom: 0,
   },
-  insightGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-  },
-  insightSquare: {
-    width: '48%',
-    aspectRatio: 1,
+  sectionCaption: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginHorizontal: spacing.lg,
+    marginTop: -spacing.sm,
     marginBottom: spacing.sm,
-    padding: spacing.md,
+  },
+  heroCard: {
+    marginHorizontal: spacing.lg,
+    padding: spacing.lg,
     backgroundColor: colors.card,
     borderRadius: radii.card,
-    justifyContent: 'flex-start',
   },
-  insightSquareTinted: {
-    backgroundColor: '#BFE0F5',
-  },
-  insightSquareHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-  },
-  insightSquareLabel: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '400',
+  heroLabel: {
+    fontSize: 16,
     color: colors.textSecondary,
-    marginRight: spacing.xs,
   },
-  insightSquareValue: {
-    fontSize: 22,
+  heroValue: {
+    fontSize: 32,
     fontWeight: '700',
     color: colors.textPrimary,
-    textAlign: 'left',
+    marginTop: 2,
+  },
+  heroTarget: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  heroChart: {
+    height: 150,
+    flex: 0,
+    marginTop: spacing.md,
+  },
+  heroProgress: {
+    height: 10,
+    borderRadius: 5,
+    marginTop: spacing.md,
+  },
+  statusText: {
+    color: colors.warning,
+    fontWeight: '600',
+  },
+  groupedCard: {
+    marginHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
+  },
+  nutrientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    minHeight: 64,
+  },
+  nutrientRowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.cardBorder,
+  },
+  nutrientText: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  nutrientLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  swatch: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  nutrientLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  nutrientValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: 2,
+  },
+  nutrientTarget: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  sparkline: {
+    flex: 0,
+    width: 96,
+    height: 36,
+  },
+  nutrientProgress: {
+    width: 96,
+    marginTop: 0,
   },
   insightLabel: {
     fontSize: 16,
@@ -626,7 +750,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.divider,
+    backgroundColor: colors.progressTrack,
     marginTop: spacing.sm,
     overflow: 'hidden',
   },
