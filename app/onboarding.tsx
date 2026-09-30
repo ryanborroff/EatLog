@@ -89,7 +89,7 @@ export default function OnboardingScreen() {
           <Text style={styles.tagline}>The voice-first food journal</Text>
           <Text style={styles.title}>{'Tell EatLog\nwhat you ate.'}</Text>
           <Text style={styles.body}>
-            Speak naturally and EatLog will create a simple, editable journal and nutrition record.
+            Say what you ate, naturally. EatLog turns it into an editable food and nutrition journal.
           </Text>
         </View>
 
@@ -106,13 +106,13 @@ export default function OnboardingScreen() {
             ))}
           </View>
 
-          <Text style={styles.caption}>Type what you ate or a correction</Text>
+          <Text style={styles.caption}>Or type it out</Text>
           <View
             style={styles.mockInput}
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           >
-            <Text style={styles.mockInputText}>Or type what you ate…</Text>
+            <Text style={styles.mockInputText}>Type what you ate…</Text>
             <View style={[styles.mockAddButton, { backgroundColor: accentColor }]}>
               <Text style={styles.mockAddText}>Add</Text>
             </View>
@@ -125,7 +125,7 @@ export default function OnboardingScreen() {
           </View>
           <Text style={styles.title}>Ready when you are</Text>
           <View style={styles.exampleCard}>
-            <Text style={styles.exampleLabel}>Try:</Text>
+            <Text style={styles.exampleLabel}>Try saying</Text>
             <Text style={styles.exampleText}>{EXAMPLE_MEAL}</Text>
           </View>
         </View>
@@ -237,11 +237,8 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   caption: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 14,
     color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     textAlign: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.xs,
@@ -269,7 +266,7 @@ const styles = StyleSheet.create({
   mockAddText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   exampleCard: {
     marginTop: spacing.md,
@@ -278,11 +275,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   exampleLabel: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 14,
     color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
