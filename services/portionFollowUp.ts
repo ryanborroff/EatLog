@@ -5,7 +5,9 @@
 
 import { FoodItem } from '../types';
 import { scaleNutrition } from './nutritionCalculator';
-import { toGrams } from './unitConversion';
+import { densityFor } from './foodDensity';
+import { convertQuantity, toGrams } from './unitConversion';
+import type { UsualPortion } from './usualPortions';
 
 // Only ask when a wrong guess costs a lot; an assumed apple isn't worth a tap.
 export const MIN_QUESTION_CALORIES = 150;
@@ -84,3 +86,21 @@ export const applyPortions = (items: FoodItem[], choices: Record<string, Portion
       portionAssumed: false,
     };
   });
+
+/**
+ * An item whose amount was guessed, set to the user's usual portion of that
+ * food instead — or unchanged when the usual portion's unit can't be
+ * converted to the item's ("2 slices" usual vs a "bowl" this time).
+ */
+export const withUsualPortion = (item: FoodItem, usual: UsualPortion): FoodItem => {
+  if (!item.portionAssumed || item.quantity <= 0) return item;
+  const converted = convertQuantity(usual.quantity, usual.unit, item.unit, null, densityFor(item.description));
+  if (!converted) return item;
+  return {
+    ...item,
+    ...scaleNutrition(item, converted.quantity / item.quantity),
+    quantity: usual.quantity,
+    unit: usual.unit,
+    portionAssumed: false,
+  };
+};

@@ -1,5 +1,5 @@
 import { FoodItem } from '../../types';
-import { applyPortions, portionQuestions } from '../portionFollowUp';
+import { applyPortions, portionQuestions, withUsualPortion } from '../portionFollowUp';
 
 const item = (overrides: Partial<FoodItem>): FoodItem => ({
   id: '0',
@@ -61,5 +61,27 @@ describe('applyPortions', () => {
   it('clears the guess on "medium" without changing the amount', () => {
     const [pasta] = applyPortions([item({})], { '0': 'medium' });
     expect(pasta).toMatchObject({ quantity: 250, calories: 420, portionAssumed: false });
+  });
+});
+
+describe('withUsualPortion', () => {
+  it("sets a guessed amount to the user's usual portion, which isn't a guess", () => {
+    const updated = withUsualPortion(item({}), { quantity: 300, unit: 'g' });
+    expect(updated).toMatchObject({ quantity: 300, unit: 'g', calories: 504, portionAssumed: false });
+  });
+
+  it('converts a usual portion given in another measured unit', () => {
+    const updated = withUsualPortion(item({}), { quantity: 0.5, unit: 'kg' });
+    expect(updated).toMatchObject({ quantity: 0.5, unit: 'kg', calories: 840 });
+  });
+
+  it("leaves the item alone when the units can't be converted", () => {
+    const bowl = item({ quantity: 1, unit: 'bowl' });
+    expect(withUsualPortion(bowl, { quantity: 300, unit: 'g' })).toBe(bowl);
+  });
+
+  it('never overrides an amount the user stated', () => {
+    const stated = item({ portionAssumed: false });
+    expect(withUsualPortion(stated, { quantity: 300, unit: 'g' })).toBe(stated);
   });
 });
