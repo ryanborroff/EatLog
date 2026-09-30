@@ -14,8 +14,10 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // otherwise unchanged from an OpenAI integration — just a different base URL,
 // key, and default model. Free tier: https://console.groq.com
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
-const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'openai/gpt-oss-20b';
-// Used for the retry: slower, but far more reliable at long structured replies.
+// The larger model by default: its nutrition estimates are the last resort
+// for foods no database knows, so recall matters more than the speed saved.
+const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'openai/gpt-oss-120b';
+// Used for the retry.
 const GROQ_FALLBACK_MODEL = Deno.env.get('GROQ_FALLBACK_MODEL') ?? 'openai/gpt-oss-120b';
 
 // Room for a clarification answer, which is sent together with the original
