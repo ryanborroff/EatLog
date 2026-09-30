@@ -261,6 +261,7 @@ export const logBarcodeItem = async (
         ...calculated,
         confidence: 'high',
         estimated: false,
+        source: 'barcode',
       },
     ],
     totalCalories: calculated.calories,

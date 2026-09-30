@@ -177,6 +177,7 @@ export default function EditMealScreen() {
         ...calculated,
         confidence: 'high',
         estimated: false,
+        source: 'barcode',
       },
     ]);
     setShowScanner(false);

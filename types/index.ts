@@ -12,7 +12,19 @@ export interface FoodItem {
   sugar?: number;
   confidence: 'high' | 'medium' | 'low';
   estimated: boolean;
+  /** Where the nutrition came from. Unset for items logged before this was recorded. */
+  source?: FoodSource;
+  /** The foods-table row the nutrition came from, when there was one. */
+  foodId?: string;
 }
+
+/**
+ * personal_food / saved_default: the user's own foods. reference: the shared
+ * foods table (CoFID). ai_estimate: the parser's own numbers, with no
+ * database match. barcode: Open Food Facts. food_search: picked by hand from
+ * the foods table.
+ */
+export type FoodSource = 'personal_food' | 'saved_default' | 'reference' | 'ai_estimate' | 'barcode' | 'food_search';
 
 export interface Meal {
   id: string;
