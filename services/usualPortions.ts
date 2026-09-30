@@ -7,6 +7,8 @@ import { supabase } from './supabaseClient';
 export interface UsualPortion {
   quantity: number;
   unit: string;
+  /** What the portion came to, for applying it when this time's unit can't be converted. Null for older rows. */
+  calories: number | null;
 }
 
 /** The key a food's usual portion is stored under: its description, lowercased, spaces collapsed. */
@@ -18,9 +20,13 @@ export const getUsualPortions = async (descriptions: string[]): Promise<Map<stri
   const keys = [...new Set(descriptions.map(usualPortionKey))];
   if (keys.length === 0) return portions;
   try {
-    const { data, error } = await supabase.from('usual_portions').select('food_key, quantity, unit').in('food_key', keys);
+    const { data, error } = await supabase.from('usual_portions').select('food_key, quantity, unit, calories').in('food_key', keys);
     if (error) throw error;
-    for (const row of data ?? []) portions.set(row.food_key, { quantity: Number(row.quantity), unit: row.unit });
+    for (const row of data ?? []) portions.set(row.food_key, {
+        quantity: Number(row.quantity),
+        unit: row.unit,
+        calories: row.calories == null ? null : Number(row.calories),
+      });
   } catch (error) {
     console.warn('Could not load usual portions:', error);
   }
@@ -28,7 +34,9 @@ export const getUsualPortions = async (descriptions: string[]): Promise<Map<stri
 };
 
 /** Remembers each item's amount as the user's usual portion of that food. */
-export const saveUsualPortions = async (items: Pick<FoodItem, 'description' | 'quantity' | 'unit'>[]): Promise<void> => {
+export const saveUsualPortions = async (
+  items: Pick<FoodItem, 'description' | 'quantity' | 'unit' | 'calories'>[]
+): Promise<void> => {
   if (items.length === 0) return;
   const {
     data: { session },
@@ -40,6 +48,7 @@ export const saveUsualPortions = async (items: Pick<FoodItem, 'description' | 'q
       food_key: usualPortionKey(item.description),
       quantity: item.quantity,
       unit: item.unit,
+      calories: item.calories > 0 ? item.calories : null,
       updated_at: new Date().toISOString(),
     }))
   );

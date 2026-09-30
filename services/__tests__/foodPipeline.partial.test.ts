@@ -153,7 +153,7 @@ describe('foodPipeline partial resolution', () => {
   });
 
   it("uses the user's usual portion instead of asking again", async () => {
-    (getUsualPortions as jest.Mock).mockResolvedValueOnce(new Map([['pasta', { quantity: 300, unit: 'g' }]]));
+    (getUsualPortions as jest.Mock).mockResolvedValueOnce(new Map([['pasta', { quantity: 300, unit: 'g', calories: 504 }]]));
     (resolveFoodItems as jest.Mock).mockResolvedValue([
       { ...resolved('Pasta', 420), quantity: 250, unit: 'g', portionAssumed: true },
     ]);
