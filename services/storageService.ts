@@ -496,6 +496,7 @@ export const createUserFood = async (input: {
       fat: input.nutrition.fat,
       fibre: input.nutrition.fibre ?? null,
       source: 'user',
+      created_by: userId,
     })
     .select('id')
     .single();
