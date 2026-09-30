@@ -12,7 +12,6 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { DailyGoals, UserProfile } from '../../types';
 import { getUserGoals, saveUserGoals, getUserProfile } from '../../services/storageService';
 import { estimateMaintenanceCalories } from '../../services/calorieTarget';
@@ -21,6 +20,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { colors, spacing } from '../../constants/theme';
 import { SettingsGroup, SettingsRow } from '../../components/SettingsList';
 import { editSheetStyles as sheet } from '../../components/editSheetStyles';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat' | 'fibre';
 
@@ -52,7 +52,6 @@ const TARGETS_DISCLAIMER =
   'These are general guidelines, not medical advice. Recommended daily calorie needs vary by age, sex, weight, height, and activity level – consult a doctor or registered dietitian before changing your target, especially if you have a health condition.';
 
 export default function TargetsScreen() {
-  const router = useRouter();
   const { accentColor, accentTextColor } = useTheme();
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -168,17 +167,7 @@ export default function TargetsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <Text style={styles.backButtonText}>← Settings</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Daily targets</Text>
-        </View>
+        <ScreenHeader title="Daily targets" />
 
         {goals && (
           <>
@@ -297,27 +286,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: spacing.lg,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  backButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    lineHeight: 38,
-    color: colors.textPrimary,
   },
   linkLabel: {
     fontWeight: '600',

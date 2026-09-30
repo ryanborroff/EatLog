@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { colors, radii, spacing } from '../../constants/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import { deleteAccount } from '../../services/authService';
 
 export default function PrivacyScreen() {
-  const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
   const handleDeleteAccount = () => {
@@ -51,12 +51,7 @@ export default function PrivacyScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Privacy</Text>
-        </View>
+        <ScreenHeader title="Privacy" />
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>How your data is used</Text>
@@ -102,17 +97,14 @@ export default function PrivacyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: colors.background },
   scrollView: { flex: 1 },
-  header: { padding: 20 },
-  backButtonText: { fontSize: 16, color: '#000000', marginBottom: 12 },
-  title: { fontSize: 28, fontWeight: '700', color: '#000000' },
-  section: { paddingHorizontal: 20, marginBottom: 32 },
-  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#666666', textTransform: 'uppercase', marginBottom: 12 },
-  paragraph: { fontSize: 15, color: '#000000', lineHeight: 22, marginBottom: 12 },
+  section: { paddingHorizontal: spacing.lg, marginBottom: 32 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },
+  paragraph: { fontSize: 15, color: colors.textPrimary, lineHeight: 22, marginBottom: 12 },
   deleteButton: {
     backgroundColor: '#D64545',
-    borderRadius: 12,
+    borderRadius: radii.card,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,

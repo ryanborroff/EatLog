@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../constants/theme';
 
 interface ListeningIndicatorProps {
   /** Whether the mic is actively capturing — drives the breathing animation. */
@@ -227,10 +228,10 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
           },
         ]}
       >
-        {showMicIcon && <Ionicons name="mic" size={size * 0.4} color="#FFFFFF" />}
+        {showMicIcon && <Ionicons name="mic" size={size * 0.4} color={colors.onAccent} />}
         {showCheckIcon && (
           <Animated.View style={{ transform: [{ scale: checkScale }] }}>
-            <Ionicons name="checkmark" size={size * 0.45} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={size * 0.45} color={colors.onAccent} />
           </Animated.View>
         )}
       </Animated.View>

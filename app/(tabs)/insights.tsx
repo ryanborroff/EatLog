@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   segmentTextActive: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   rotateHint: {
     flexDirection: 'row',

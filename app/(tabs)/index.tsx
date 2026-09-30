@@ -299,7 +299,7 @@ export default function TodayScreen() {
         accessibilityLabel="Log what you've eaten"
         accessibilityRole="button"
       >
-        <Ionicons name="mic" size={28} color="#FFFFFF" />
+        <Ionicons name="mic" size={28} color={colors.onAccent} />
       </TouchableOpacity>
     </SafeAreaView>
   );

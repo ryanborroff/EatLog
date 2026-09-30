@@ -12,7 +12,6 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { ActivityLevel, Sex, UserProfile } from '../../types';
 import { getUserProfile, saveUserProfile, logWeight } from '../../services/storageService';
 import { ACTIVITY_LEVEL_LABELS } from '../../services/calorieTarget';
@@ -20,6 +19,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { colors, spacing } from '../../constants/theme';
 import { SettingsGroup, SettingsRow } from '../../components/SettingsList';
 import { editSheetStyles as sheet } from '../../components/editSheetStyles';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type NumericProfileField = 'birthYear' | 'heightCm' | 'weightKg';
 type ChoiceProfileField = 'sex' | 'activityLevel';
@@ -43,7 +43,6 @@ const PROFILE_DISCLAIMER =
   'We’ll use this information to suggest your starting calorie and nutrition targets. This isn’t medical advice, and you can skip it if you prefer.';
 
 export default function ProfileScreen() {
-  const router = useRouter();
   const { accentColor } = useTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [editingNumericField, setEditingNumericField] = useState<NumericProfileField | null>(null);
@@ -113,17 +112,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <Text style={styles.backButtonText}>← Settings</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Profile</Text>
-        </View>
+        <ScreenHeader title="Profile" />
 
         <SettingsGroup footer={PROFILE_DISCLAIMER}>
           <SettingsRow
@@ -237,26 +226,5 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: spacing.lg,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  backButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    lineHeight: 38,
-    color: colors.textPrimary,
   },
 });
