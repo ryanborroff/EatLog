@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Session } from '@supabase/supabase-js';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { getSession, onAuthStateChange, handleAuthRedirectUrl } from '../services/authService';
 import { track } from '../services/analytics';
+import { configureReminders, refreshReminders } from '../services/reminderService';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { OnboardingProvider, useOnboarding } from '../contexts/OnboardingContext';
 
@@ -41,6 +42,20 @@ function RootNavigator() {
       subscription.unsubscribe();
       linkingSubscription.remove();
     };
+  }, []);
+
+  // Reminders are re-planned from today's diary whenever it might have changed
+  // elsewhere: sign-in/out (signing out clears them) and returning to the app.
+  const userId = session?.user.id;
+  useEffect(() => {
+    refreshReminders();
+  }, [userId]);
+
+  useEffect(() => {
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshReminders();
+    });
+    return () => appStateSubscription.remove();
   }, []);
 
   if (loading || !onboardingReady) {
@@ -82,6 +97,7 @@ function RootNavigator() {
               />
               <Stack.Screen name="settings/personal-foods" options={{ headerShown: false }} />
               <Stack.Screen name="settings/usual-foods" options={{ headerShown: false }} />
+              <Stack.Screen name="settings/reminders" options={{ headerShown: false }} />
             </Stack.Protected>
             <Stack.Protected guard={!onboardingCompleted}>
               <Stack.Screen name="onboarding" options={{ headerShown: false }} />
@@ -99,6 +115,8 @@ function RootNavigator() {
     </GestureHandlerRootView>
   );
 }
+
+configureReminders();
 
 export default function RootLayout() {
   // The app is portrait-only; the Insights tab unlocks rotation while it's focused

@@ -498,6 +498,20 @@ export default function SettingsScreen() {
           </View>
         )}
 
+        {Platform.OS !== 'web' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Reminders</Text>
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => router.push('/settings/reminders')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.settingLabel}>Meal and water reminders</Text>
+              <Text style={styles.settingArrow}>→</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>My foods</Text>
           <TouchableOpacity
