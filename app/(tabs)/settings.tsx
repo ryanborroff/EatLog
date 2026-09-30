@@ -134,7 +134,6 @@ export default function SettingsScreen() {
             value={`${goals.calories} kcal · ${goals.protein}g protein`}
             onPress={() => router.push('/settings/targets')}
           />
-          <SettingsRow label="Dietary preferences" />
         </SettingsGroup>
 
         <SettingsGroup
