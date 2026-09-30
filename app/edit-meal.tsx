@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FoodItem, Meal } from '../types';
 import { getMealsForDate, updateMeal } from '../services/storageService';
 import { recalculateMealTotals } from '../services/correctionApplier';
+import { requantify } from '../services/requantify';
 import { parseFoodItemsFreeText, FoodParseError } from '../services/foodPipeline';
 import { getAppleHealthSyncEnabled } from '../services/healthSyncPreference';
 import { resyncMealToHealthKit } from '../services/healthKitService';
@@ -52,6 +53,7 @@ export default function EditMealScreen() {
   const [draftDescription, setDraftDescription] = useState('');
   const [draftQuantity, setDraftQuantity] = useState('');
   const [draftUnit, setDraftUnit] = useState('');
+  const [requantifyingIds, setRequantifyingIds] = useState<string[]>([]);
 
   const [showScanner, setShowScanner] = useState(false);
 
@@ -104,41 +106,46 @@ export default function EditMealScreen() {
     setDraftUnit(item.unit);
   };
 
-  const handleCommitEditItem = () => {
+  const handleCommitEditItem = async () => {
     const id = editingItemId;
     if (!id) return;
     setEditingItemId(null);
 
-    const newQuantity = parseFloat(draftQuantity);
-    const description = draftDescription.trim();
-    const unit = draftUnit.trim();
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
 
-    setItems((current) =>
-      current.map((item) => {
-        if (item.id !== id) return item;
+    const parsedQuantity = parseFloat(draftQuantity);
+    const quantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : item.quantity;
+    const unit = draftUnit.trim() || item.unit;
+    const renamed = { ...item, description: draftDescription.trim() || item.description };
 
-        const validQuantity = Number.isFinite(newQuantity) && newQuantity > 0 ? newQuantity : item.quantity;
-        const scale = item.quantity > 0 ? validQuantity / item.quantity : 1;
+    const replaceItem = (updated: FoodItem) =>
+      setItems((current) => current.map((i) => (i.id === id ? updated : i)));
 
-        const amountChanged = validQuantity !== item.quantity || (unit !== '' && unit !== item.unit);
+    if (quantity === item.quantity && unit === item.unit) {
+      replaceItem(renamed);
+      return;
+    }
 
-        return {
-          ...item,
-          description: description || item.description,
-          quantity: validQuantity,
-          unit: unit || item.unit,
-          // Setting the amount by hand replaces the guess.
-          portionAssumed: amountChanged ? false : item.portionAssumed,
-          calories: Math.round(item.calories * scale * 10) / 10,
-          protein: Math.round(item.protein * scale * 10) / 10,
-          carbohydrate: Math.round(item.carbohydrate * scale * 10) / 10,
-          fat: Math.round(item.fat * scale * 10) / 10,
-          fibre: item.fibre !== undefined ? Math.round(item.fibre * scale * 10) / 10 : undefined,
-          sodium: item.sodium !== undefined ? Math.round(item.sodium * scale * 10) / 10 : undefined,
-          sugar: item.sugar !== undefined ? Math.round(item.sugar * scale * 10) / 10 : undefined,
-        };
-      })
-    );
+    // A unit change can't be scaled linearly ("2 slices" -> "100 g" isn't 50x),
+    // so this may need to look the food up again at the new amount.
+    setRequantifyingIds((ids) => [...ids, id]);
+    try {
+      const updated = await requantify(renamed, quantity, unit);
+      if (updated) {
+        replaceItem(updated);
+      } else {
+        Alert.alert(
+          "Couldn't update item",
+          `Couldn't work out ${quantity} ${unit} of ${renamed.description.toLowerCase()}, so it hasn't been changed. Try a different unit.`
+        );
+      }
+    } catch (error) {
+      console.error('Error updating item amount:', error);
+      Alert.alert("Couldn't update item", "Couldn't work out the new amount, so it hasn't been changed. Please try again.");
+    } finally {
+      setRequantifyingIds((ids) => ids.filter((i) => i !== id));
+    }
   };
 
   const handleAddItem = (food: FoodRow) => {
@@ -188,7 +195,7 @@ export default function EditMealScreen() {
   };
 
   const handleSave = useCallback(async () => {
-    if (!meal) return;
+    if (!meal || requantifyingIds.length > 0) return;
 
     if (items.length === 0) {
       Alert.alert('No items', 'A meal needs at least one food item. Remove the meal from the diary instead if you want it gone entirely.');
@@ -213,7 +220,7 @@ export default function EditMealScreen() {
     } finally {
       setSaving(false);
     }
-  }, [meal, items, mealType, date, router]);
+  }, [meal, items, mealType, date, router, requantifyingIds]);
 
   if (loading) {
     return (
@@ -254,7 +261,10 @@ export default function EditMealScreen() {
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Edit meal</Text>
-          <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={saving || requantifyingIds.length > 0}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             {saving ? (
               <ActivityIndicator color={accentTextColor} />
             ) : (
@@ -292,6 +302,7 @@ export default function EditMealScreen() {
             {items.length === 0 && <Text style={styles.emptyText}>No items – add something below.</Text>}
             {items.map((item) => {
               const isEditing = editingItemId === item.id;
+              const isRequantifying = requantifyingIds.includes(item.id);
               return (
                 <View key={item.id} style={styles.itemRow}>
                   {isEditing ? (
@@ -334,11 +345,16 @@ export default function EditMealScreen() {
                     <TouchableOpacity
                       style={styles.itemTextWrap}
                       onPress={() => handleStartEditItem(item)}
+                      disabled={isRequantifying}
                       accessibilityLabel={`Edit ${item.description}`}
                       accessibilityRole="button"
                     >
                       <FoodItemLine item={item} style={styles.itemDescription} />
-                      <Text style={styles.itemCalories}>{formatCalories(item.calories)} kcal</Text>
+                      {isRequantifying ? (
+                        <ActivityIndicator size="small" style={styles.itemSpinner} color={colors.textSecondary} />
+                      ) : (
+                        <Text style={styles.itemCalories}>{formatCalories(item.calories)} kcal</Text>
+                      )}
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -498,6 +514,10 @@ const styles = StyleSheet.create({
   itemCalories: {
     fontSize: 13,
     color: colors.textSecondary,
+    marginTop: 2,
+  },
+  itemSpinner: {
+    alignSelf: 'flex-start',
     marginTop: 2,
   },
   itemEditWrap: {

@@ -1,5 +1,5 @@
 import { FoodItem, Meal } from '../../types';
-import { CorrectionOperation, ResolvedFoodItem } from '../../types/foodParser';
+import { CorrectionOperation, ParsedFoodItem, ResolvedFoodItem } from '../../types/foodParser';
 
 const mockResolve = jest.fn();
 jest.mock('../foodResolver', () => ({ resolveFoodItems: (...args: unknown[]) => mockResolve(...args) }));
@@ -85,5 +85,44 @@ describe('applyCorrections update_quantity', () => {
       { description: 'Toast', quantity: 100, unit: 'g', calories: 0, protein: 0, carbohydrate: 0, fat: 0, confidence: 'low', estimated: true, unresolved: true },
     ]);
     await expect(applyCorrections(meal([item({})]), [updateQuantity(100, 'g')])).rejects.toBeInstanceOf(FoodParseError);
+  });
+});
+
+describe('applyCorrections add_item / replace_item', () => {
+  const parsedItem = (description: string): ParsedFoodItem => ({
+    description, brand: null, quantity: 1, unit: 'tbsp', grams_per_unit: null, preparation: null,
+    confidence: 'medium', estimated_nutrition: null,
+  });
+  const itemOp = (type: 'add_item' | 'replace_item', description: string, target: string | null = null): CorrectionOperation => ({
+    type, target_description: target, item: parsedItem(description), new_quantity: null, new_unit: null, meal_type: null,
+  });
+  const unresolved = (description: string): ResolvedFoodItem => ({
+    description, quantity: 1, unit: 'tbsp', calories: 0, protein: 0, carbohydrate: 0, fat: 0,
+    confidence: 'low', estimated: true, unresolved: true,
+  });
+
+  it('adds an item that resolves', async () => {
+    mockResolve.mockResolvedValue([
+      { description: 'Butter', quantity: 1, unit: 'tbsp', calories: 100, protein: 0, carbohydrate: 0, fat: 11, confidence: 'medium', estimated: true },
+    ]);
+    const updated = await applyCorrections(meal([item({})]), [itemOp('add_item', 'Butter')]);
+    expect(updated.items).toHaveLength(2);
+    expect(updated.totalCalories).toBe(280);
+  });
+
+  it('refuses to add a zero-calorie item nothing could identify', async () => {
+    mockResolve.mockResolvedValue([unresolved('Blorp')]);
+    await expect(applyCorrections(meal([item({})]), [itemOp('add_item', 'Blorp')])).rejects.toMatchObject({
+      unresolvedItems: ['blorp'],
+    });
+  });
+
+  it('keeps the original food rather than replacing it with one nothing could identify', async () => {
+    mockResolve.mockResolvedValue([unresolved('Blorp')]);
+    const original = meal([item({})]);
+    await expect(applyCorrections(original, [itemOp('replace_item', 'Blorp', 'toast')])).rejects.toBeInstanceOf(
+      FoodParseError
+    );
+    expect(original.items[0].description).toBe('Toast');
   });
 });
