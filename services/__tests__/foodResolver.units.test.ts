@@ -271,3 +271,40 @@ describe('resolveFoodItems dry vs cooked grains', () => {
     expect(oats.confidence).toBe('high');
   });
 });
+
+describe('resolveFoodItems AI estimate checks', () => {
+  const curry = (nutrition: Partial<NonNullable<ParsedFoodItem['estimated_nutrition']>>) =>
+    parsed({
+      description: 'Katsu curry',
+      quantity: 350,
+      unit: 'g',
+      confidence: 'high',
+      estimated_nutrition: {
+        serving_size: 100, serving_unit: 'g', calories: 150, protein: 6, carbohydrate: 20, fat: 5, fibre: null, sodium: null, sugar: null,
+        ...nutrition,
+      },
+    });
+
+  it('never rates an AI estimate as high confidence', async () => {
+    const [item] = await resolveFoodItems([curry({})]);
+    expect(item.calories).toBe(525);
+    expect(item.confidence).toBe('medium');
+    expect(item.source).toBe('ai_estimate');
+  });
+
+  it('marks an estimate whose calories and macros disagree as low confidence', async () => {
+    const [item] = await resolveFoodItems([curry({ calories: 320 })]);
+    expect(item.confidence).toBe('low');
+    expect(item.unresolved).toBeUndefined();
+  });
+
+  it('throws out an impossible estimate instead of logging it', async () => {
+    const [item] = await resolveFoodItems([curry({ calories: 1500, fat: 160, protein: 0, carbohydrate: 0 })]);
+    expect(item.unresolved).toBe(true);
+  });
+
+  it('ignores an absurd per-unit weight', async () => {
+    const [egg] = await resolveFoodItems([parsed({ grams_per_unit: 50000 })]);
+    expect(egg.unresolved).toBe(true);
+  });
+});

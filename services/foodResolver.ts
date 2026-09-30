@@ -6,6 +6,7 @@ import { FoodItem, FoodSource } from '../types';
 import { ParsedFoodItem, ResolvedFoodItem } from '../types/foodParser';
 import { calculateNutrition, CalculatedNutrition, ReferenceNutrition } from './nutritionCalculator';
 import { densityFor } from './foodDensity';
+import { checkEstimate, plausibleGramsPerUnit } from './estimateChecks';
 import { convertQuantity, isMeasuredUnit, toGrams } from './unitConversion';
 import { supabase } from './supabaseClient';
 
@@ -268,7 +269,9 @@ const fromFoodRow = (
   };
 };
 
-const resolveNutrition = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
+const resolveNutrition = async (parsedItem: ParsedFoodItem): Promise<ResolvedFoodItem> => {
+  // A per-unit weight the AI made up out of all proportion is worse than none.
+  const item = { ...parsedItem, grams_per_unit: plausibleGramsPerUnit(parsedItem.grams_per_unit) };
   const userId = await getUserId();
   const gramsPerMl = densityFor(item.description);
 
@@ -321,6 +324,9 @@ const resolveNutrition = async (item: ParsedFoodItem): Promise<ResolvedFoodItem>
       est.protein === 0 &&
       est.carbohydrate === 0 &&
       est.fat === 0;
+    // Numbers recalled from memory with nothing to check them against: drop
+    // impossible ones, and mark ones whose calories and macros disagree as rough.
+    const verdict = checkEstimate(est, item.description);
 
     const reference: ReferenceNutrition = {
       servingSize: est.serving_size,
@@ -334,15 +340,19 @@ const resolveNutrition = async (item: ParsedFoodItem): Promise<ResolvedFoodItem>
       sugar: est.sugar ?? undefined,
     };
     const fromEstimate =
-      !isBogusEstimate && scaleToLoggedQuantity(reference, item.quantity, item.unit, item.grams_per_unit, gramsPerMl);
+      !isBogusEstimate &&
+      verdict !== 'impossible' &&
+      scaleToLoggedQuantity(reference, item.quantity, item.unit, item.grams_per_unit, gramsPerMl);
 
     if (fromEstimate) {
+      // Never "high": nothing but the model vouches for these numbers.
+      const cap = verdict === 'inconsistent' ? 'low' : 'medium';
       return {
         description: item.description,
         quantity: item.quantity,
         unit: item.unit,
         ...fromEstimate.calculated,
-        confidence: fromEstimate.approximate ? capConfidence(item.confidence, 'medium') : item.confidence,
+        confidence: capConfidence(item.confidence, cap),
         estimated: true,
         source: 'ai_estimate',
       };
