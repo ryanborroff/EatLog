@@ -39,6 +39,9 @@ const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string }[] = (
   Object.keys(ACTIVITY_LEVEL_LABELS) as ActivityLevel[]
 ).map((value) => ({ value, label: ACTIVITY_LEVEL_LABELS[value] }));
 
+// Matches the display_name column's check constraint.
+const MAX_NAME_LENGTH = 50;
+
 const PROFILE_DISCLAIMER =
   'We’ll use this information to suggest your starting calorie and nutrition targets. This isn’t medical advice, and you can skip it if you prefer.';
 
@@ -48,6 +51,8 @@ export default function ProfileScreen() {
   const [editingNumericField, setEditingNumericField] = useState<NumericProfileField | null>(null);
   const [numericFieldInput, setNumericFieldInput] = useState('');
   const [editingChoiceField, setEditingChoiceField] = useState<ChoiceProfileField | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -93,6 +98,30 @@ export default function ProfileScreen() {
     }
   };
 
+  const openNameEditor = () => {
+    if (!profile) return;
+    setNameInput(profile.name ?? '');
+    setEditingName(true);
+  };
+
+  // An empty name clears it rather than being rejected: the field is optional.
+  const handleSaveName = async () => {
+    if (!profile) return;
+    const name = nameInput.trim() || undefined;
+    const updatedProfile = { ...profile, name };
+    setSaving(true);
+    try {
+      await saveUserProfile(updatedProfile);
+      setProfile(updatedProfile);
+      setEditingName(false);
+    } catch (error) {
+      console.error('Error saving name:', error);
+      Alert.alert('Error', 'Failed to save your name.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSelectChoiceField = async (field: ChoiceProfileField, value: string) => {
     if (!profile) return;
     const updatedProfile = { ...profile, [field]: value };
@@ -114,7 +143,11 @@ export default function ProfileScreen() {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <ScreenHeader title="Profile" />
 
-        <SettingsGroup footer={PROFILE_DISCLAIMER}>
+        <SettingsGroup>
+          <SettingsRow label="Name" value={profile?.name ?? 'Not set'} onPress={openNameEditor} />
+        </SettingsGroup>
+
+        <SettingsGroup title="For target suggestions" footer={PROFILE_DISCLAIMER}>
           <SettingsRow
             label="Sex"
             value={profile?.sex ? SEX_OPTIONS.find((o) => o.value === profile.sex)?.label : 'Not set'}
@@ -142,6 +175,44 @@ export default function ProfileScreen() {
           />
         </SettingsGroup>
       </ScrollView>
+
+      <Modal visible={editingName} animationType="slide" transparent onRequestClose={() => setEditingName(false)}>
+        <KeyboardAvoidingView style={sheet.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={sheet.content}>
+            <Text style={sheet.title}>Name</Text>
+            <TextInput
+              style={sheet.input}
+              value={nameInput}
+              onChangeText={setNameInput}
+              placeholder="What should EatLog call you?"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="words"
+              autoComplete="name"
+              textContentType="name"
+              maxLength={MAX_NAME_LENGTH}
+              returnKeyType="done"
+              onSubmitEditing={handleSaveName}
+              autoFocus
+            />
+            <View style={sheet.actions}>
+              <TouchableOpacity
+                style={[sheet.button, sheet.buttonSecondary]}
+                onPress={() => setEditingName(false)}
+                disabled={saving}
+              >
+                <Text style={sheet.buttonSecondaryText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[sheet.button, { backgroundColor: accentColor }]}
+                onPress={handleSaveName}
+                disabled={saving}
+              >
+                <Text style={sheet.buttonPrimaryText}>{saving ? 'Saving...' : 'Save'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal
         visible={editingNumericField !== null}

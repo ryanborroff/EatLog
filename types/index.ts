@@ -53,6 +53,8 @@ export type Sex = 'male' | 'female';
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
 
 export interface UserProfile {
+  /** What the user wants to be called. */
+  name?: string;
   sex?: Sex;
   birthYear?: number;
   heightCm?: number;

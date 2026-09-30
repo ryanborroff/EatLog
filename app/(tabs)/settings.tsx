@@ -28,10 +28,11 @@ const WEEK_START_OPTIONS: { value: WeekStartDay; label: string }[] = [
   { value: 'monday', label: 'Monday' },
 ];
 
-// "34 · 178 cm · 72 kg" — whatever parts of the profile are filled in.
+// "Sam · 34 · 178 cm" — whatever parts of the profile are filled in.
 const profileSummary = (profile: UserProfile | null): string => {
   if (!profile) return '';
   const parts = [
+    profile.name ?? null,
     profile.birthYear ? `${new Date().getFullYear() - profile.birthYear}` : null,
     profile.heightCm ? `${profile.heightCm} cm` : null,
     profile.weightKg ? `${profile.weightKg} kg` : null,
