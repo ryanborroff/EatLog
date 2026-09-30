@@ -8,6 +8,7 @@ import {
   PlannedReminder,
   ReminderSettings,
   TodayLogState,
+  mealReminderText,
   planReminders,
 } from './reminderSchedule';
 
@@ -93,16 +94,12 @@ export const markReminderOfferShown = async (): Promise<void> => {
 
 // Scheduling
 
-const MEAL_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' } as const;
-
 // Deliberately neutral wording, and no calorie or weight figures, because these
 // show on the lock screen.
 const contentFor = (reminder: PlannedReminder): Notifications.NotificationContentInput => {
   if (reminder.kind === 'meal' && reminder.mealType) {
-    const label = MEAL_LABELS[reminder.mealType];
     return {
-      title: label,
-      body: `Had ${label.toLowerCase()}? Tap to log it.`,
+      ...mealReminderText(reminder.mealType, reminder.fireAt),
       data: { url: '/modal' },
     };
   }

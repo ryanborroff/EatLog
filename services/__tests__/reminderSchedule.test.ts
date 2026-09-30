@@ -4,6 +4,7 @@ import {
   ReminderSettings,
   TodayLogState,
   formatMinuteOfDay,
+  mealReminderText,
   planReminders,
 } from '../reminderSchedule';
 
@@ -105,6 +106,24 @@ describe('planReminders — water', () => {
     const everything = settings({ breakfast: true, lunch: true, dinner: true, water: true });
     everything.water.intervalMinutes = 90;
     expect(planReminders(everything, nothingLogged, at(28, 0)).length).toBeLessThanOrEqual(64);
+  });
+});
+
+describe('mealReminderText', () => {
+  it('fills in the meal name, lowercase mid-sentence and capitalised at the start', () => {
+    const bodies = [28, 29, 30].map((day) => mealReminderText('lunch', at(day, 13, 30)).body);
+    expect(new Set(bodies)).toEqual(
+      new Set(['Had lunch? Tap to log it.', 'Remember to log your lunch.', "Lunch finished? Don't forget to log it."])
+    );
+    expect(mealReminderText('lunch', at(28, 13, 30)).title).toBe('Lunch');
+  });
+
+  it('keeps the same message for a day however often reminders are re-planned', () => {
+    expect(mealReminderText('dinner', at(28, 19))).toEqual(mealReminderText('dinner', at(28, 20)));
+  });
+
+  it('changes message from one day to the next', () => {
+    expect(mealReminderText('breakfast', at(28, 9)).body).not.toBe(mealReminderText('breakfast', at(29, 9)).body);
   });
 });
 

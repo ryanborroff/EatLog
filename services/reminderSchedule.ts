@@ -140,6 +140,36 @@ export const planReminders = (
   return planned.sort((a, b) => a.fireAt.getTime() - b.fireAt.getTime());
 };
 
+const MEAL_LABELS: Record<ReminderMealType, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+};
+
+// {meal} is the lowercase meal name, {Meal} the capitalised one.
+const MEAL_MESSAGES = [
+  'Had {meal}? Tap to log it.',
+  'Remember to log your {meal}.',
+  "{Meal} finished? Don't forget to log it.",
+];
+
+/** Whole days since the epoch for the local calendar date — stable however often reminders are re-planned. */
+const localDayNumber = (date: Date): number =>
+  Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / (24 * 60 * 60 * 1000));
+
+/** Title and body for a meal reminder, rotating through its messages one day at a time. */
+export const mealReminderText = (
+  mealType: ReminderMealType,
+  fireAt: Date
+): { title: string; body: string } => {
+  const label = MEAL_LABELS[mealType];
+  const template = MEAL_MESSAGES[localDayNumber(fireAt) % MEAL_MESSAGES.length];
+  return {
+    title: label,
+    body: template.replace('{meal}', label.toLowerCase()).replace('{Meal}', label),
+  };
+};
+
 /** "09:30"-style label for a minute-of-day value. */
 export const formatMinuteOfDay = (minuteOfDay: number): string => {
   const hours = Math.floor(minuteOfDay / 60);
