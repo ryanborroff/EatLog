@@ -80,6 +80,8 @@ function RootNavigator() {
                   headerShown: false,
                 }}
               />
+              <Stack.Screen name="settings/profile" options={{ headerShown: false }} />
+              <Stack.Screen name="settings/targets" options={{ headerShown: false }} />
               <Stack.Screen name="settings/personal-foods" options={{ headerShown: false }} />
               <Stack.Screen name="settings/usual-foods" options={{ headerShown: false }} />
             </Stack.Protected>
