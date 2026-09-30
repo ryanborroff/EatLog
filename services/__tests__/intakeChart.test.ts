@@ -2,6 +2,7 @@ import {
   buildChartBuckets,
   getCalorieMetric,
   getChartMetrics,
+  getMacroCalorieSplit,
   getNutrientMetrics,
   getTargetStatus,
 } from '../intakeChart';
@@ -100,5 +101,23 @@ describe('getTargetStatus', () => {
 
   it('never flags a metric without a target', () => {
     expect(getTargetStatus({ ...calories, target: 0 }, 3000)).toBe('onTrack');
+  });
+});
+
+describe('getMacroCalorieSplit', () => {
+  it('weights fat at 9 kcal/g and protein and carbs at 4', () => {
+    const split = getMacroCalorieSplit({ protein: 50, carbohydrate: 100, fat: 20 });
+    // 200 + 400 + 180 = 780 kcal
+    expect(split.protein).toBeCloseTo(200 / 780);
+    expect(split.carbohydrate).toBeCloseTo(400 / 780);
+    expect(split.fat).toBeCloseTo(180 / 780);
+  });
+
+  it('is all zero for an empty day', () => {
+    expect(getMacroCalorieSplit({ protein: 0, carbohydrate: 0, fat: 0 })).toEqual({
+      protein: 0,
+      carbohydrate: 0,
+      fat: 0,
+    });
   });
 });

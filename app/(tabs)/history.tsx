@@ -5,23 +5,36 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  LayoutAnimation,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
-import { DayEntry } from '../../types';
-import { getHistory } from '../../services/storageService';
+import { DayEntry, DailyGoals } from '../../types';
+import { getHistory, getUserGoals } from '../../services/storageService';
+import {
+  getCalorieMetric,
+  getChartMetrics,
+  getMacroCalorieSplit,
+  getTargetStatus,
+  MacroKey,
+} from '../../services/intakeChart';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
 import { formatAmount, formatCalories } from '../../utils/formatNumber';
 import { formatLoggedTime } from '../../utils/formatTime';
 import { colors, spacing, radii } from '../../constants/theme';
 import CalendarPicker from '../../components/CalendarPicker';
 
+const MACRO_KEYS: MacroKey[] = ['protein', 'carbohydrate', 'fat'];
+const MACRO_LABELS: Record<MacroKey, string> = { protein: 'Protein', carbohydrate: 'Carbs', fat: 'Fat' };
+
 export default function HistoryScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [history, setHistory] = useState<DayEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [goals, setGoals] = useState<DailyGoals | null>(null);
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
   useFocusEffect(
     useCallback(() => {
@@ -31,8 +44,9 @@ export default function HistoryScreen() {
 
   const loadHistory = async () => {
     try {
-      const storedHistory = await getHistory();
+      const [storedHistory, userGoals] = await Promise.all([getHistory(), getUserGoals()]);
       setHistory(storedHistory);
+      setGoals(userGoals);
     } catch (error) {
       console.error('Error loading history:', error);
     } finally {
@@ -51,6 +65,21 @@ export default function HistoryScreen() {
 
   const formatMealType = (type: string): string => {
     return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
+  // Same colours as the Insights charts. They don't depend on goals, so any goals will do here.
+  const macroColors = Object.fromEntries(
+    getChartMetrics({ calories: 0, protein: 0 }).map((metric) => [metric.key, metric.color])
+  ) as Record<MacroKey, string>;
+
+  const toggleExpanded = (date: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedDates((current) => {
+      const next = new Set(current);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
   };
 
   const selectedEntry = selectedDate
@@ -141,45 +170,103 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         </View>
 
-        {history.map((entry) => (
-          <TouchableOpacity
-            key={entry.date}
-            style={styles.dayCard}
-            onPress={() => setSelectedDate(entry.date)}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={`${formatDate(entry.date)}, ${formatCalories(entry.totals.calories)} kcal, ${formatAmount(entry.totals.protein)}g protein, ${formatAmount(entry.totals.carbohydrate)}g carbs, ${formatAmount(entry.totals.fat)}g fat, ${formatAmount(entry.totals.fibre)}g fibre, ${formatAmount(entry.totals.sodium)}mg sodium, ${formatAmount(entry.totals.sugar)}g sugar`}
-          >
-            <Text style={styles.dayDate}>{formatDate(entry.date)}</Text>
-            <Text style={styles.dayCalories}>{formatCalories(entry.totals.calories)} kcal</Text>
-            <View style={styles.dayMacroList}>
-              <View style={styles.dayMacroRow}>
-                <Text style={styles.dayMacroLabel}>Protein</Text>
-                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.protein)}g</Text>
+        {history.length === 0 ? (
+          <View style={styles.emptyDayCard}>
+            <Text style={styles.emptyDayText}>Days you log will show up here.</Text>
+          </View>
+        ) : (
+          <View style={styles.legend} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            {MACRO_KEYS.map((key) => (
+              <View key={key} style={styles.legendItem}>
+                <View style={[styles.legendSwatch, { backgroundColor: macroColors[key] }]} />
+                <Text style={styles.legendText}>{MACRO_LABELS[key]}</Text>
               </View>
-              <View style={styles.dayMacroRow}>
-                <Text style={styles.dayMacroLabel}>Carbs</Text>
-                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.carbohydrate)}g</Text>
-              </View>
-              <View style={styles.dayMacroRow}>
-                <Text style={styles.dayMacroLabel}>Fat</Text>
-                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.fat)}g</Text>
-              </View>
-              <View style={styles.dayMacroRow}>
-                <Text style={styles.dayMacroLabel}>Fibre</Text>
-                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.fibre)}g</Text>
-              </View>
-              <View style={styles.dayMacroRow}>
-                <Text style={styles.dayMacroLabel}>Sodium</Text>
-                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.sodium)}mg</Text>
-              </View>
-              <View style={[styles.dayMacroRow, styles.dayMacroRowLast]}>
-                <Text style={styles.dayMacroLabel}>Sugar</Text>
-                <Text style={styles.dayMacroValue}>{formatAmount(entry.totals.sugar)}g</Text>
-              </View>
+            ))}
+            <Text style={styles.legendText}>· share of calories</Text>
+          </View>
+        )}
+
+        {history.map((entry) => {
+          const { totals } = entry;
+          const expanded = expandedDates.has(entry.date);
+          const split = getMacroCalorieSplit(totals);
+          const calorieDelta = goals ? totals.calories - goals.calories : null;
+          const over = goals ? getTargetStatus(getCalorieMetric(goals), totals.calories) === 'above' : false;
+          const deltaText =
+            calorieDelta === null
+              ? null
+              : Math.round(calorieDelta) === 0
+                ? 'On target'
+                : calorieDelta > 0
+                  ? `${formatCalories(calorieDelta)} kcal over target`
+                  : `${formatCalories(-calorieDelta)} kcal under target`;
+          const nutrients = [
+            { label: 'Protein', value: `${formatAmount(totals.protein)}g` },
+            { label: 'Carbs', value: `${formatAmount(totals.carbohydrate)}g` },
+            { label: 'Fat', value: `${formatAmount(totals.fat)}g` },
+            { label: 'Fibre', value: `${formatAmount(totals.fibre)}g` },
+            { label: 'Sodium', value: `${formatAmount(totals.sodium)}mg` },
+            { label: 'Sugar', value: `${formatAmount(totals.sugar)}g` },
+          ];
+
+          return (
+            <View key={entry.date} style={styles.dayCard}>
+              <TouchableOpacity
+                onPress={() => toggleExpanded(entry.date)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ expanded }}
+                accessibilityHint={expanded ? 'Hides the nutrient breakdown' : 'Shows the nutrient breakdown'}
+                accessibilityLabel={`${formatDate(entry.date)}, ${formatCalories(totals.calories)} kcal${deltaText ? `, ${deltaText}` : ''}, ${formatAmount(totals.protein)}g protein, ${formatAmount(totals.carbohydrate)}g carbs, ${formatAmount(totals.fat)}g fat, ${formatAmount(totals.fibre)}g fibre, ${formatAmount(totals.sodium)}mg sodium, ${formatAmount(totals.sugar)}g sugar`}
+              >
+                <View style={styles.dayHeader}>
+                  <Text style={styles.dayDate} numberOfLines={1}>
+                    {formatDate(entry.date)}
+                  </Text>
+                  <Text style={styles.dayCalories}>{formatCalories(totals.calories)} kcal</Text>
+                  <Ionicons
+                    name={expanded ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={colors.textMuted}
+                    style={styles.chevron}
+                  />
+                </View>
+
+                <View style={styles.macroBar}>
+                  {MACRO_KEYS.map((key) =>
+                    split[key] > 0 ? (
+                      <View key={key} style={{ flex: split[key], backgroundColor: macroColors[key] }} />
+                    ) : null
+                  )}
+                </View>
+
+                {deltaText && <Text style={[styles.dayDelta, over && styles.dayDeltaOver]}>{deltaText}</Text>}
+              </TouchableOpacity>
+
+              {expanded && (
+                <View style={styles.dayDetails}>
+                  <View style={styles.nutrientGrid}>
+                    {nutrients.map((nutrient) => (
+                      <View key={nutrient.label} style={styles.nutrientCell}>
+                        <Text style={styles.dayMacroLabel}>{nutrient.label}</Text>
+                        <Text style={styles.dayMacroValue}>{nutrient.value}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <TouchableOpacity
+                    style={styles.viewMeals}
+                    onPress={() => setSelectedDate(entry.date)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View meals for ${formatDate(entry.date)}`}
+                  >
+                    <Text style={styles.viewMealsText}>View meals</Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textPrimary} />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
-          </TouchableOpacity>
-        ))}
+          );
+        })}
       </ScrollView>
 
       <CalendarPicker
@@ -307,45 +394,107 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
   },
+  legend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legendSwatch: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 4,
+  },
+  legendText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
   dayCard: {
     marginHorizontal: spacing.lg,
     marginBottom: spacing.sm,
-    padding: spacing.lg,
+    padding: spacing.md,
     backgroundColor: colors.background,
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
-  dayDate: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
+  dayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  dayCalories: {
-    fontSize: 18,
+  dayDate: {
+    flex: 1,
+    fontSize: 17,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    marginRight: spacing.xs,
   },
-  dayMacroList: {
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
+  dayCalories: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  chevron: {
+    marginLeft: spacing.xs,
+  },
+  macroBar: {
+    flexDirection: 'row',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: colors.progressTrack,
+    marginTop: spacing.sm,
+  },
+  dayDelta: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 6,
+  },
+  dayDeltaOver: {
+    color: colors.warning,
+    fontWeight: '600',
+  },
+  dayDetails: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.cardBorder,
+    marginTop: spacing.sm,
     paddingTop: spacing.sm,
   },
-  dayMacroRow: {
+  nutrientGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
+    flexWrap: 'wrap',
+    rowGap: spacing.xs,
   },
-  dayMacroRowLast: {
-    marginBottom: 0,
+  nutrientCell: {
+    width: '50%',
   },
   dayMacroLabel: {
-    fontSize: 15,
+    fontSize: 13,
     color: colors.textSecondary,
   },
   dayMacroValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginTop: 1,
+  },
+  viewMeals: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    marginTop: spacing.xs,
+    gap: 4,
+  },
+  viewMealsText: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.textPrimary,

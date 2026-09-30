@@ -160,3 +160,24 @@ export const buildChartBuckets = (
   const byDate = new Map(history.map((entry) => [entry.date, entry.totals]));
   return buildPeriodRanges(period, now).map(({ label, dates }) => buildBucket(label, dates, byDate));
 };
+
+export type MacroKey = 'protein' | 'carbohydrate' | 'fat';
+
+// Atwater factors: kcal per gram.
+const KCAL_PER_GRAM: Record<MacroKey, number> = { protein: 4, carbohydrate: 4, fat: 9 };
+
+/**
+ * Share of the day's macro calories from protein, carbs and fat, each 0–1 and
+ * summing to 1 — or all 0 when nothing was eaten. Worked out from grams rather
+ * than the logged calorie total, so alcohol and rounding can't push it past 100%.
+ */
+export const getMacroCalorieSplit = (totals: Pick<DailyTotals, MacroKey>): Record<MacroKey, number> => {
+  const kcal = {
+    protein: totals.protein * KCAL_PER_GRAM.protein,
+    carbohydrate: totals.carbohydrate * KCAL_PER_GRAM.carbohydrate,
+    fat: totals.fat * KCAL_PER_GRAM.fat,
+  };
+  const sum = kcal.protein + kcal.carbohydrate + kcal.fat;
+  if (sum <= 0) return { protein: 0, carbohydrate: 0, fat: 0 };
+  return { protein: kcal.protein / sum, carbohydrate: kcal.carbohydrate / sum, fat: kcal.fat / sum };
+};
