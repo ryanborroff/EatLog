@@ -74,6 +74,7 @@ export default function PersonalFoodsScreen() {
       await load();
       track('personal_food_created');
     } catch (error) {
+      console.error('Error saving personal food:', error);
       Alert.alert('Error', 'Could not save this food.');
     } finally {
       setSaving(false);
