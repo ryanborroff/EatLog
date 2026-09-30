@@ -5,12 +5,10 @@
 // caller is responsible for persisting via storageService.updateMeal.
 
 import { FoodItem, Meal } from '../types';
-import { CorrectionOperation, ParsedFoodItem } from '../types/foodParser';
-import { densityFor } from './foodDensity';
+import { CorrectionOperation } from '../types/foodParser';
 import { FoodParseError } from './foodParseError';
 import { resolveFoodItems } from './foodResolver';
-import { scaleNutrition } from './nutritionCalculator';
-import { convertQuantity } from './unitConversion';
+import { requantify } from './requantify';
 
 const normalize = (text: string): string => text.trim().toLowerCase();
 
@@ -32,62 +30,6 @@ export const recalculateMealTotals = (meal: Meal, items: FoodItem[], type: Meal[
   totalSodium: items.reduce((sum, i) => sum + (i.sodium ?? 0), 0),
   totalSugar: items.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
 });
-
-/**
- * Changes an item's amount. The new amount is converted into the item's
- * current unit before scaling — "2 slices" -> "100 g" is not 50x the calories.
- * When the units can't be reconciled (a count unit with no known weight), the
- * item is resolved afresh at the new amount instead.
- */
-const requantify = async (
-  existing: FoodItem,
-  newQuantity: number,
-  newUnit: string,
-  parsedItem: ParsedFoodItem | null
-): Promise<FoodItem> => {
-  const converted = convertQuantity(
-    newQuantity,
-    newUnit,
-    existing.unit,
-    parsedItem?.grams_per_unit,
-    densityFor(existing.description)
-  );
-
-  if (converted && existing.quantity > 0) {
-    return {
-      ...existing,
-      ...scaleNutrition(existing, converted.quantity / existing.quantity),
-      quantity: newQuantity,
-      unit: newUnit,
-      estimated: existing.estimated || converted.approximate,
-      // The user just said how much, so it's no longer a guess.
-      portionAssumed: false,
-      confidence: converted.approximate && existing.confidence === 'high' ? 'medium' : existing.confidence,
-    };
-  }
-
-  const [resolved] = await resolveFoodItems([
-    {
-      brand: null,
-      grams_per_unit: null,
-      preparation: null,
-      confidence: 'medium',
-      estimated_nutrition: null,
-      ...parsedItem,
-      description: parsedItem?.description ?? existing.description,
-      quantity: newQuantity,
-      unit: newUnit,
-    },
-  ]);
-
-  if (resolved.unresolved) {
-    const name = existing.description.toLowerCase();
-    throw new FoodParseError(`Couldn't work out ${newQuantity} ${newUnit} of ${name} – try saying it another way.`, 'invalid', [
-      name,
-    ]);
-  }
-  return { ...resolved, id: existing.id, portionAssumed: false };
-};
 
 export const applyCorrections = async (meal: Meal, operations: CorrectionOperation[]): Promise<Meal> => {
   const items = [...meal.items];
@@ -125,7 +67,16 @@ export const applyCorrections = async (meal: Meal, operations: CorrectionOperati
         if (op.new_quantity == null || !op.new_unit) break;
         const index = findItemIndex(items, op.target_description);
         if (index !== -1) {
-          items[index] = await requantify(items[index], op.new_quantity, op.new_unit, op.item);
+          const updated = await requantify(items[index], op.new_quantity, op.new_unit, op.item);
+          if (!updated) {
+            const name = items[index].description.toLowerCase();
+            throw new FoodParseError(
+              `Couldn't work out ${op.new_quantity} ${op.new_unit} of ${name} – try saying it another way.`,
+              'invalid',
+              [name]
+            );
+          }
+          items[index] = updated;
         }
         break;
       }
