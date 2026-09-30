@@ -250,6 +250,7 @@ export default function InsightsScreen() {
       : 0;
 
   const buckets = buildChartBuckets(history, period);
+  const hasData = periodHistory.length > 0;
   // A single-day period is one bar, so show a progress bar instead of a chart.
   const showTrend = period !== 'day';
 
@@ -317,7 +318,11 @@ export default function InsightsScreen() {
             <Text style={[styles.heroTarget, calorieStatus === 'above' && styles.statusText]}>
               {caloriePercent}% of your {formatCalories(goals.calories)} kcal target
             </Text>
-            {showTrend ? (
+            {!hasData ? (
+              <Text style={styles.chartEmpty}>
+                Nothing logged {activePeriod.observationLabel} yet. Your daily calories will chart here.
+              </Text>
+            ) : showTrend ? (
               <BarPlot
                 values={buckets.map((bucket) => bucket.values.calories)}
                 labels={buckets.map((bucket) => bucket.label)}
@@ -402,7 +407,7 @@ export default function InsightsScreen() {
                         : `${percent}% of ${formatMetricValue(metric, metric.target)}`}
                     </Text>
                   </View>
-                  {showTrend ? (
+                  {!hasData ? null : showTrend ? (
                     <BarPlot
                       values={buckets.map((bucket) => bucket.values[metric.key])}
                       target={metric.target}
@@ -671,6 +676,12 @@ const styles = StyleSheet.create({
   heroChart: {
     height: 150,
     flex: 0,
+    marginTop: spacing.md,
+  },
+  chartEmpty: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.textSecondary,
     marginTop: spacing.md,
   },
   heroProgress: {
