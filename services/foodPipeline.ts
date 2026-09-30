@@ -2,7 +2,7 @@
 // parse) -> resolve -> compute -> (auto-log | apply correction | ask for
 // clarification). Shared by voice and text input (spec §9).
 
-import { FoodItem, Meal } from '../types';
+import { CookingChoice, FoodItem, Meal } from '../types';
 import { ParsedFoodResult, RecentMealContext, ResolvedFoodItem } from '../types/foodParser';
 import { applyCorrections } from './correctionApplier';
 import { hasCorrectionCue } from '../utils/correctionCue';
@@ -12,6 +12,8 @@ import { resolveFoodItems } from './foodResolver';
 import { calculateNutrition, ReferenceNutrition } from './nutritionCalculator';
 import { applyPortions, PortionQuestion, PortionSize, portionQuestions, withUsualPortion } from './portionFollowUp';
 import { getUsualPortions, saveUsualPortions, usualPortionKey } from './usualPortions';
+import { applyCookingChoice, applyCookingChoices, CookingQuestion, cookingQuestions } from './cookingFollowUp';
+import { getCookingPreferences, saveCookingPreferences } from './cookingPreferences';
 import { getMostRecentMeal, saveMealForDate, saveVoiceLog, updateMeal } from './storageService';
 import { supabase } from './supabaseClient';
 import { getAppleHealthSyncEnabled } from './healthSyncPreference';
@@ -135,6 +137,8 @@ export interface PortionOutcome {
   status: 'needs_portion';
   pending: PendingMeal;
   questions: PortionQuestion[];
+  /** Grains weighed without saying dry or cooked. */
+  cookingQuestions: CookingQuestion[];
 }
 
 export type FoodPipelineResult = LoggedOutcome | UpdatedOutcome | ClarificationOutcome | PortionOutcome;
@@ -162,7 +166,20 @@ const applyUsualPortions = async (items: FoodItem[]): Promise<FoodItem[]> => {
   });
 };
 
-const saveNewMeal = async ({ date, meal, skipped }: PendingMeal): Promise<LoggedOutcome> => {
+/** Grains the user has said how they weigh before get that answer, not a question. */
+const applyCookingPreferences = async (items: FoodItem[]): Promise<FoodItem[]> => {
+  const open = items.filter((item) => item.cookingOptions);
+  if (open.length === 0) return items;
+  const preferences = await getCookingPreferences(open.map((item) => item.description));
+  return items.map((item) => {
+    const choice = item.cookingOptions && preferences.get(usualPortionKey(item.description));
+    return choice ? applyCookingChoice(item, choice) : item;
+  });
+};
+
+const saveNewMeal = async ({ date, meal: pendingMeal, skipped }: PendingMeal): Promise<LoggedOutcome> => {
+  // Unanswered dry-or-cooked questions keep their guess.
+  const meal = withItems(pendingMeal, applyCookingChoices(pendingMeal.items, {}));
   const saved = { ...meal, id: await saveMealForDate(date, meal) };
   await syncMealToHealthIfEnabled(saved);
   return { status: 'logged', meal: saved, skipped };
@@ -234,36 +251,46 @@ export const processTranscript = async (
       type: parsed.meal_type,
       loggedAt: new Date().toISOString(),
     },
-    // A food the user has sized before gets their usual portion, not a question.
-    await applyUsualPortions(resolvedItems.map((item, index) => ({ id: String(index), ...item })))
+    // A food the user has sized (or said how they weigh) before gets that, not a question.
+    await applyCookingPreferences(
+      await applyUsualPortions(resolvedItems.map((item, index) => ({ id: String(index), ...item })))
+    )
   );
 
-  // No amount given for a big item: ask small/medium/large before saving.
+  // No amount given for a big item, or a grain weighed without saying dry or
+  // cooked: ask before saving.
   const questions = portionQuestions(meal.items);
-  if (questions.length > 0) {
-    return { status: 'needs_portion', pending: { date, meal, skipped }, questions };
+  const cooking = cookingQuestions(meal.items);
+  if (questions.length > 0 || cooking.length > 0) {
+    return { status: 'needs_portion', pending: { date, meal, skipped }, questions, cookingQuestions: cooking };
   }
 
   return saveNewMeal({ date, meal, skipped });
 };
 
 /**
- * Finishes a meal held back for portion questions: applies the sizes the user
- * picked (unanswered items keep their typical portion, flagged as a guess)
- * and saves it. With `remember`, the answered sizes become the user's usual
- * portions of those foods, so they aren't asked again.
+ * Finishes a meal held back for questions: applies the sizes and dry-or-
+ * cooked answers the user gave (unanswered items keep their guess, flagged as
+ * such) and saves it. With `remember`, the answers become the user's usual
+ * portions and how they weigh those foods, so they aren't asked again.
  */
 export const confirmPortions = async (
   pending: PendingMeal,
   choices: Record<string, PortionSize>,
-  remember = false
+  remember = false,
+  cookingChoices: Record<string, CookingChoice> = {}
 ): Promise<LoggedOutcome> => {
-  const items = applyPortions(pending.meal.items, choices);
+  const items = applyPortions(applyCookingChoices(pending.meal.items, cookingChoices), choices);
   if (remember) {
     // Best effort: failing to remember must not stop the meal being logged.
-    await saveUsualPortions(items.filter((item) => choices[item.id])).catch((error) =>
-      console.warn('Could not save usual portions:', error)
-    );
+    await Promise.all([
+      saveUsualPortions(items.filter((item) => choices[item.id])),
+      saveCookingPreferences(
+        pending.meal.items
+          .filter((item) => cookingChoices[item.id])
+          .map((item) => ({ item, choice: cookingChoices[item.id] }))
+      ),
+    ]).catch((error) => console.warn('Could not save your answers for next time:', error));
   }
   return saveNewMeal({ ...pending, meal: withItems(pending.meal, items) });
 };
@@ -295,7 +322,13 @@ export const parseFoodItemsFreeText = async (
   const { usable, skipped } = partitionResolved(await resolveFoodItems(parsed.items));
 
   return {
-    items: await applyUsualPortions(usable.map((item, index) => ({ id: `${Date.now()}-${index}`, ...item }))),
+    // No questions here, so a dry-or-cooked grain keeps the saved answer or the guess.
+    items: applyCookingChoices(
+      await applyCookingPreferences(
+        await applyUsualPortions(usable.map((item, index) => ({ id: `${Date.now()}-${index}`, ...item })))
+      ),
+      {}
+    ),
     skipped,
   };
 };

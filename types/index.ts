@@ -18,6 +18,33 @@ export interface FoodItem {
   foodId?: string;
   /** True when the user gave no amount and a typical portion was assumed. */
   portionAssumed?: boolean;
+  /** Set only while a grain's dry-or-cooked question is pending; never saved. */
+  cookingOptions?: CookingOptions;
+}
+
+export type CookingChoice = 'dry' | 'cooked';
+
+/** A grain's nutrition at the logged weight, both ways. */
+export interface CookingVariant {
+  calories: number;
+  protein: number;
+  carbohydrate: number;
+  fat: number;
+  fibre?: number;
+  sodium?: number;
+  sugar?: number;
+  foodId: string;
+}
+
+/**
+ * For pasta, rice and similar weighed without saying dry or cooked — which
+ * changes the calories 2–3x. The item holds the `guess` until the user
+ * answers; the other variant is ready so answering needs no lookup.
+ */
+export interface CookingOptions {
+  guess: CookingChoice;
+  dry: CookingVariant;
+  cooked: CookingVariant;
 }
 
 /**

@@ -26,9 +26,11 @@ import {
   UpdatedOutcome,
 } from '../services/foodPipeline';
 import { PortionQuestion, PortionSize } from '../services/portionFollowUp';
+import { CookingQuestion } from '../services/cookingFollowUp';
+import { formatFoodItemLine } from '../utils/formatFoodItem';
 import { ReferenceNutrition } from '../services/nutritionCalculator';
 import { track } from '../services/analytics';
-import { Meal } from '../types';
+import { CookingChoice, Meal } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { colors, spacing, radii, typography } from '../constants/theme';
 import { formatAmount, formatCalories } from '../utils/formatNumber';
@@ -173,6 +175,9 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const pendingMealRef = useRef<PendingMeal | null>(null);
   const [portionQuestions, setPortionQuestions] = useState<PortionQuestion[]>([]);
   const [portionChoices, setPortionChoices] = useState<Record<string, PortionSize>>({});
+  // Grains weighed without saying dry or cooked, and the user's answers.
+  const [cookingQuestions, setCookingQuestions] = useState<CookingQuestion[]>([]);
+  const [cookingChoices, setCookingChoices] = useState<Record<string, CookingChoice>>({});
   const [portionSaveFailed, setPortionSaveFailed] = useState(false);
   // Whether to remember the chosen sizes as this user's usual portions.
   const [rememberPortions, setRememberPortions] = useState(false);
@@ -355,10 +360,15 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         submittedRef.current = false;
         setPortionQuestions(result.questions);
         setPortionChoices({});
+        setCookingQuestions(result.cookingQuestions);
+        setCookingChoices({});
         setPortionSaveFailed(false);
         setRememberPortions(false);
         setState('portion');
-        track('portion_requested', { itemCount: result.questions.length });
+        track('portion_requested', {
+          itemCount: result.questions.length,
+          cookingCount: result.cookingQuestions.length,
+        });
       } else {
         showLogged(result);
       }
@@ -404,10 +414,12 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     track('portion_answered', {
       itemCount: portionQuestions.length,
       answeredCount: Object.keys(portionChoices).length,
+      cookingCount: cookingQuestions.length,
+      cookingAnsweredCount: Object.keys(cookingChoices).length,
       remember: rememberPortions,
     });
     try {
-      const result = await confirmPortions(pending, portionChoices, rememberPortions);
+      const result = await confirmPortions(pending, portionChoices, rememberPortions, cookingChoices);
       pendingMealRef.current = null;
       showLogged(result);
     } catch (err) {
@@ -453,6 +465,37 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     setState('logged');
     setTimeout(() => setState('result'), 450);
   };
+
+  /** One follow-up question: the item, then a row of answers to pick from. */
+  const renderChoices = (
+    itemId: string,
+    itemLabel: string,
+    options: { key: string; label: string; detail: string; calories: number }[],
+    selectedKey: string | undefined,
+    onSelect: (key: string) => void
+  ) => (
+    <View key={itemId} style={styles.portionQuestion}>
+      <Text style={styles.portionItem}>{itemLabel}</Text>
+      <View style={styles.portionOptions}>
+        {options.map((option) => {
+          const selected = selectedKey === option.key;
+          return (
+            <TouchableOpacity
+              key={option.key}
+              style={[styles.portionChip, { borderColor: accentColor }, selected && { backgroundColor: accentColor }]}
+              onPress={() => onSelect(option.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${option.label}, ${formatCalories(option.calories)} calories`}
+            >
+              <Text style={[styles.portionChipLabel, selected && styles.portionChipTextSelected]}>{option.label}</Text>
+              <Text style={[styles.portionChipDetail, selected && styles.portionChipTextSelected]}>{option.detail}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
 
   const renderContent = () => {
     switch (state) {
@@ -552,49 +595,65 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
           </View>
         );
 
-      case 'portion':
+      case 'portion': {
+        const answered = Object.keys(portionChoices).length + Object.keys(cookingChoices).length;
+        const hasCooking = cookingQuestions.length > 0;
+        const rememberLabel = Object.keys(cookingChoices).length === 0
+          ? 'Remember as my usual portion'
+          : answered === 1
+            ? 'Remember my answer'
+            : 'Remember my answers';
         return (
           <View style={styles.content}>
             <Text style={styles.prompt}>
-              {portionQuestions.length === 1 ? 'How big a portion?' : 'How big were the portions?'}
+              {portionQuestions.length === 0
+                ? 'Dry or cooked?'
+                : hasCooking
+                  ? 'A couple of quick questions'
+                  : portionQuestions.length === 1
+                    ? 'How big a portion?'
+                    : 'How big were the portions?'}
             </Text>
-            <Text style={styles.subPrompt}>Not sure? Just log it – we'll use a typical portion.</Text>
-            {portionQuestions.map((question) => (
-              <View key={question.itemId} style={styles.portionQuestion}>
-                <Text style={styles.portionItem}>{question.item.description}</Text>
-                <View style={styles.portionOptions}>
-                  {question.options.map((option) => {
-                    const selected = portionChoices[question.itemId] === option.size;
-                    return (
-                      <TouchableOpacity
-                        key={option.size}
-                        style={[styles.portionChip, { borderColor: accentColor }, selected && { backgroundColor: accentColor }]}
-                        onPress={() => setPortionChoices((current) => ({ ...current, [question.itemId]: option.size }))}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected }}
-                        accessibilityLabel={`${option.label}, ${formatCalories(option.calories)} calories`}
-                      >
-                        <Text style={[styles.portionChipLabel, selected && styles.portionChipTextSelected]}>
-                          {option.label}
-                        </Text>
-                        <Text style={[styles.portionChipDetail, selected && styles.portionChipTextSelected]}>
-                          {option.grams !== null ? `${formatAmount(option.grams)}g · ` : ''}
-                          {formatCalories(option.calories)} kcal
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            ))}
-            {Object.keys(portionChoices).length > 0 && (
+            <Text style={styles.subPrompt}>
+              {portionQuestions.length === 0
+                ? "Weighed before or after cooking? Not sure? Just log it – we'll make a best guess."
+                : hasCooking
+                  ? "Not sure? Just log it – we'll make a best guess."
+                  : "Not sure? Just log it – we'll use a typical portion."}
+            </Text>
+            {cookingQuestions.map((question) =>
+              renderChoices(
+                question.itemId,
+                formatFoodItemLine(question.item),
+                question.options.map((option) => ({
+                  key: option.choice,
+                  label: option.label,
+                  detail: `${formatCalories(option.calories)} kcal`,
+                  calories: option.calories,
+                })),
+                cookingChoices[question.itemId],
+                (choice) =>
+                  setCookingChoices((current) => ({ ...current, [question.itemId]: choice as CookingChoice }))
+              )
+            )}
+            {portionQuestions.map((question) =>
+              renderChoices(
+                question.itemId,
+                question.item.description,
+                question.options.map((option) => ({
+                  key: option.size,
+                  label: option.label,
+                  detail: `${option.grams !== null ? `${formatAmount(option.grams)}g · ` : ''}${formatCalories(option.calories)} kcal`,
+                  calories: option.calories,
+                })),
+                portionChoices[question.itemId],
+                (size) => setPortionChoices((current) => ({ ...current, [question.itemId]: size as PortionSize }))
+              )
+            )}
+            {answered > 0 && (
               <View style={styles.rememberRow}>
-                <Text style={styles.rememberLabel}>Remember as my usual portion</Text>
-                <Switch
-                  value={rememberPortions}
-                  onValueChange={setRememberPortions}
-                  accessibilityLabel="Remember as my usual portion"
-                />
+                <Text style={styles.rememberLabel}>{rememberLabel}</Text>
+                <Switch value={rememberPortions} onValueChange={setRememberPortions} accessibilityLabel={rememberLabel} />
               </View>
             )}
             {portionSaveFailed && <Text style={styles.skippedNotice}>{ERROR_COPY.network}</Text>}
@@ -607,6 +666,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
             </TouchableOpacity>
           </View>
         );
+      }
 
       case 'error':
         // Voice stays the main way forward: a failed attempt shows the mic
