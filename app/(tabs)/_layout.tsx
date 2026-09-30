@@ -4,10 +4,12 @@ import { View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { colors } from '../../constants/theme';
 import { useIntakeChartMode } from '../../utils/useIntakeChartMode';
+import { useReminderResponses } from '../../utils/useReminderResponses';
 
 export default function TabLayout() {
   const { accentTextColor } = useTheme();
   const showIntakeChart = useIntakeChartMode();
+  useReminderResponses();
 
   return (
     <Tabs
