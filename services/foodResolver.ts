@@ -2,7 +2,7 @@
 // order: 1) personal foods, 2) saved defaults, 3-4) standard reference DB
 // (exact name, then alias), 5) the AI's own estimate.
 
-import { FoodItem, FoodSource } from '../types';
+import { CookingOptions, FoodItem, FoodSource } from '../types';
 import { Ingredient, ParsedFoodItem, ResolvedFoodItem } from '../types/foodParser';
 import { calculateNutrition, CalculatedNutrition, ReferenceNutrition } from './nutritionCalculator';
 import { densityFor } from './foodDensity';
@@ -99,6 +99,11 @@ interface CookingState {
   aliases: string[];
   /** True when the state was assumed from the amount rather than said. */
   assumed: boolean;
+  /**
+   * Set when the user gave a weight but didn't say dry or cooked: the alias
+   * of the dry food, so both versions can be offered and the user asked.
+   */
+  dryAlias?: string;
 }
 
 /**
@@ -127,10 +132,14 @@ const cookingState = (item: ParsedFoodItem): CookingState | null => {
 
   const grams = toGrams(item.quantity, item.unit);
   if (grams === null) return null;
+  // A weight the parser made up for an unstated amount is as eaten: cooked.
+  if (item.quantity_source === 'assumed') return { aliases: [], assumed: true };
+  // Until the user answers, guess from the amount — but offer both.
+  const dryAlias = `dry ${base}`;
   return grams <= MAX_LIKELY_DRY_GRAMS
-    ? { aliases: [`dry ${base}`], assumed: true }
+    ? { aliases: [dryAlias], assumed: true, dryAlias }
     : // The cooked aliases are the defaults, so no special lookup — but it's still a guess.
-      { aliases: [], assumed: true };
+      { aliases: [], assumed: true, dryAlias };
 };
 
 /**
@@ -207,6 +216,16 @@ const findReferenceFood = async (item: ParsedFoodItem, state: CookingState | nul
     if (food && keepsPreparation(item, candidate, food)) return food;
   }
   return null;
+};
+
+/** The food one exact alias names, or null. */
+const findByAlias = async (alias: string): Promise<FoodRow | null> => {
+  const { data } = await supabase
+    .from('food_aliases')
+    .select('alias, foods!inner(id, name, serving_size, serving_unit, calories, protein, carbohydrate, fat, fibre, sodium, sugar)')
+    .in('alias', [alias]);
+  const match = data?.find((row) => row.alias === alias);
+  return (match?.foods as unknown as FoodRow | undefined) ?? null;
 };
 
 const toReference = (food: FoodRow): ReferenceNutrition => ({
@@ -305,6 +324,7 @@ const resolveKnown = async (item: ParsedFoodItem, userId: string | null): Promis
     // makes the result less trustworthy than an exact match — don't imply
     // false precision.
     const approximate = fromReference.approximate || Boolean(state?.assumed);
+    const cookingOptions = state?.dryAlias ? await findCookingOptions(item, state.dryAlias, gramsPerMl) : null;
     return {
       resolved: {
         description: item.description,
@@ -315,11 +335,37 @@ const resolveKnown = async (item: ParsedFoodItem, userId: string | null): Promis
         estimated: approximate,
         source: 'reference',
         foodId: referenceFood.id,
+        ...(cookingOptions ? { cookingOptions } : {}),
       },
       state,
     };
   }
   return { resolved: null, state };
+};
+
+/**
+ * A weighed grain's nutrition both dry and cooked, so the user can be asked
+ * which it was. Null unless both versions are known foods.
+ */
+const findCookingOptions = async (
+  item: ParsedFoodItem,
+  dryAlias: string,
+  gramsPerMl: number | null
+): Promise<CookingOptions | null> => {
+  // With no cooking state, the ordinary aliases find the cooked food.
+  const [dry, cooked] = await Promise.all([findByAlias(dryAlias), findReferenceFood(item, null)]);
+  if (!dry || !cooked || dry.id === cooked.id) return null;
+  const scale = (food: FoodRow) =>
+    scaleToLoggedQuantity(toReference(food), item.quantity, item.unit, item.grams_per_unit, gramsPerMl)?.calculated;
+  const dryNutrition = scale(dry);
+  const cookedNutrition = scale(cooked);
+  if (!dryNutrition || !cookedNutrition) return null;
+  const grams = toGrams(item.quantity, item.unit);
+  return {
+    guess: grams !== null && grams <= MAX_LIKELY_DRY_GRAMS ? 'dry' : 'cooked',
+    dry: { ...dryNutrition, foodId: dry.id },
+    cooked: { ...cookedNutrition, foodId: cooked.id },
+  };
 };
 
 /** Tier 5: a food the match-food function picked from a shortlist of real ones. */

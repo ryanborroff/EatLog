@@ -17,6 +17,10 @@ jest.mock('../usualPortions', () => ({
   getUsualPortions: jest.fn().mockResolvedValue(new Map()),
   saveUsualPortions: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('../cookingPreferences', () => ({
+  getCookingPreferences: jest.fn().mockResolvedValue(new Map()),
+  saveCookingPreferences: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../healthSyncPreference', () => ({
   getAppleHealthSyncEnabled: jest.fn().mockResolvedValue(false),
 }));
@@ -30,6 +34,7 @@ import { resolveFoodItems } from '../foodResolver';
 import { getMostRecentMeal, saveMealForDate } from '../storageService';
 import { supabase } from '../supabaseClient';
 import { getUsualPortions, saveUsualPortions } from '../usualPortions';
+import { getCookingPreferences, saveCookingPreferences } from '../cookingPreferences';
 
 const parsed: LogFoodResult = {
   intent: 'log_food',
@@ -163,6 +168,56 @@ describe('foodPipeline partial resolution', () => {
     expect(result.status).toBe('logged');
     if (result.status !== 'logged') return;
     expect(result.meal.items[0]).toMatchObject({ quantity: 300, calories: 504, portionAssumed: false });
+  });
+
+  const weighedPasta = () => ({
+    ...resolved('Pasta', 343),
+    quantity: 100,
+    unit: 'g',
+    cookingOptions: {
+      guess: 'dry' as const,
+      dry: { calories: 343, protein: 11, carbohydrate: 76, fat: 2, foodId: 'dry' },
+      cooked: { calories: 169, protein: 6, carbohydrate: 37, fat: 1, foodId: 'cooked' },
+    },
+  });
+
+  it('asks whether a weighed grain was dry or cooked, and applies the answer', async () => {
+    (resolveFoodItems as jest.Mock).mockResolvedValue([weighedPasta()]);
+
+    const result = await processTranscript('100g pasta', '2026-09-28');
+    expect(result.status).toBe('needs_portion');
+    if (result.status !== 'needs_portion') return;
+    expect(result.questions).toEqual([]);
+    expect(result.cookingQuestions.map((q) => q.item.description)).toEqual(['Pasta']);
+    expect(saveMealForDate).not.toHaveBeenCalled();
+
+    const logged = await confirmPortions(result.pending, {}, true, { [result.cookingQuestions[0].itemId]: 'cooked' });
+    expect(logged.meal.items[0]).toMatchObject({ calories: 169, foodId: 'cooked', estimated: false });
+    expect(logged.meal.items[0].cookingOptions).toBeUndefined();
+    expect(saveCookingPreferences).toHaveBeenCalledWith([
+      expect.objectContaining({ item: expect.objectContaining({ description: 'Pasta' }), choice: 'cooked' }),
+    ]);
+  });
+
+  it('logs the guess when the dry-or-cooked question is left unanswered', async () => {
+    (resolveFoodItems as jest.Mock).mockResolvedValue([weighedPasta()]);
+    const result = await processTranscript('100g pasta', '2026-09-28');
+    if (result.status !== 'needs_portion') throw new Error('expected a question');
+
+    const logged = await confirmPortions(result.pending, {});
+    expect(logged.meal.items[0]).toMatchObject({ calories: 343, estimated: true });
+    expect(saveMealForDate).toHaveBeenCalledWith('2026-09-28', expect.objectContaining({ totalCalories: 343 }));
+  });
+
+  it("uses the user's saved answer instead of asking again", async () => {
+    (getCookingPreferences as jest.Mock).mockResolvedValueOnce(new Map([['pasta', 'cooked']]));
+    (resolveFoodItems as jest.Mock).mockResolvedValue([weighedPasta()]);
+
+    const result = await processTranscript('100g pasta', '2026-09-28');
+
+    expect(result.status).toBe('logged');
+    if (result.status !== 'logged') return;
+    expect(result.meal.items[0]).toMatchObject({ calories: 169, estimated: false });
   });
 
   it('logs straight away when no guessed portion is worth asking about', async () => {

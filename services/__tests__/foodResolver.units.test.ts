@@ -403,3 +403,37 @@ describe('resolveFoodItems matched foods', () => {
     expect(curry.source).toBe('ai_estimate');
   });
 });
+
+describe('resolveFoodItems dry-or-cooked options', () => {
+  it('offers both versions of a grain weighed without saying which, keeping the guess', async () => {
+    const [pasta] = await resolveFoodItems([parsed({ description: 'Pasta', quantity: 100, unit: 'g', quantity_source: 'stated' })]);
+    expect(pasta.calories).toBe(343);
+    expect(pasta.cookingOptions).toMatchObject({
+      guess: 'dry',
+      dry: { calories: 343, foodId: 'Pasta, white, dried, raw' },
+      cooked: { calories: 169, foodId: 'Pasta, white, dried, boiled in unsalted water' },
+    });
+
+    const [rice] = await resolveFoodItems([parsed({ description: 'Rice', quantity: 200, unit: 'g', quantity_source: 'stated' })]);
+    expect(rice.cookingOptions?.guess).toBe('cooked');
+    expect(rice.calories).toBe(262);
+  });
+
+  it("doesn't ask when the user said dry or cooked", async () => {
+    const [dry] = await resolveFoodItems([parsed({ description: 'Pasta', preparation: 'dry', quantity: 100, unit: 'g' })]);
+    const [cooked] = await resolveFoodItems([parsed({ description: 'Cooked rice', quantity: 100, unit: 'g' })]);
+    expect(dry.cookingOptions).toBeUndefined();
+    expect(cooked.cookingOptions).toBeUndefined();
+  });
+
+  it("treats a weight the parser assumed as cooked, and doesn't ask", async () => {
+    const [pasta] = await resolveFoodItems([parsed({ description: 'Pasta', quantity: 100, unit: 'g', quantity_source: 'assumed' })]);
+    expect(pasta.calories).toBe(169);
+    expect(pasta.cookingOptions).toBeUndefined();
+  });
+
+  it("doesn't ask without a weight", async () => {
+    const [pasta] = await resolveFoodItems([parsed({ description: 'Pasta', quantity: 1, unit: 'bowl', grams_per_unit: 250 })]);
+    expect(pasta.cookingOptions).toBeUndefined();
+  });
+});
