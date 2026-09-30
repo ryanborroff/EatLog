@@ -2,7 +2,7 @@
 // order: 1) personal foods, 2) saved defaults, 3-4) standard reference DB
 // (exact name, then alias), 5) the AI's own estimate.
 
-import { FoodItem } from '../types';
+import { FoodItem, FoodSource } from '../types';
 import { ParsedFoodItem, ResolvedFoodItem } from '../types/foodParser';
 import { calculateNutrition, CalculatedNutrition, ReferenceNutrition } from './nutritionCalculator';
 import { densityFor } from './foodDensity';
@@ -147,7 +147,34 @@ const aliasCandidates = (item: ParsedFoodItem, state: CookingState | null): stri
   ]);
   const withPreparation =
     preparation && !description.includes(preparation) ? forms.map((form) => `${preparation} ${form}`) : [];
-  return [...new Set([...(state?.aliases ?? []), ...withPreparation, ...forms])];
+  const candidates = [...(state?.aliases ?? []), ...withPreparation, ...forms];
+  // "deep-fried chicken" should find the "deep fried chicken" alias too.
+  return [...new Set(candidates.flatMap((candidate) => [candidate, candidate.replace(/-/g, ' ')]))];
+};
+
+// Preparations that add a lot of fat, and the words CoFID uses in a food's
+// name when it was prepared that way.
+const FAT_ADDING_PREPARATIONS: { said: RegExp; shown: RegExp }[] = [
+  { said: /\b(fried|fry|sauteed|sautéed)\b/, shown: /fried|fry|batter|coated/ },
+  { said: /\bbatter(ed)?\b|\btempura\b/, shown: /batter/ },
+  { said: /\b(breaded|crumbed|coated)\b|\bbreadcrumbs?\b/, shown: /coated|breadcrumb/ },
+  { said: /\broast(ed)?\b/, shown: /roast/ },
+  { said: /\bbutter(ed)?\b/, shown: /butter/ },
+  { said: /\boil\b/, shown: /oil/ },
+];
+
+/**
+ * Whether an alias match keeps a fat-adding preparation. The bare alias for
+ * "fried chicken" is "chicken" — grilled skinless breast — so without this a
+ * fried, battered or buttered food was logged as its plain version. A match
+ * counts only if the alias itself names the preparation ("fried egg") or the
+ * food it points at was prepared that way ("chips" -> fried chips).
+ */
+const keepsPreparation = (item: ParsedFoodItem, alias: string, food: FoodRow): boolean => {
+  const preparation = item.preparation ? normalize(item.preparation) : '';
+  if (!preparation || alias.includes(preparation)) return true;
+  const name = food.name.toLowerCase();
+  return FAT_ADDING_PREPARATIONS.every(({ said, shown }) => !said.test(preparation) || shown.test(name));
 };
 
 /**
@@ -174,7 +201,8 @@ const findReferenceFood = async (item: ParsedFoodItem, state: CookingState | nul
 
   for (const candidate of candidates) {
     const match = aliasMatches?.find((row) => row.alias === candidate);
-    if (match) return match.foods as unknown as FoodRow;
+    const food = match?.foods as unknown as FoodRow | undefined;
+    if (food && keepsPreparation(item, candidate, food)) return food;
   }
   return null;
 };
@@ -222,7 +250,8 @@ const fromFoodRow = (
   unit: string,
   gramsPerUnit: number | null | undefined,
   gramsPerMl: number | null,
-  confidence: ResolvedFoodItem['confidence']
+  confidence: ResolvedFoodItem['confidence'],
+  source: FoodSource
 ): ResolvedFoodItem | null => {
   const scaled = scaleToLoggedQuantity(toReference(food), quantity, unit, gramsPerUnit, gramsPerMl);
   if (!scaled) return null;
@@ -234,6 +263,8 @@ const fromFoodRow = (
     ...scaled.calculated,
     confidence: scaled.approximate ? capConfidence(confidence, 'medium') : confidence,
     estimated: scaled.approximate,
+    source,
+    foodId: food.id,
   };
 };
 
@@ -244,14 +275,14 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
   if (userId) {
     const personalFood = await findPersonalFood(item.description, userId);
     const fromPersonal =
-      personalFood && fromFoodRow(personalFood, item.quantity, item.unit, item.grams_per_unit, gramsPerMl, 'high');
+      personalFood && fromFoodRow(personalFood, item.quantity, item.unit, item.grams_per_unit, gramsPerMl, 'high', 'personal_food');
     if (fromPersonal) return fromPersonal;
 
     const foodDefault = await findFoodDefault(item.description, userId);
     // A default's saved quantity/unit takes priority — that's the point of a default.
     // (The AI's grams_per_unit describes the spoken unit, not the default's, so it doesn't apply.)
     const fromDefault =
-      foodDefault && fromFoodRow(foodDefault.food, foodDefault.quantity, foodDefault.unit, null, gramsPerMl, 'high');
+      foodDefault && fromFoodRow(foodDefault.food, foodDefault.quantity, foodDefault.unit, null, gramsPerMl, 'high', 'saved_default');
     if (fromDefault) return fromDefault;
   }
 
@@ -273,6 +304,8 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
       ...fromReference.calculated,
       confidence: approximate ? capConfidence(item.confidence, 'medium') : item.confidence,
       estimated: approximate,
+      source: 'reference',
+      foodId: referenceFood.id,
     };
   }
 
@@ -311,6 +344,7 @@ const resolveOne = async (item: ParsedFoodItem): Promise<ResolvedFoodItem> => {
         ...fromEstimate.calculated,
         confidence: fromEstimate.approximate ? capConfidence(item.confidence, 'medium') : item.confidence,
         estimated: true,
+        source: 'ai_estimate',
       };
     }
   }
@@ -376,4 +410,6 @@ export const foodRowToItem = (food: FoodRow): FoodItem => ({
   ...calculateNutrition(toReference(food), food.serving_size),
   confidence: 'high',
   estimated: false,
+  source: 'food_search',
+  foodId: food.id,
 });

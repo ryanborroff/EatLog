@@ -20,6 +20,10 @@ const mockAliases: Record<string, object> = {
   rice: mockFood('Rice, white, long grain, boiled in unsalted water', 'g', 131),
   'dry rice': mockFood('Rice, white, long grain, raw', 'g', 355),
   'egg fried rice': mockFood('Rice, egg fried, takeaway', 'g', 186),
+  chicken: mockFood('Chicken, breast, grilled without skin, meat only', 'g', 148),
+  'fried chicken': mockFood('Chicken pieces, coated, takeaway', 'g', 272),
+  'deep fried chicken': mockFood('Chicken pieces, coated, takeaway', 'g', 272),
+  chips: mockFood('Potato chips, fried in commercial oil, from takeaway fish and chip shops', 'g', 204),
 };
 
 jest.mock('../supabaseClient', () => {
@@ -125,6 +129,61 @@ describe('resolveFoodItems unit reconciliation', () => {
   it('marks the item unresolved instead of logging a wrong number when nothing converts', async () => {
     const [egg] = await resolveFoodItems([parsed({})]);
     expect(egg.unresolved).toBe(true);
+  });
+});
+
+describe('resolveFoodItems preparation', () => {
+  const buttered = {
+    serving_size: 1, serving_unit: 'slice', calories: 110, protein: 3, carbohydrate: 13, fat: 5, fibre: 1, sodium: 150, sugar: 1,
+  };
+
+  it('uses the fried alias for fried chicken', async () => {
+    const [chicken] = await resolveFoodItems([parsed({ description: 'Chicken', preparation: 'fried', quantity: 200, unit: 'g' })]);
+    expect(chicken.calories).toBe(544);
+  });
+
+  it('finds the alias whatever the hyphenation ("deep-fried")', async () => {
+    const [chicken] = await resolveFoodItems([
+      parsed({ description: 'Chicken', preparation: 'deep-fried', quantity: 100, unit: 'g' }),
+    ]);
+    expect(chicken.calories).toBe(272);
+  });
+
+  it('never falls back from a fat-adding preparation to the plain food', async () => {
+    const [toast] = await resolveFoodItems([
+      parsed({ description: 'Toast', preparation: 'buttered', quantity: 2, unit: 'slice', grams_per_unit: 36, estimated_nutrition: buttered }),
+    ]);
+    // The AI's buttered-toast estimate, not 180 kcal of dry toast.
+    expect(toast.calories).toBe(220);
+    expect(toast.source).toBe('ai_estimate');
+  });
+
+  it('keeps the plain food when it was already prepared that way ("fried" chips)', async () => {
+    const [chips] = await resolveFoodItems([parsed({ description: 'Chips', preparation: 'fried', quantity: 100, unit: 'g' })]);
+    expect(chips.calories).toBe(204);
+  });
+
+  it('keeps the plain food for preparations that add no fat', async () => {
+    const [chicken] = await resolveFoodItems([parsed({ description: 'Chicken', preparation: 'grilled', quantity: 100, unit: 'g' })]);
+    expect(chicken.calories).toBe(148);
+  });
+});
+
+describe('resolveFoodItems source', () => {
+  it('records the reference food it matched', async () => {
+    const [egg] = await resolveFoodItems([parsed({ grams_per_unit: 50 })]);
+    expect(egg.source).toBe('reference');
+    expect(egg.foodId).toBe('Eggs, chicken, whole, boiled');
+  });
+
+  it('records an AI estimate, with no food row', async () => {
+    const [egg] = await resolveFoodItems([
+      parsed({
+        estimated_nutrition: { serving_size: 1, serving_unit: 'whole', calories: 72, protein: 6.3, carbohydrate: 0.4, fat: 4.8, fibre: 0, sodium: 70, sugar: 0.2 },
+      }),
+    ]);
+    expect(egg.source).toBe('ai_estimate');
+    expect(egg.foodId).toBeUndefined();
   });
 });
 
