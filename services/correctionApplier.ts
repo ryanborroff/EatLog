@@ -5,7 +5,7 @@
 // caller is responsible for persisting via storageService.updateMeal.
 
 import { FoodItem, Meal } from '../types';
-import { CorrectionOperation } from '../types/foodParser';
+import { CorrectionOperation, ParsedFoodItem } from '../types/foodParser';
 import { FoodParseError } from './foodParseError';
 import { resolveFoodItems } from './foodResolver';
 import { requantify } from './requantify';
@@ -31,6 +31,21 @@ export const recalculateMealTotals = (meal: Meal, items: FoodItem[], type: Meal[
   totalSugar: items.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
 });
 
+/**
+ * Resolves an added/replacement item, refusing one nothing could identify.
+ * Logging it would add a phantom zero-calorie item — and for a replacement,
+ * silently drop the food it replaced — so the whole correction is rejected
+ * and the meal is left as it was.
+ */
+const resolveNewItem = async (item: ParsedFoodItem): Promise<FoodItem> => {
+  const [resolved] = await resolveFoodItems([item]);
+  if (resolved.unresolved) {
+    const name = resolved.description.toLowerCase();
+    throw new FoodParseError(`Couldn't work out ${name} – try describing it another way.`, 'invalid', [name]);
+  }
+  return { id: String(Date.now()), ...resolved };
+};
+
 export const applyCorrections = async (meal: Meal, operations: CorrectionOperation[]): Promise<Meal> => {
   const items = [...meal.items];
   let mealType = meal.type;
@@ -46,8 +61,7 @@ export const applyCorrections = async (meal: Meal, operations: CorrectionOperati
       case 'replace_item': {
         if (!op.item) break;
         const index = findItemIndex(items, op.target_description);
-        const [resolved] = await resolveFoodItems([op.item]);
-        const newItem: FoodItem = { id: String(Date.now()), ...resolved };
+        const newItem = await resolveNewItem(op.item);
         if (index !== -1) {
           items[index] = newItem;
         } else {
@@ -58,8 +72,7 @@ export const applyCorrections = async (meal: Meal, operations: CorrectionOperati
 
       case 'add_item': {
         if (!op.item) break;
-        const [resolved] = await resolveFoodItems([op.item]);
-        items.push({ id: String(Date.now()), ...resolved });
+        items.push(await resolveNewItem(op.item));
         break;
       }
 
