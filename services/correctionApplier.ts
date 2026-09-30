@@ -5,8 +5,11 @@
 // caller is responsible for persisting via storageService.updateMeal.
 
 import { FoodItem, Meal } from '../types';
-import { CorrectionOperation } from '../types/foodParser';
+import { CorrectionOperation, ParsedFoodItem } from '../types/foodParser';
+import { densityFor } from './foodDensity';
+import { FoodParseError } from './foodParseError';
 import { resolveFoodItems } from './foodResolver';
+import { convertQuantity } from './unitConversion';
 
 const normalize = (text: string): string => text.trim().toLowerCase();
 
@@ -28,6 +31,70 @@ export const recalculateMealTotals = (meal: Meal, items: FoodItem[], type: Meal[
   totalSodium: items.reduce((sum, i) => sum + (i.sodium ?? 0), 0),
   totalSugar: items.reduce((sum, i) => sum + (i.sugar ?? 0), 0),
 });
+
+const scaleItem = (item: FoodItem, scale: number): Partial<FoodItem> => ({
+  calories: Math.ceil(item.calories * scale * 10) / 10,
+  protein: Math.ceil(item.protein * scale * 10) / 10,
+  carbohydrate: Math.ceil(item.carbohydrate * scale * 10) / 10,
+  fat: Math.ceil(item.fat * scale * 10) / 10,
+  fibre: item.fibre !== undefined ? Math.ceil(item.fibre * scale * 10) / 10 : undefined,
+  sodium: item.sodium !== undefined ? Math.ceil(item.sodium * scale * 10) / 10 : undefined,
+  sugar: item.sugar !== undefined ? Math.ceil(item.sugar * scale * 10) / 10 : undefined,
+});
+
+/**
+ * Changes an item's amount. The new amount is converted into the item's
+ * current unit before scaling — "2 slices" -> "100 g" is not 50x the calories.
+ * When the units can't be reconciled (a count unit with no known weight), the
+ * item is resolved afresh at the new amount instead.
+ */
+const requantify = async (
+  existing: FoodItem,
+  newQuantity: number,
+  newUnit: string,
+  parsedItem: ParsedFoodItem | null
+): Promise<FoodItem> => {
+  const converted = convertQuantity(
+    newQuantity,
+    newUnit,
+    existing.unit,
+    parsedItem?.grams_per_unit,
+    densityFor(existing.description)
+  );
+
+  if (converted && existing.quantity > 0) {
+    return {
+      ...existing,
+      ...scaleItem(existing, converted.quantity / existing.quantity),
+      quantity: newQuantity,
+      unit: newUnit,
+      estimated: existing.estimated || converted.approximate,
+      confidence: converted.approximate && existing.confidence === 'high' ? 'medium' : existing.confidence,
+    };
+  }
+
+  const [resolved] = await resolveFoodItems([
+    {
+      brand: null,
+      grams_per_unit: null,
+      preparation: null,
+      confidence: 'medium',
+      estimated_nutrition: null,
+      ...parsedItem,
+      description: parsedItem?.description ?? existing.description,
+      quantity: newQuantity,
+      unit: newUnit,
+    },
+  ]);
+
+  if (resolved.unresolved) {
+    const name = existing.description.toLowerCase();
+    throw new FoodParseError(`Couldn't work out ${newQuantity} ${newUnit} of ${name} – try saying it another way.`, 'invalid', [
+      name,
+    ]);
+  }
+  return { ...resolved, id: existing.id };
+};
 
 export const applyCorrections = async (meal: Meal, operations: CorrectionOperation[]): Promise<Meal> => {
   const items = [...meal.items];
@@ -65,20 +132,7 @@ export const applyCorrections = async (meal: Meal, operations: CorrectionOperati
         if (op.new_quantity == null || !op.new_unit) break;
         const index = findItemIndex(items, op.target_description);
         if (index !== -1) {
-          const existing = items[index];
-          const scale = existing.quantity > 0 ? op.new_quantity / existing.quantity : 1;
-          items[index] = {
-            ...existing,
-            quantity: op.new_quantity,
-            unit: op.new_unit,
-            calories: Math.ceil(existing.calories * scale * 10) / 10,
-            protein: Math.ceil(existing.protein * scale * 10) / 10,
-            carbohydrate: Math.ceil(existing.carbohydrate * scale * 10) / 10,
-            fat: Math.ceil(existing.fat * scale * 10) / 10,
-            fibre: existing.fibre !== undefined ? Math.ceil(existing.fibre * scale * 10) / 10 : undefined,
-            sodium: existing.sodium !== undefined ? Math.ceil(existing.sodium * scale * 10) / 10 : undefined,
-            sugar: existing.sugar !== undefined ? Math.ceil(existing.sugar * scale * 10) / 10 : undefined,
-          };
+          items[index] = await requantify(items[index], op.new_quantity, op.new_unit, op.item);
         }
         break;
       }

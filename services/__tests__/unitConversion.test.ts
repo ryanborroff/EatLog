@@ -16,6 +16,17 @@ describe('convertQuantity', () => {
     expect(convertQuantity(250, 'ml', 'g')).toEqual({ quantity: 250, approximate: true });
   });
 
+  it('uses a known density for mass <-> volume', () => {
+    expect(convertQuantity(1, 'cup', 'g', null, 0.36)).toEqual({ quantity: 90, approximate: true });
+    expect(convertQuantity(90, 'g', 'ml', null, 0.36)?.quantity).toBeCloseTo(250);
+  });
+
+  it('derives a density from the weight of one spoon/cup measure', () => {
+    expect(convertQuantity(2, 'tbsp', 'g', 16)).toEqual({ quantity: 32, approximate: true });
+    // A known density wins over the estimate.
+    expect(convertQuantity(1, 'cup', 'g', 250, 0.36)?.quantity).toBeCloseTo(90);
+  });
+
   it('converts a count unit via its per-unit weight', () => {
     expect(convertQuantity(1, 'whole', 'g', 50)).toEqual({ quantity: 50, approximate: true });
     expect(convertQuantity(100, 'g', 'whole', 50)).toEqual({ quantity: 2, approximate: true });

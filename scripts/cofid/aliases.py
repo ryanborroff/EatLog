@@ -155,6 +155,21 @@ ALIASES = {
     "Noodles, egg, medium, dried, boiled in unsalted water": ["noodles", "egg noodles"],
     "Couscous, plain, cooked": ["couscous"],
     "Lentils, red, split, dried, boiled in unsalted water": ["lentils", "red lentils"],
+    # Dry weights. The resolver looks up "dry <food>" when the user said dry or
+    # uncooked, or gave a small weight (a typical dry portion) — the bare names
+    # above are the cooked foods.
+    "Pasta, white, dried, raw": ["dry pasta", "dry penne", "dry fusilli", "dry macaroni", "dry spaghetti"],
+    "Pasta, wholewheat, spaghetti, dried, raw": [
+        "dry wholewheat pasta", "dry wholemeal pasta", "dry wholewheat spaghetti",
+    ],
+    "Rice, white, long grain, raw": ["dry rice", "dry white rice"],
+    "Rice, white, basmati, raw": ["dry basmati rice"],
+    "Rice, brown, wholegrain, raw": ["dry brown rice", "dry wholegrain rice"],
+    "Noodles, egg, dried, raw": ["dry noodles", "dry egg noodles"],
+    "Couscous, plain, raw": ["dry couscous"],
+    "Lentils, red, split, dried, raw": ["dry lentils", "dry red lentils"],
+    "Lentils, green and brown, whole, dried, raw": ["dry green lentils", "dry brown lentils"],
+    "Quinoa, raw": ["dry quinoa"],
     "Tofu, soya bean, steamed": ["tofu"],
     # Meat
     "Bacon rashers, back, grilled": ["bacon", "back bacon", "bacon rasher"],

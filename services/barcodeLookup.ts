@@ -31,6 +31,8 @@ export const lookupBarcode = async (barcode: string): Promise<BarcodeProduct | n
 
   const calories = nutriments['energy-kcal_100g'];
   if (calories == null) return null;
+  // Open Food Facts gives sodium in grams; the app stores it in mg, like CoFID.
+  const sodiumGrams = nutriments['sodium_100g'];
 
   return {
     name: product_name,
@@ -42,7 +44,7 @@ export const lookupBarcode = async (barcode: string): Promise<BarcodeProduct | n
       carbohydrate: nutriments['carbohydrates_100g'] ?? 0,
       fat: nutriments['fat_100g'] ?? 0,
       fibre: nutriments['fiber_100g'] ?? undefined,
-      sodium: nutriments['sodium_100g'] ?? undefined,
+      sodium: sodiumGrams != null ? sodiumGrams * 1000 : undefined,
       sugar: nutriments['sugars_100g'] ?? undefined,
     },
   };
