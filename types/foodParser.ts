@@ -31,7 +31,15 @@ export interface ParsedFoodItem {
   grams_per_unit?: number | null;
   preparation: string | null;
   confidence: ConfidenceLevel;
+  /** For a mixed dish, its main ingredients weighed for the whole amount logged. Optional for older parse-food deployments. */
+  ingredients?: Ingredient[] | null;
   estimated_nutrition: EstimatedNutrition | null;
+}
+
+export interface Ingredient {
+  description: string;
+  grams: number;
+  preparation: string | null;
 }
 
 export interface LogFoodResult {

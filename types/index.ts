@@ -26,7 +26,16 @@ export interface FoodItem {
  * database match. barcode: Open Food Facts. food_search: picked by hand from
  * the foods table.
  */
-export type FoodSource = 'personal_food' | 'saved_default' | 'reference' | 'ai_estimate' | 'barcode' | 'food_search';
+export type FoodSource =
+  | 'personal_food'
+  | 'saved_default'
+  | 'reference'
+  | 'open_food_facts'
+  /** Added up from a mixed dish's ingredients, each matched to a reference food. */
+  | 'ingredients'
+  | 'ai_estimate'
+  | 'barcode'
+  | 'food_search';
 
 export interface Meal {
   id: string;

@@ -58,7 +58,15 @@ jest.mock('../supabaseClient', () => {
   };
 });
 
+const mockMatchFoods = jest.fn();
+jest.mock('../foodMatcher', () => ({ matchFoods: (...args: unknown[]) => mockMatchFoods(...args) }));
+
 import { resolveFoodItems } from '../foodResolver';
+
+beforeEach(() => {
+  mockMatchFoods.mockReset();
+  mockMatchFoods.mockResolvedValue(new Map());
+});
 
 const parsed = (overrides: Partial<ParsedFoodItem>): ParsedFoodItem => ({
   description: 'egg',
@@ -306,5 +314,92 @@ describe('resolveFoodItems AI estimate checks', () => {
   it('ignores an absurd per-unit weight', async () => {
     const [egg] = await resolveFoodItems([parsed({ grams_per_unit: 50000 })]);
     expect(egg.unresolved).toBe(true);
+  });
+});
+
+describe('resolveFoodItems matched foods', () => {
+  const cofid = (name: string, calories: number) => ({ ...mockFood(name, 'g', calories), source: 'cofid' as const });
+  const estimate = { serving_size: 100, serving_unit: 'g', calories: 150, protein: 6, carbohydrate: 20, fat: 5, fibre: null, sodium: null, sugar: null };
+
+  it('only asks match-food about items the aliases missed', async () => {
+    await resolveFoodItems([parsed({ description: 'toast', quantity: 2, unit: 'slices', grams_per_unit: 36 }), parsed({ description: 'Tikka masala', quantity: 300, unit: 'g' })]);
+    expect(mockMatchFoods).toHaveBeenCalledTimes(1);
+    expect(mockMatchFoods.mock.calls[0][0]).toEqual([
+      { key: '1', description: 'Tikka masala', preparation: null, brand: null },
+    ]);
+  });
+
+  it('uses the reference food match-food picked, over the AI estimate', async () => {
+    mockMatchFoods.mockResolvedValue(new Map([['0', cofid('Curry, chicken tikka masala, retail, reheated', 140)]]));
+    const [curry] = await resolveFoodItems([
+      parsed({ description: 'Chicken tikka masala', quantity: 300, unit: 'g', estimated_nutrition: estimate }),
+    ]);
+    expect(curry.calories).toBe(420);
+    expect(curry.source).toBe('reference');
+    expect(curry.foodId).toBe('Curry, chicken tikka masala, retail, reheated');
+    expect(curry.confidence).toBe('medium');
+  });
+
+  it('uses a branded product with no food id', async () => {
+    const { id: _id, ...beans } = mockFood('Heinz Beanz', 'g', 81);
+    mockMatchFoods.mockResolvedValue(new Map([['0', { ...beans, id: null, source: 'open_food_facts' }]]));
+    const [item] = await resolveFoodItems([
+      parsed({ description: 'Beanz', brand: 'Heinz', quantity: 200, unit: 'g' }),
+    ]);
+    expect(item.calories).toBe(162);
+    expect(item.source).toBe('open_food_facts');
+    expect(item.foodId).toBeUndefined();
+  });
+
+  it('falls back to the AI estimate when any ingredient is not found', async () => {
+    // Only the noodles match; the fried egg isn't an alias (plain "egg" would drop the frying) and isn't matched.
+    mockMatchFoods.mockResolvedValue(new Map([['0.1', cofid('Noodles, egg, medium, dried, boiled in unsalted water', 166)]]));
+    const [dish] = await resolveFoodItems([
+      parsed({
+        description: 'Egg noodle stir fry',
+        quantity: 1,
+        unit: 'plate',
+        grams_per_unit: 350,
+        estimated_nutrition: estimate,
+        ingredients: [
+          { description: 'egg', grams: 100, preparation: 'fried' },
+          { description: 'noodles', grams: 250, preparation: null },
+        ],
+      }),
+    ]);
+    const keys = mockMatchFoods.mock.calls[0][0].map((q: { key: string }) => q.key).sort();
+    expect(keys).toEqual(['0', '0.0', '0.1']);
+    expect(dish.source).toBe('ai_estimate');
+    expect(dish.calories).toBe(525);
+  });
+
+  it('builds the dish when all ingredients resolve', async () => {
+    mockMatchFoods.mockResolvedValue(new Map([['0.1', cofid('Noodles, egg, medium, dried, boiled in unsalted water', 166)]]));
+    const [dish] = await resolveFoodItems([
+      parsed({
+        description: 'Egg noodle stir fry',
+        quantity: 1,
+        unit: 'plate',
+        grams_per_unit: 350,
+        estimated_nutrition: estimate,
+        ingredients: [
+          { description: 'egg', grams: 100, preparation: null },
+          { description: 'noodles', grams: 250, preparation: null },
+        ],
+      }),
+    ]);
+    // 100 g egg at 143 + 250 g noodles at 166 per 100 g
+    expect(dish.calories).toBeCloseTo(558, 0);
+    expect(dish.source).toBe('ingredients');
+    expect(dish.estimated).toBe(true);
+    expect(dish.confidence).toBe('medium');
+  });
+
+  it('falls back to the AI estimate when matching is unavailable', async () => {
+    const [curry] = await resolveFoodItems([
+      parsed({ description: 'Katsu curry', quantity: 200, unit: 'g', estimated_nutrition: estimate }),
+    ]);
+    expect(curry.calories).toBe(300);
+    expect(curry.source).toBe('ai_estimate');
   });
 });
