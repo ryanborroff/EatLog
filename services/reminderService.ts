@@ -10,6 +10,7 @@ import {
   TodayLogState,
   mealReminderText,
   planReminders,
+  waterReminderText,
 } from './reminderSchedule';
 
 const SETTINGS_KEY = 'eatlog.reminderSettings';
@@ -104,8 +105,7 @@ const contentFor = (reminder: PlannedReminder): Notifications.NotificationConten
     };
   }
   return {
-    title: 'Water',
-    body: 'Time for a glass of water?',
+    ...waterReminderText(reminder.fireAt),
     data: { url: '/' },
     categoryIdentifier: WATER_CATEGORY_ID,
   };

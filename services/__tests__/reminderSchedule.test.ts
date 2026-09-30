@@ -3,9 +3,11 @@ import {
   PLAN_HORIZON_DAYS,
   ReminderSettings,
   TodayLogState,
+  WATER_INTERVAL_OPTIONS_MINUTES,
   formatMinuteOfDay,
   mealReminderText,
   planReminders,
+  waterReminderText,
 } from '../reminderSchedule';
 
 // Local-time dates, so the tests hold in any timezone.
@@ -124,6 +126,26 @@ describe('mealReminderText', () => {
 
   it('changes message from one day to the next', () => {
     expect(mealReminderText('breakfast', at(28, 9)).body).not.toBe(mealReminderText('breakfast', at(29, 9)).body);
+  });
+});
+
+describe('waterReminderText', () => {
+  it('keeps the same message for a reminder however often it is re-planned', () => {
+    expect(waterReminderText(at(28, 10, 15))).toEqual(waterReminderText(at(28, 10, 15)));
+    expect(waterReminderText(at(28, 10)).title).toBe('Water');
+  });
+
+  it.each(WATER_INTERVAL_OPTIONS_MINUTES)('never repeats back to back every %i minutes', (interval) => {
+    const plan = planReminders(
+      { ...settings({ water: true }), water: { ...DEFAULT_REMINDER_SETTINGS.water, enabled: true, intervalMinutes: interval } },
+      nothingLogged,
+      at(28, 0)
+    );
+    const bodies = plan.map((reminder) => waterReminderText(reminder.fireAt).body);
+    for (let i = 1; i < bodies.length; i++) {
+      if (plan[i].fireAt.getDate() === plan[i - 1].fireAt.getDate()) expect(bodies[i]).not.toBe(bodies[i - 1]);
+    }
+    expect(new Set(bodies).size).toBeGreaterThan(1);
   });
 });
 

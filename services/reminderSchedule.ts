@@ -170,6 +170,23 @@ export const mealReminderText = (
   };
 };
 
+const WATER_MESSAGES = [
+  'Time for a glass of water?',
+  'Quick water break?',
+  'Top up your water.',
+  'A glass of water now keeps you on track.',
+];
+
+/**
+ * Title and body for a water reminder, rotating by the local hour it fires.
+ * Every interval option is 1–3 hours, so back-to-back reminders never repeat
+ * with four messages.
+ */
+export const waterReminderText = (fireAt: Date): { title: string; body: string } => {
+  const hourNumber = localDayNumber(fireAt) * 24 + fireAt.getHours();
+  return { title: 'Water', body: WATER_MESSAGES[hourNumber % WATER_MESSAGES.length] };
+};
+
 /** "09:30"-style label for a minute-of-day value. */
 export const formatMinuteOfDay = (minuteOfDay: number): string => {
   const hours = Math.floor(minuteOfDay / 60);
