@@ -64,6 +64,13 @@
         }
       ],
       "@kingstinct/react-native-healthkit",
+      "./plugins/local-notifications-only",
+      [
+        "expo-notifications",
+        {
+          "color": "#16A36A"
+        }
+      ],
       [
         "expo-build-properties",
         {

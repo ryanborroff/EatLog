@@ -144,6 +144,9 @@ export default function SettingsScreen() {
         >
           <SettingsRow label="My foods" onPress={() => router.push('/settings/personal-foods')} />
           <SettingsRow label="Quick-log shortcuts" onPress={() => router.push('/settings/usual-foods')} />
+          {Platform.OS !== 'web' && (
+            <SettingsRow label="Meal and water reminders" onPress={() => router.push('/settings/reminders')} />
+          )}
         </SettingsGroup>
 
         {Platform.OS === 'ios' && (

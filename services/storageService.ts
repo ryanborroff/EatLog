@@ -24,6 +24,23 @@ const getUserId = async (): Promise<string> => {
   return session.user.id;
 };
 
+// Diary change notifications — lets reminders re-plan after anything is logged
+// without this module depending on them.
+
+type DiaryListener = () => void;
+const diaryListeners = new Set<DiaryListener>();
+
+export const onDiaryChanged = (listener: DiaryListener): (() => void) => {
+  diaryListeners.add(listener);
+  return () => {
+    diaryListeners.delete(listener);
+  };
+};
+
+const notifyDiaryChanged = () => {
+  diaryListeners.forEach((listener) => listener());
+};
+
 // User Goals
 
 export const getUserGoals = async (): Promise<DailyGoals> => withClockSkewRetry(async () => {
@@ -207,6 +224,7 @@ export const saveMealForDate = async (date: string, meal: Meal): Promise<string>
     if (itemsError) throw itemsError;
   }
 
+  notifyDiaryChanged();
   return insertedMeal.id;
 };
 
@@ -241,11 +259,14 @@ export const updateMeal = async (date: string, mealId: string, updatedMeal: Meal
     const { error: itemsError } = await supabase.from('meal_items').insert(itemRows);
     if (itemsError) throw itemsError;
   }
+
+  notifyDiaryChanged();
 };
 
 export const deleteMeal = async (date: string, mealId: string): Promise<void> => {
   const { error } = await supabase.from('meals').delete().eq('id', mealId);
   if (error) throw error;
+  notifyDiaryChanged();
 };
 
 /** Most recently logged meal for a date, or null if none — used to target corrections. */
@@ -374,6 +395,7 @@ export const addWater = async (date: string, amountMl: number): Promise<void> =>
     .insert({ user_id: userId, date, amount_ml: amountMl });
 
   if (error) throw error;
+  notifyDiaryChanged();
 };
 
 // Weight

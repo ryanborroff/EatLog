@@ -18,7 +18,14 @@ import {
   createDayEntry,
   addWater,
   deleteMeal,
+  onDiaryChanged,
 } from '../../services/storageService';
+import {
+  enableDefaultReminders,
+  markReminderOfferShown,
+  requestReminderPermission,
+  shouldOfferReminders,
+} from '../../services/reminderService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { formatFoodItemLine } from '../../utils/formatFoodItem';
@@ -51,6 +58,38 @@ export default function TodayScreen() {
       loadData();
     }, [])
   );
+
+  // Picks up entries made outside this screen while it stays focused, e.g. the
+  // "Add 250ml" button on a water reminder.
+  useEffect(() => onDiaryChanged(() => loadData()), []);
+
+  // Offer reminders once, after the first meal is on the board, rather than
+  // asking for notification permission cold.
+  const hasMealsToday = (todayEntry?.meals.length ?? 0) > 0;
+  useEffect(() => {
+    if (!hasMealsToday) return;
+    let cancelled = false;
+    shouldOfferReminders().then((offer) => {
+      if (!offer || cancelled) return;
+      markReminderOfferShown();
+      Alert.alert(
+        'Want a reminder?',
+        'EatLog can nudge you if you forget to log a meal, and remind you to drink water. You can change this any time in Settings.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          {
+            text: 'Turn on',
+            onPress: async () => {
+              if (await requestReminderPermission()) await enableDefaultReminders();
+            },
+          },
+        ]
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasMealsToday]);
 
   const loadData = async () => {
     try {
