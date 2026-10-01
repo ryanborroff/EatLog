@@ -101,7 +101,7 @@ const buildBucket = (label: string, dates: string[], byDate: Map<string, DailyTo
 };
 
 export interface PeriodRange {
-  /** Short axis label, e.g. "Mon", "12", "Mar" — blank where the axis would crowd. */
+  /** Short axis label, e.g. "M", "12", "Mar" — blank where the axis would crowd. */
   label: string;
   /** UTC day keys covered by this bar. */
   dates: string[];
@@ -117,10 +117,11 @@ export const buildPeriodRanges = (period: ChartPeriod, now: Date = new Date()): 
     const days = period === 'day' ? 1 : period === 'week' ? 7 : 30;
     return Array.from({ length: days }, (_, index) => {
       const date = addDays(now, index - (days - 1));
+      // Week uses single letters (M T W…) so seven labels fit side by side in a small panel.
       const label =
         period === 'month'
           ? String(date.getDate())
-          : date.toLocaleDateString('en-GB', { weekday: 'short' });
+          : date.toLocaleDateString('en-GB', { weekday: period === 'week' ? 'narrow' : 'short' });
       return { label, dates: [toDateKey(date)] };
     });
   }

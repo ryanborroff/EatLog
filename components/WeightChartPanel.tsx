@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { WeightBucket, formatKg, formatKgChange } from '../services/weightInsights';
 import { spacing, radii, ThemeColors } from '../constants/theme';
 import { useThemedStyles } from '../contexts/ThemeContext';
+import AxisLabels from './AxisLabels';
 
 interface WeightChartPanelProps {
   buckets: WeightBucket[];
@@ -30,7 +31,6 @@ export default function WeightChartPanel({ buckets, change }: WeightChartPanelPr
   const padding = Math.max(0, MIN_RANGE_KG - (high - low)) / 2;
   const scaleMin = low - padding;
   const scaleRange = high + padding - scaleMin || 1;
-  const labelEvery = buckets.length > 14 ? 5 : 1;
 
   return (
     <View
@@ -65,19 +65,7 @@ export default function WeightChartPanel({ buckets, change }: WeightChartPanelPr
         ))}
       </View>
 
-      <View style={styles.axis}>
-        {buckets.map((bucket, index) =>
-          index % labelEvery === 0 && bucket.label ? (
-            <Text
-              key={index}
-              style={[styles.axisLabel, { left: `${(index / buckets.length) * 100}%` }]}
-              numberOfLines={1}
-            >
-              {bucket.label}
-            </Text>
-          ) : null
-        )}
-      </View>
+      <AxisLabels labels={buckets.map((bucket) => bucket.label)} />
     </View>
   );
 }
@@ -137,15 +125,5 @@ const makeStyles = (colors: ThemeColors) =>
       borderRadius: DOT_SIZE / 2,
       marginBottom: -DOT_SIZE / 2,
       backgroundColor: WEIGHT_COLOR,
-    },
-    axis: {
-      height: 14,
-      marginTop: 4,
-    },
-    axisLabel: {
-      position: 'absolute',
-      top: 0,
-      fontSize: 10,
-      color: colors.textMuted,
     },
   });

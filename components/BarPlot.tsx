@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { ThemeColors } from '../constants/theme';
 import { useColors, useThemedStyles } from '../contexts/ThemeContext';
 import { TargetKind } from '../services/intakeChart';
+import AxisLabels from './AxisLabels';
 
 interface BarPlotProps {
   values: number[];
@@ -32,8 +33,6 @@ export default function BarPlot({ values, labels, target, color, kind = 'min', s
   const peak = Math.max(...values, 0);
   const scaleMax = Math.max(target * TARGET_HEADROOM, peak, 1);
   const targetRatio = target / scaleMax;
-  // Thin out axis labels once bars get narrower than the text (Month, Year).
-  const labelEvery = values.length > 14 ? 5 : values.length > 7 ? 3 : 1;
 
   const barStyle = (value: number) => {
     if (kind === 'max') {
@@ -53,21 +52,7 @@ export default function BarPlot({ values, labels, target, color, kind = 'min', s
         ))}
       </View>
 
-      {labels && (
-        <View style={styles.axis}>
-          {labels.map((label, index) =>
-            index % labelEvery === 0 && label ? (
-              <Text
-                key={index}
-                style={[styles.axisLabel, { left: `${(index / labels.length) * 100}%` }]}
-                numberOfLines={1}
-              >
-                {label}
-              </Text>
-            ) : null
-          )}
-        </View>
-      )}
+      {labels && <AxisLabels labels={labels} />}
     </View>
   );
 }
@@ -100,16 +85,5 @@ const makeStyles = (colors: ThemeColors) =>
     bar: {
       borderTopLeftRadius: 2,
       borderTopRightRadius: 2,
-    },
-    axis: {
-      height: 14,
-      marginTop: 4,
-    },
-    // Absolutely positioned so labels can spill past bars narrower than the text.
-    axisLabel: {
-      position: 'absolute',
-      top: 0,
-      fontSize: 10,
-      color: colors.textMuted,
     },
   });
