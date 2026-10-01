@@ -40,8 +40,10 @@ const MEAL_STEP_MINUTES = 30;
 const WATER_WINDOW_STEP_MINUTES = 60;
 const LATEST_MINUTE_OF_DAY = 23 * 60 + 30;
 
-const formatInterval = (minutes: number): string =>
-  minutes % 60 === 0 ? `${minutes / 60}h` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+const formatInterval = (minutes: number): string => {
+  if (minutes < 60) return `${minutes}m`;
+  return minutes % 60 === 0 ? `${minutes / 60}h` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+};
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -215,28 +217,27 @@ export default function RemindersScreen() {
             }
           />
           {settings.water.enabled && (
-            <SettingsRow
-              label="Every"
-              accessory={
-                <View style={styles.chipRow}>
-                  {WATER_INTERVAL_OPTIONS_MINUTES.map((minutes) => {
-                    const selected = settings.water.intervalMinutes === minutes;
-                    return (
-                      <TouchableOpacity
-                        key={minutes}
-                        style={[styles.chip, selected && { backgroundColor: accentColor, borderColor: accentColor }]}
-                        onPress={() => setWater({ intervalMinutes: minutes })}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected }}
-                        accessibilityLabel={`Every ${formatInterval(minutes)}`}
-                      >
-                        <Text style={styles.chipText}>{formatInterval(minutes)}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              }
-            />
+            // Too many chips to sit beside the label, so they get a line of their own.
+            <View style={styles.intervalRow}>
+              <Text style={styles.intervalLabel}>Every</Text>
+              <View style={styles.chipRow}>
+                {WATER_INTERVAL_OPTIONS_MINUTES.map((minutes) => {
+                  const selected = settings.water.intervalMinutes === minutes;
+                  return (
+                    <TouchableOpacity
+                      key={minutes}
+                      style={[styles.chip, selected && { backgroundColor: accentColor, borderColor: accentColor }]}
+                      onPress={() => setWater({ intervalMinutes: minutes })}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Every ${formatInterval(minutes)}`}
+                    >
+                      <Text style={styles.chipText}>{formatInterval(minutes)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
           )}
           {settings.water.enabled && (
             <TimeStepper
@@ -294,7 +295,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
-  chipRow: { flexDirection: 'row', gap: spacing.xs },
+  intervalRow: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm },
+  intervalLabel: { fontSize: 16, color: theme.textPrimary },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   chip: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
