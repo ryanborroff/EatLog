@@ -1,5 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { BowlFood, ChartLineUp, ClockCounterClockwise, GearSix } from 'phosphor-react-native';
 import { View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { colors } from '../../constants/theme';
@@ -48,11 +48,7 @@ export default function TabLayout() {
           title: 'Today',
           tabBarLabel: 'Today',
           tabBarIcon: ({ color, focused, size }) => (
-            <BowlFood
-              size={size}
-              color={color as string}
-              weight={focused ? 'fill' : 'regular'}
-            />
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -62,11 +58,7 @@ export default function TabLayout() {
           title: 'History',
           tabBarLabel: 'History',
           tabBarIcon: ({ color, focused, size }) => (
-            <ClockCounterClockwise
-              size={size}
-              color={color as string}
-              weight={focused ? 'fill' : 'regular'}
-            />
+            <Ionicons name={focused ? 'time' : 'time-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -76,10 +68,10 @@ export default function TabLayout() {
           title: 'Insights',
           tabBarLabel: 'Insights',
           tabBarIcon: ({ color, focused, size }) => (
-            <ChartLineUp
+            <Ionicons
+              name={focused ? 'stats-chart' : 'stats-chart-outline'}
               size={size}
-              color={color as string}
-              weight={focused ? 'fill' : 'regular'}
+              color={color}
             />
           ),
         }}
@@ -90,11 +82,7 @@ export default function TabLayout() {
           title: 'Settings',
           tabBarLabel: 'Settings',
           tabBarIcon: ({ color, focused, size }) => (
-            <GearSix
-              size={size}
-              color={color as string}
-              weight={focused ? 'fill' : 'regular'}
-            />
+            <Ionicons name={focused ? 'settings' : 'settings-outline'} size={size} color={color} />
           ),
         }}
       />
