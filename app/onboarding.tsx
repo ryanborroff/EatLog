@@ -2,7 +2,6 @@ import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -18,6 +17,7 @@ import ListeningIndicator from '../components/ListeningIndicator';
 import { EXAMPLE_MEAL } from '../constants/examples';
 import { track } from '../services/analytics';
 import { spacing, radii, typography, ThemeColors } from '../constants/theme';
+import Wordmark from '../components/Wordmark';
 
 const PAGE_COUNT = 3;
 const LAST_PAGE = PAGE_COUNT - 1;
@@ -81,13 +81,7 @@ export default function OnboardingScreen() {
           <View style={styles.visual}>
             <ListeningIndicator active size={112} color={accentColor} showMicIcon />
           </View>
-          <Image
-            source={require('../assets/wordmark.png')}
-            style={styles.wordmark}
-            resizeMode="contain"
-            accessibilityRole="image"
-            accessibilityLabel="EatLog"
-          />
+          <Wordmark style={styles.wordmark} />
           <Text style={styles.tagline}>The voice-first food journal</Text>
           <Text style={styles.title}>{'Tell EatLog\nwhat you ate.'}</Text>
           <Text style={styles.body}>

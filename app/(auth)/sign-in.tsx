@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { signIn, signUp, requestPasswordReset } from '../../services/authService';
 import { ThemeColors } from '../../constants/theme';
 import { useColors, useThemedStyles } from '../../contexts/ThemeContext';
+import Wordmark from '../../components/Wordmark';
 
 // Fixed dev-only account so local testing doesn't require a real inbox to
 // click an email-confirmation link. __DEV__-gated: never present in a
@@ -152,13 +152,7 @@ export default function SignInScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.content}>
-          <Image
-            source={require('../../assets/wordmark.png')}
-            style={styles.wordmark}
-            resizeMode="contain"
-            accessibilityRole="image"
-            accessibilityLabel="EatLog"
-          />
+          <Wordmark style={styles.wordmark} />
           <Text style={styles.subtitle}>Tell us what you ate. We'll do the maths.</Text>
 
           <TextInput
