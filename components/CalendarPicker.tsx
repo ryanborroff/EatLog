@@ -24,6 +24,11 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({ visible, selectedDate, 
   const initial = new Date(`${selectedDate}T00:00:00`);
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
+  // Percentage widths + aspectRatio don't resolve reliably inside a wrapping
+  // row, so measure the grid and size each cell explicitly.
+  const [gridWidth, setGridWidth] = useState(0);
+  const cellSize = gridWidth / 7;
+  const dayCircleSize = Math.max(0, Math.min(cellSize - 6, 40));
 
   const today = toDateString(new Date());
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString('en-GB', {
@@ -97,9 +102,10 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({ visible, selectedDate, 
             ))}
           </View>
 
-          <View style={styles.grid}>
+          <View style={styles.grid} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
             {cells.map((day, index) => {
-              if (day === null) return <View key={index} style={styles.cell} />;
+              const cellStyle = { width: cellSize, height: cellSize };
+              if (day === null) return <View key={index} style={cellStyle} />;
               const dateString = toDateString(new Date(viewYear, viewMonth, day));
               const isSelected = dateString === selectedDate;
               const isToday = dateString === today;
@@ -113,23 +119,31 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({ visible, selectedDate, 
               return (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.cell, isSelected && styles.cellSelected]}
+                  style={[styles.cell, cellStyle]}
                   onPress={() => handleSelectDay(day)}
                   disabled={isFuture}
                   accessibilityRole="button"
                   accessibilityLabel={fullDateLabel}
                   accessibilityState={{ selected: isSelected, disabled: isFuture }}
                 >
-                  <Text
+                  <View
                     style={[
-                      styles.cellText,
-                      isFuture && styles.cellTextDisabled,
-                      isSelected && styles.cellTextSelected,
-                      isToday && !isSelected && styles.cellTextToday,
+                      styles.dayCircle,
+                      { width: dayCircleSize, height: dayCircleSize, borderRadius: dayCircleSize / 2 },
+                      isSelected && styles.dayCircleSelected,
                     ]}
                   >
-                    {day}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.cellText,
+                        isFuture && styles.cellTextDisabled,
+                        isSelected && styles.cellTextSelected,
+                        isToday && !isSelected && styles.cellTextToday,
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -196,14 +210,15 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   cell: {
-    width: '14.28%',
-    aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cellSelected: {
+  dayCircle: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dayCircleSelected: {
     backgroundColor: '#000000',
-    borderRadius: 999,
   },
   cellText: {
     fontSize: 15,
