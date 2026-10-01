@@ -34,8 +34,10 @@ const FoodItemLine: React.FC<FoodItemLineProps> = ({ item, style }) => {
 };
 
 const styles = StyleSheet.create({
+  // textSecondary, not textMuted: this is information the user should act on,
+  // so it needs AA contrast (4.5:1), which the muted grey doesn't reach.
   guessed: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
     fontStyle: 'italic',
   },
 });

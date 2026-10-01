@@ -801,24 +801,40 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         const kcal = formatCalories(loggedMeal.totalCalories);
         const protein = formatAmount(loggedMeal.totalProtein);
         return (
-          <TouchableOpacity style={styles.content} activeOpacity={1} onPress={handleFollowUp}>
-            <Text style={styles.resultMealType}>{formatMealType(loggedMeal.type)}</Text>
-            {loggedMeal.items.map((item) => (
-              <FoodItemLine key={item.id} item={item} style={styles.resultItem} />
-            ))}
-            <Text style={styles.resultSummary}>
-              {wasCorrection
-                ? `Updated · ${kcal} kcal`
-                : `${kcal} kcal · ${protein}g protein · Logged`}
-            </Text>
-            {skippedItems.length > 0 && (
-              <Text style={styles.skippedNotice}>
-                Couldn't work out: {skippedItems.join(', ')} – tap the mic to add {skippedItems.length === 1 ? 'it' : 'them'}.
+          // Done is the usual next step, so it sits in thumb reach; only the mic
+          // starts listening again, so a stray tap can't start a recording.
+          <View style={styles.resultLayout}>
+            <View style={[styles.content, styles.resultBody]}>
+              <Text style={styles.resultMealType}>{formatMealType(loggedMeal.type)}</Text>
+              {loggedMeal.items.map((item) => (
+                <FoodItemLine key={item.id} item={item} style={styles.resultItem} />
+              ))}
+              <Text style={styles.resultSummary}>
+                {wasCorrection
+                  ? `Updated · ${kcal} kcal`
+                  : `${kcal} kcal · ${protein}g protein · Logged`}
               </Text>
-            )}
-            <Text style={styles.followUpHint}>Tap the mic to add or correct something</Text>
-            <ListeningIndicator active={false} size={64} color={accentColor} showMicIcon />
-          </TouchableOpacity>
+              {skippedItems.length > 0 && (
+                <Text style={styles.skippedNotice}>
+                  Couldn't work out: {skippedItems.join(', ')} – tap the mic to add {skippedItems.length === 1 ? 'it' : 'them'}.
+                </Text>
+              )}
+              <Text style={styles.followUpHint}>Tap the mic to add or correct something</Text>
+              <TouchableOpacity
+                onPress={handleFollowUp}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Add or correct something by voice"
+              >
+                <ListeningIndicator active={false} size={64} color={accentColor} showMicIcon />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.resultFooter}>
+              <TouchableOpacity style={styles.doneButton} onPress={handleClose} accessibilityRole="button">
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         );
       }
 
@@ -1135,11 +1151,11 @@ const styles = StyleSheet.create({
   },
   portionChipDetail: {
     ...typography.small,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   portionChipTextSelected: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   skippedNotice: {
     ...typography.secondary,
@@ -1147,9 +1163,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.sm,
   },
+  resultLayout: {
+    flex: 1,
+    alignSelf: 'stretch',
+  },
+  resultBody: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  resultFooter: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  // Black, like the app's other main buttons (onboarding, sign-in).
+  doneButton: {
+    minHeight: 52,
+    borderRadius: radii.pill,
+    backgroundColor: colors.textPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.background,
+  },
   followUpHint: {
     ...typography.small,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
