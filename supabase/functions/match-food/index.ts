@@ -12,7 +12,9 @@ import { indexCatalogue, shortlist, CatalogueIndex } from './search.ts';
 import { searchBranded, ProductNutrition } from './openFoodFacts.ts';
 
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
-const GROQ_MODEL = Deno.env.get('GROQ_MATCH_MODEL') ?? 'openai/gpt-oss-120b';
+// Picking from a shortlist is an easy job, and Groq rate-limits each model
+// separately, so this stays off parse-food's larger model and its token budget.
+const GROQ_MODEL = Deno.env.get('GROQ_MATCH_MODEL') ?? 'openai/gpt-oss-20b';
 const RATE_LIMIT_PER_MINUTE = 20;
 // One meal's items plus their ingredients.
 const MAX_QUERIES = 30;

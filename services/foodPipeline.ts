@@ -15,6 +15,7 @@ import { getUsualPortions, saveUsualPortions, usualPortionKey } from './usualPor
 import { applyCookingChoice, applyCookingChoices, CookingQuestion, cookingQuestions } from './cookingFollowUp';
 import { getCookingPreferences, saveCookingPreferences } from './cookingPreferences';
 import { getMostRecentMeal, saveMealForDate, saveVoiceLog, updateMeal } from './storageService';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 import { getAppleHealthSyncEnabled } from './healthSyncPreference';
 import { writeMealToHealthKit, resyncMealToHealthKit } from './healthKitService';
@@ -96,9 +97,21 @@ const parseTranscript = async (
   });
 
   if (error) {
-    // supabase-js surfaces both network failures and non-2xx responses here.
-    const isNetworkError = error.message?.toLowerCase().includes('network');
-    throw new FoodParseError(error.message ?? 'AI parser failed', isNetworkError ? 'network' : 'invalid');
+    // supabase-js surfaces both network failures and non-2xx responses here,
+    // with a generic message ("Edge Function returned a non-2xx status code")
+    // that callers may show the user — so replace it with copy written for them.
+    if (error instanceof FunctionsHttpError) {
+      const response = error.context as Response;
+      const body = await response.text().catch(() => '');
+      console.warn(`parse-food returned ${response.status}: ${body.slice(0, 300)}`);
+      throw new FoodParseError(
+        response.status === 429
+          ? "EatLog's busy right now – wait a minute and try again."
+          : "Couldn't work that out – try again.",
+        'invalid'
+      );
+    }
+    throw new FoodParseError("Couldn't connect – check your connection and try again.", 'network');
   }
 
   if (!data) {
