@@ -44,7 +44,7 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
   },
 };
 
-export const WATER_INTERVAL_OPTIONS_MINUTES = [90, 120, 180];
+export const WATER_INTERVAL_OPTIONS_MINUTES = [30, 60, 90, 120, 180];
 
 /** What's been logged today, as far as reminders care. */
 export interface TodayLogState {
@@ -58,8 +58,15 @@ export interface PlannedReminder {
   fireAt: Date;
 }
 
-/** Days ahead (including today) to keep scheduled — stays well under iOS's 64 pending limit. */
+/** Days ahead (including today) to keep scheduled. */
 export const PLAN_HORIZON_DAYS = 3;
+
+/**
+ * iOS keeps at most 64 pending local notifications and silently drops the rest.
+ * Short water intervals can exceed that over the horizon, so only the soonest are
+ * kept — the plan is redone every time the app opens, so later ones get filled in.
+ */
+export const MAX_PENDING_REMINDERS = 64;
 
 /**
  * Any meal logged this long before a meal reminder counts as that meal, so a
@@ -137,7 +144,7 @@ export const planReminders = (
     }
   }
 
-  return planned.sort((a, b) => a.fireAt.getTime() - b.fireAt.getTime());
+  return planned.sort((a, b) => a.fireAt.getTime() - b.fireAt.getTime()).slice(0, MAX_PENDING_REMINDERS);
 };
 
 const MEAL_LABELS: Record<ReminderMealType, string> = {
@@ -175,16 +182,17 @@ const WATER_MESSAGES = [
   'Quick water break?',
   'Top up your water.',
   'A glass of water now keeps you on track.',
+  'Stay hydrated — grab some water.',
 ];
 
 /**
- * Title and body for a water reminder, rotating by the local hour it fires.
- * Every interval option is 1–3 hours, so back-to-back reminders never repeat
- * with four messages.
+ * Title and body for a water reminder, rotating by the local half hour it fires.
+ * Every interval option is 1, 2, 3, 4 or 6 half hours — none a multiple of five —
+ * so back-to-back reminders never repeat with five messages.
  */
 export const waterReminderText = (fireAt: Date): { title: string; body: string } => {
-  const hourNumber = localDayNumber(fireAt) * 24 + fireAt.getHours();
-  return { title: 'Water', body: WATER_MESSAGES[hourNumber % WATER_MESSAGES.length] };
+  const halfHourNumber = localDayNumber(fireAt) * 48 + fireAt.getHours() * 2 + Math.floor(fireAt.getMinutes() / 30);
+  return { title: 'Water', body: WATER_MESSAGES[halfHourNumber % WATER_MESSAGES.length] };
 };
 
 /** "09:30"-style label for a minute-of-day value. */

@@ -106,8 +106,12 @@ describe('planReminders — water', () => {
 
   it('stays under the iOS pending-notification limit with everything on', () => {
     const everything = settings({ breakfast: true, lunch: true, dinner: true, water: true });
-    everything.water.intervalMinutes = 90;
-    expect(planReminders(everything, nothingLogged, at(28, 0)).length).toBeLessThanOrEqual(64);
+    everything.water = { enabled: true, intervalMinutes: 30, startMinuteOfDay: 0, endMinuteOfDay: 23 * 60 };
+    const plan = planReminders(everything, nothingLogged, at(28, 0, 1));
+    expect(plan.length).toBe(64);
+    // The soonest are the ones kept.
+    expect(plan[0].fireAt).toEqual(at(28, 0, 30));
+    expect(plan.some((reminder) => reminder.mealType === 'breakfast' && reminder.fireAt.getDate() === 28)).toBe(true);
   });
 });
 
