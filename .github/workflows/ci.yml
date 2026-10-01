@@ -11,19 +11,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 12
-
+      # npm, from package-lock.json: the same install that local development
+      # and the Fastlane TestFlight builds use, so CI checks what ships.
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
+          cache: npm
 
-      - run: pnpm install --frozen-lockfile
+      - run: npm ci
 
       - name: Type check
-        run: pnpm run typecheck
+        run: npm run typecheck
 
       - name: Tests
-        run: pnpm test
+        run: npm test
+
+      # Bundling resolves every import the app makes at runtime, so this
+      # catches "the app won't start" problems the type check and tests miss
+      # (e.g. a package that's used but not installed).
+      - name: Bundle the iOS app
+        run: npx expo export --platform ios --output-dir "${{ runner.temp }}/bundle"
