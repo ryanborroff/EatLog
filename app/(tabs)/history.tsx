@@ -9,8 +9,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
-import { DayEntry, DailyGoals } from '../../types';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { DayEntry, DailyGoals, DailyTotals } from '../../types';
 import { getHistory, getUserGoals } from '../../services/storageService';
 import {
   getCalorieMetric,
@@ -19,16 +19,43 @@ import {
   getTargetStatus,
   MacroKey,
 } from '../../services/intakeChart';
-import FoodItemLine from '../../components/FoodItemLine';
+import MealCard from '../../components/MealCard';
+import ProgressBar from '../../components/ProgressBar';
+import ScreenHeader from '../../components/ScreenHeader';
+import { useTheme } from '../../contexts/ThemeContext';
 import { formatAmount, formatCalories } from '../../utils/formatNumber';
-import { formatLoggedTime } from '../../utils/formatTime';
 import { colors, spacing, radii } from '../../constants/theme';
 import CalendarPicker from '../../components/CalendarPicker';
 
 const MACRO_KEYS: MacroKey[] = ['protein', 'carbohydrate', 'fat'];
 const MACRO_LABELS: Record<MacroKey, string> = { protein: 'Protein', carbohydrate: 'Carbs', fat: 'Fat' };
 
+const nutrientList = (totals: DailyTotals) => [
+  { label: 'Protein', value: `${formatAmount(totals.protein)}g` },
+  { label: 'Carbs', value: `${formatAmount(totals.carbohydrate)}g` },
+  { label: 'Fat', value: `${formatAmount(totals.fat)}g` },
+  { label: 'Fibre', value: `${formatAmount(totals.fibre)}g` },
+  { label: 'Sodium', value: `${formatAmount(totals.sodium)}mg` },
+  { label: 'Sugar', value: `${formatAmount(totals.sugar)}g` },
+];
+
+// "180 kcal under target", or null before goals have loaded. `over` matches the
+// amber used elsewhere: only clearly over (see getTargetStatus), not 1 kcal over.
+const calorieDelta = (totals: DailyTotals, goals: DailyGoals | null): { text: string; over: boolean } | null => {
+  if (!goals) return null;
+  const delta = totals.calories - goals.calories;
+  const text =
+    Math.round(delta) === 0
+      ? 'On target'
+      : delta > 0
+        ? `${formatCalories(delta)} kcal over target`
+        : `${formatCalories(-delta)} kcal under target`;
+  return { text, over: getTargetStatus(getCalorieMetric(goals), totals.calories) === 'above' };
+};
+
 export default function HistoryScreen() {
+  const router = useRouter();
+  const { accentColor } = useTheme();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [history, setHistory] = useState<DayEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,9 +90,6 @@ export default function HistoryScreen() {
     });
   };
 
-  const formatMealType = (type: string): string => {
-    return type.charAt(0).toUpperCase() + type.slice(1);
-  };
 
   // Same colours as the Insights charts. They don't depend on goals, so any goals will do here.
   const macroColors = Object.fromEntries(
@@ -98,49 +122,46 @@ export default function HistoryScreen() {
   }
 
   if (selectedDate) {
+    const delta = selectedEntry ? calorieDelta(selectedEntry.totals, goals) : null;
     return (
       <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => setSelectedDate(null)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-
-          <View style={styles.header}>
-            <Text style={styles.date}>{formatDate(selectedDate)}</Text>
-          </View>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.dayScrollContent}>
+          <ScreenHeader title={formatDate(selectedDate)} backLabel="History" onBack={() => setSelectedDate(null)} />
 
           {selectedEntry ? (
             <>
-              <View style={styles.totalsCard}>
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Calories</Text>
-                  <Text style={styles.totalValue}>{formatCalories(selectedEntry.totals.calories)} kcal</Text>
-                </View>
-                <View style={[styles.totalRow, styles.totalRowLast]}>
-                  <Text style={styles.totalLabel}>Protein</Text>
-                  <Text style={styles.totalValue}>{formatAmount(selectedEntry.totals.protein)}g</Text>
+              {/* Same summary as Today: calories against the target, then every nutrient. */}
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryCalories}>
+                  {formatCalories(selectedEntry.totals.calories)}
+                  {goals && <Text style={styles.summaryTarget}> / {formatCalories(goals.calories)} kcal</Text>}
+                </Text>
+                {goals && (
+                  <ProgressBar
+                    ratio={goals.calories > 0 ? selectedEntry.totals.calories / goals.calories : 0}
+                    color={delta?.over ? colors.warning : accentColor}
+                    height={10}
+                    style={styles.summaryBar}
+                  />
+                )}
+                {delta && <Text style={[styles.dayDelta, delta.over && styles.dayDeltaOver]}>{delta.text}</Text>}
+                <View style={styles.summaryDivider} />
+                <View style={styles.nutrientGrid}>
+                  {nutrientList(selectedEntry.totals).map((nutrient) => (
+                    <View key={nutrient.label} style={styles.nutrientCell}>
+                      <Text style={styles.dayMacroLabel}>{nutrient.label}</Text>
+                      <Text style={styles.dayMacroValue}>{nutrient.value}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
 
               {selectedEntry.meals.map((meal) => (
-                <View key={meal.id} style={styles.mealCard}>
-                  <View style={styles.mealHeader}>
-                    <View>
-                      <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
-                      <Text style={styles.mealTime}>{formatLoggedTime(meal.loggedAt)}</Text>
-                    </View>
-                    <Text style={styles.mealCalories}>{formatCalories(meal.totalCalories)} kcal</Text>
-                  </View>
-                  {meal.items.map((item) => (
-                    <View key={item.id} style={styles.foodItem}>
-                      <FoodItemLine item={item} style={styles.foodDescription} />
-                    </View>
-                  ))}
-                </View>
+                <MealCard
+                  key={meal.id}
+                  meal={meal}
+                  onPress={() => router.push({ pathname: '/edit-meal', params: { date: selectedDate, mealId: meal.id } })}
+                />
               ))}
             </>
           ) : (
@@ -188,24 +209,10 @@ export default function HistoryScreen() {
           const { totals } = entry;
           const expanded = expandedDates.has(entry.date);
           const split = getMacroCalorieSplit(totals);
-          const calorieDelta = goals ? totals.calories - goals.calories : null;
-          const over = goals ? getTargetStatus(getCalorieMetric(goals), totals.calories) === 'above' : false;
-          const deltaText =
-            calorieDelta === null
-              ? null
-              : Math.round(calorieDelta) === 0
-                ? 'On target'
-                : calorieDelta > 0
-                  ? `${formatCalories(calorieDelta)} kcal over target`
-                  : `${formatCalories(-calorieDelta)} kcal under target`;
-          const nutrients = [
-            { label: 'Protein', value: `${formatAmount(totals.protein)}g` },
-            { label: 'Carbs', value: `${formatAmount(totals.carbohydrate)}g` },
-            { label: 'Fat', value: `${formatAmount(totals.fat)}g` },
-            { label: 'Fibre', value: `${formatAmount(totals.fibre)}g` },
-            { label: 'Sodium', value: `${formatAmount(totals.sodium)}mg` },
-            { label: 'Sugar', value: `${formatAmount(totals.sugar)}g` },
-          ];
+          const delta = calorieDelta(totals, goals);
+          const deltaText = delta?.text ?? null;
+          const over = delta?.over ?? false;
+          const nutrients = nutrientList(totals);
 
           return (
             <View key={entry.date} style={styles.dayCard}>
@@ -289,21 +296,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
   },
-  backButton: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-  },
   headerRow: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
@@ -317,34 +309,33 @@ const styles = StyleSheet.create({
     lineHeight: 38,
     color: colors.textPrimary,
   },
-  date: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.textPrimary,
+  dayScrollContent: {
+    paddingBottom: spacing.lg,
   },
-  totalsCard: {
+  summaryCard: {
     marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
+    marginBottom: spacing.md,
+    padding: spacing.md,
     backgroundColor: colors.card,
     borderRadius: radii.card,
   },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  totalRowLast: {
-    marginBottom: 0,
-  },
-  totalLabel: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  totalValue: {
-    fontSize: 18,
+  summaryCalories: {
+    fontSize: 32,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  summaryTarget: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: colors.textSecondary,
+  },
+  summaryBar: {
+    marginTop: spacing.sm,
+  },
+  summaryDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.cardBorder,
+    marginVertical: spacing.md,
   },
   emptyDayCard: {
     marginHorizontal: spacing.lg,
@@ -355,45 +346,6 @@ const styles = StyleSheet.create({
   emptyDayText: {
     fontSize: 16,
     color: colors.textSecondary,
-  },
-  mealCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  mealHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  mealType: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  mealTime: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  mealCalories: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  // A small gap between items and a fixed line height, so the space between
-  // two items is only slightly bigger than a wrapped line within one.
-  foodItem: {
-    marginBottom: 4,
-  },
-  foodDescription: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.textPrimary,
   },
   legend: {
     flexDirection: 'row',

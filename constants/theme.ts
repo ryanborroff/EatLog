@@ -8,8 +8,11 @@ export const colors = {
   cardBorder: '#D9D9D9',
   divider: '#DDDDDD',
   textPrimary: '#000000',
-  textSecondary: '#6B6B6B',
-  textMuted: '#8A8A8A',
+  // Both greys clear WCAG AA (4.5:1) on white and on colors.card, so either
+  // can be used for real text. Muted is the lighter step, for hints,
+  // placeholders and chart labels; secondary for labels and supporting text.
+  textSecondary: '#5C5C5C',
+  textMuted: '#707070',
   danger: '#FF3B30',
   // Off-target flag. Dark enough (about 5:1 on white) to use as text too.
   warning: '#B25E09',
