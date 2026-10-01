@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
   NativeModules,
@@ -75,10 +76,12 @@ const ProcessingStatus: React.FC = () => {
   );
 };
 
+// listening → (tap mic) → reviewing ⇄ editing → (Log it) → processing.
+// Nothing is logged until the user taps Log it or submits typed text.
 type FlowState =
   | 'listening'
-  | 'transcribing'
-  | 'confirmed'
+  | 'reviewing'
+  | 'editing'
   | 'processing'
   | 'logged'
   | 'clarification'
@@ -158,7 +161,7 @@ interface VoiceLogFlowProps {
 const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const router = useRouter();
   const { accentColor } = useTheme();
-  const [state, setState] = useState<FlowState>(initialTranscript ? 'confirmed' : 'listening');
+  const [state, setState] = useState<FlowState>(initialTranscript ? 'processing' : 'listening');
   const [showTextInput, setShowTextInput] = useState(false);
   // False once speech permission is refused — retrying by voice can't work then.
   const [voiceAllowed, setVoiceAllowed] = useState(true);
@@ -193,10 +196,16 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const voiceLevel = useRef(new Animated.Value(0)).current;
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptRef = useRef('');
-  // Silence timer, the native isFinal result, and the "tap to finish" button
-  // can all fire for one utterance (stop() itself triggers a final result),
-  // so only the first one submits. Reset per listening session.
-  const submittedRef = useRef(false);
+  // True only while a recognition session is live. The silence timer, the
+  // native isFinal result and the mic tap can all end one session, so only
+  // the first of them moves on to review.
+  const listeningRef = useRef(false);
+  // Guards against a double tap on Log it submitting the same entry twice.
+  const submittingRef = useRef(false);
+  const transcriptScrollRef = useRef<ScrollView>(null);
+  // Set once the sheet is leaving, so Cancel during the "Logged" beat and
+  // the auto-close after it don't both navigate back.
+  const closingRef = useRef(false);
 
   const clearSilenceTimer = () => {
     if (silenceTimerRef.current) {
@@ -205,22 +214,23 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     }
   };
 
-  const finishWith = (text: string, delay = 350) => {
-    if (submittedRef.current) return;
-    submittedRef.current = true;
+  const submit = (text: string) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     clearSilenceTimer();
-    setState('confirmed');
-    // Brief settle beat before the calc kicks off, so "Got it." is felt.
-    setTimeout(() => void submitTranscript(text), delay);
+    void submitTranscript(text);
   };
 
-  const stopAndFinish = () => {
+  // Ends the recognition session and moves to review — never logs on its own.
+  const stopListening = () => {
     clearSilenceTimer();
-    if (submittedRef.current) return;
+    if (!listeningRef.current) return;
+    listeningRef.current = false;
     ExpoSpeechRecognitionModule.stop();
     const finalText = transcriptRef.current.trim();
     if (finalText.length > 0) {
-      finishWith(finalText);
+      setTranscript(finalText);
+      setState('reviewing');
     } else {
       setErrorMessage(ERROR_COPY.stt);
       setShowTextInput(true);
@@ -230,7 +240,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
 
   const resetSilenceTimer = () => {
     clearSilenceTimer();
-    silenceTimerRef.current = setTimeout(stopAndFinish, SILENCE_TIMEOUT_MS);
+    silenceTimerRef.current = setTimeout(stopListening, SILENCE_TIMEOUT_MS);
   };
 
   useEffect(() => () => clearSilenceTimer(), []);
@@ -246,17 +256,20 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   }, [state, contentOpacity]);
 
   useSpeechRecognitionEvent('result', (event) => {
-    if (submittedRef.current) return;
     const text = event.results[0]?.transcript ?? '';
+    if (!listeningRef.current) {
+      // stop() flushes one last, sometimes slightly refined, final result —
+      // take it if the user is still just looking at the review.
+      if (event.isFinal && text.trim().length > 0 && state === 'reviewing') {
+        transcriptRef.current = text;
+        setTranscript(text.trim());
+      }
+      return;
+    }
     transcriptRef.current = text;
     setTranscript(text);
-    if (text.trim().length > 0) {
-      setState((current) => (current === 'listening' ? 'transcribing' : current));
-      resetSilenceTimer();
-    }
-    if (event.isFinal && text.trim().length > 0) {
-      finishWith(text);
-    }
+    if (text.trim().length > 0) resetSilenceTimer();
+    if (event.isFinal && text.trim().length > 0) stopListening();
   });
 
   // Reported from -2 to 10, with anything below 0 inaudible. Normal speech sits
@@ -268,24 +281,24 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
 
   useSpeechRecognitionEvent('error', () => {
     clearSilenceTimer();
-    if (submittedRef.current) return;
+    if (!listeningRef.current) return;
+    listeningRef.current = false;
     setErrorMessage(ERROR_COPY.stt);
     setShowTextInput(true);
     setState('error');
   });
 
+  // The session ended without us stopping it — review whatever was heard.
   useSpeechRecognitionEvent('end', () => {
-    clearSilenceTimer();
-    if (submittedRef.current) return;
-    if (state === 'listening' || state === 'transcribing') {
-      setErrorMessage(ERROR_COPY.stt);
-      setShowTextInput(true);
-      setState('error');
-    }
+    if (listeningRef.current) stopListening();
   });
 
+  // Cancel only: stops recognition and leaves without logging anything.
   const handleClose = () => {
+    if (closingRef.current) return;
+    closingRef.current = true;
     clearSilenceTimer();
+    listeningRef.current = false;
     ExpoSpeechRecognitionModule.abort();
     router.back();
   };
@@ -303,7 +316,8 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
 
     setTranscript('');
     transcriptRef.current = '';
-    submittedRef.current = false;
+    submittingRef.current = false;
+    listeningRef.current = true;
     voiceLevel.setValue(0);
     setState('listening');
     track('voice_log_started');
@@ -332,7 +346,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     if (initialTranscript) {
       setTranscript(initialTranscript);
       track('voice_log_started', { source: 'siri' });
-      finishWith(initialTranscript);
+      submit(initialTranscript);
     } else {
       void startListening();
     }
@@ -349,7 +363,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         // Wait for an answer on the clarification screen — listening straight
         // away would replace the question with "I'm listening…".
         pendingClarificationRef.current = { transcript: fullText, question: result.question };
-        submittedRef.current = false;
+        submittingRef.current = false;
         setClarificationQuestion(result.question);
         setClarificationOptions(result.options);
         setTextValue('');
@@ -357,7 +371,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         track('clarification_requested');
       } else if (result.status === 'needs_portion') {
         pendingMealRef.current = result.pending;
-        submittedRef.current = false;
+        submittingRef.current = false;
         setPortionQuestions(result.questions);
         setPortionChoices({});
         setCookingQuestions(result.cookingQuestions);
@@ -385,7 +399,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
       }
       track('voice_log_failed');
       // Let the typed-text fallback submit.
-      submittedRef.current = false;
+      submittingRef.current = false;
       setTextValue(text);
       setShowTextInput(true);
       setState('error');
@@ -395,9 +409,9 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const showLogged = (result: LoggedOutcome | UpdatedOutcome) => {
     setLoggedMeal(result.meal);
     setWasCorrection(result.status === 'updated');
-    setSkippedItems(result.status === 'logged' ? result.skipped : []);
-    setState('logged');
-    setTimeout(() => setState('result'), 450);
+    const skipped = result.status === 'logged' ? result.skipped : [];
+    setSkippedItems(skipped);
+    showLoggedThenClose(skipped.length > 0);
     track('voice_log_completed');
     if (result.status === 'logged') {
       track('food_logged', { source: 'voice', mealType: result.meal.type, itemCount: result.meal.items.length });
@@ -406,10 +420,26 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     }
   };
 
+  // Brief "Logged" beat, then back to Today, where the entry now shows. Stays
+  // on the result only when some items couldn't be worked out, so the user
+  // sees what wasn't logged.
+  const showLoggedThenClose = (keepResultOpen: boolean) => {
+    setState('logged');
+    setTimeout(() => {
+      if (keepResultOpen) {
+        setState('result');
+      } else if (!closingRef.current) {
+        closingRef.current = true;
+        router.back();
+      }
+    }, 450);
+  };
+
   // Unanswered questions keep the typical portion, marked as a guess.
   const handlePortionConfirm = async () => {
     const pending = pendingMealRef.current;
-    if (!pending) return;
+    if (!pending || submittingRef.current) return;
+    submittingRef.current = true;
     setState('processing');
     track('portion_answered', {
       itemCount: portionQuestions.length,
@@ -424,6 +454,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
       showLogged(result);
     } catch (err) {
       console.error('Error saving meal after portion question:', err);
+      submittingRef.current = false;
       setPortionSaveFailed(true);
       setState('portion');
     }
@@ -435,12 +466,25 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     setShowTextInput(false);
     setTextValue('');
     setTranscript(value);
-    finishWith(value, 200);
+    submit(value);
   };
 
   const handleClarificationOption = (option: string) => {
     setTranscript(option);
-    finishWith(option, 200);
+    submit(option);
+  };
+
+  const handleLog = () => {
+    if (state === 'editing') {
+      handleTextSubmit();
+    } else if (transcript.trim()) {
+      submit(transcript.trim());
+    }
+  };
+
+  const handleEdit = () => {
+    setTextValue(transcript);
+    setState('editing');
   };
 
   // Result → tap mic again to say a correction ("Actually it was three eggs").
@@ -452,7 +496,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   // instead of waiting out SILENCE_TIMEOUT_MS — useful when there's
   // background noise keeping the mic "hearing" something, or the user just
   // doesn't want to wait the full 3.5s pause.
-  const handleFinishListening = stopAndFinish;
+  const handleFinishListening = stopListening;
 
   const handleBarcodeResolved = async (name: string, reference: ReferenceNutrition, quantity: number) => {
     setTranscript('');
@@ -462,8 +506,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     setLoggedMeal(meal);
     setWasCorrection(false);
     setSkippedItems([]);
-    setState('logged');
-    setTimeout(() => setState('result'), 450);
+    showLoggedThenClose(false);
   };
 
   /** One follow-up question: the item, then a row of answers to pick from. */
@@ -500,48 +543,85 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   const renderContent = () => {
     switch (state) {
       case 'listening':
-      case 'transcribing':
+      case 'reviewing':
+      case 'editing': {
+        const listening = state === 'listening';
+        const editing = state === 'editing';
+        const canLog = editing ? textValue.trim().length > 0 : transcript.trim().length > 0;
         return (
-          <View style={styles.content}>
-            <TouchableOpacity
-              onPress={handleFinishListening}
-              accessibilityLabel="Finish talking and log this"
-              accessibilityRole="button"
-              activeOpacity={0.7}
+          <View style={styles.stage}>
+            {/* Fills the space above the controls and grows upwards from them,
+                so the mic and buttons stay put however long the text gets. */}
+            <ScrollView
+              ref={transcriptScrollRef}
+              style={styles.transcriptArea}
+              contentContainerStyle={styles.transcriptAreaContent}
+              onContentSizeChange={() => {
+                if (listening) transcriptScrollRef.current?.scrollToEnd({ animated: false });
+              }}
+              keyboardShouldPersistTaps="handled"
             >
-              <ListeningIndicator
-                active
-                size={100}
-                color={accentColor}
-                showMicIcon={state === 'listening'}
-                level={voiceLevel}
-              />
-            </TouchableOpacity>
-            {pendingClarificationRef.current && (
-              <Text style={styles.prompt}>{pendingClarificationRef.current.question}</Text>
-            )}
-            {state === 'listening' ? (
-              <>
-                <Text style={styles.prompt}>{LISTENING_COPY}</Text>
+              {pendingClarificationRef.current && (
+                <Text style={styles.clarificationContext}>{pendingClarificationRef.current.question}</Text>
+              )}
+              {editing ? (
+                <TextInput
+                  style={styles.textInput}
+                  value={textValue}
+                  onChangeText={setTextValue}
+                  autoFocus
+                  multiline
+                  accessibilityLabel="Edit what you ate"
+                />
+              ) : (
+                <Text style={styles.transcript}>{transcript}</Text>
+              )}
+            </ScrollView>
+            {listening ? (
+              <View style={styles.controls}>
+                <TouchableOpacity
+                  onPress={handleFinishListening}
+                  accessibilityLabel="Microphone, recording"
+                  accessibilityHint="Stops recording so you can review what you said"
+                  accessibilityRole="button"
+                  activeOpacity={0.7}
+                >
+                  <ListeningIndicator active size={100} color={accentColor} showMicIcon level={voiceLevel} />
+                </TouchableOpacity>
+                <Text style={styles.listeningPrompt}>{LISTENING_COPY}</Text>
+                <Text style={styles.tapToFinishHint}>Tap the mic when you're done</Text>
                 {!pendingClarificationRef.current && (
                   // Amounts make the biggest difference to accuracy, so show how to give one.
                   <Text style={styles.exampleHint}>Say how much, e.g. "two slices of toast and a large latte"</Text>
                 )}
-              </>
+              </View>
             ) : (
-              <Text style={styles.transcript}>{transcript}</Text>
+              <View style={[styles.controls, editing && styles.controlsEditing]}>
+                {!editing && <Text style={styles.reviewLabel}>Ready to log</Text>}
+                <TouchableOpacity
+                  style={[styles.primaryButton, styles.logButton, { backgroundColor: accentColor }, !canLog && styles.disabled]}
+                  onPress={handleLog}
+                  disabled={!canLog}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !canLog }}
+                >
+                  <Text style={styles.primaryButtonText}>Log it</Text>
+                </TouchableOpacity>
+                {!editing && (
+                  <TouchableOpacity
+                    style={styles.secondaryAction}
+                    onPress={handleEdit}
+                    accessibilityRole="button"
+                    accessibilityHint="Correct what was heard before logging"
+                  >
+                    <Text style={styles.secondaryActionText}>Edit</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
-            <Text style={styles.tapToFinishHint}>Tap the mic when you're done</Text>
           </View>
         );
-
-      case 'confirmed':
-        return (
-          <View style={styles.content}>
-            <ListeningIndicator active={false} size={72} color={accentColor} />
-            <Text style={styles.prompt}>Got it.</Text>
-          </View>
-        );
+      }
 
       case 'processing':
         return (
@@ -767,7 +847,13 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         >
           <Text style={styles.dateSelectorText}>{formatLogDate(targetDate)}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleClose} accessibilityLabel="Close" accessibilityRole="button">
+        <TouchableOpacity
+          style={styles.closeTarget}
+          onPress={handleClose}
+          accessibilityLabel="Cancel"
+          accessibilityHint="Closes without logging anything"
+          accessibilityRole="button"
+        >
           <Text style={styles.closeButton}>✕</Text>
         </TouchableOpacity>
       </View>
@@ -801,6 +887,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
   },
+  closeTarget: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
   closeButton: {
     fontSize: 22,
     color: colors.textPrimary,
@@ -825,6 +917,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
     alignSelf: 'stretch',
+  },
+  stage: {
+    flex: 1,
+    alignSelf: 'stretch',
+  },
+  transcriptArea: {
+    flex: 1,
+  },
+  transcriptAreaContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  // Fixed height, so the transcript area is the same size while listening
+  // and reviewing and the mic never shifts as text arrives.
+  controls: {
+    height: 300,
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  // Sized to content while typing, so the keyboard leaves room for the text.
+  controlsEditing: {
+    height: undefined,
+    paddingBottom: spacing.md,
+  },
+  listeningPrompt: {
+    ...typography.cardHeading,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
+  clarificationContext: {
+    ...typography.secondary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  reviewLabel: {
+    ...typography.secondary,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  logButton: {
+    alignSelf: 'stretch',
+    minHeight: 50,
+    justifyContent: 'center',
+  },
+  disabled: {
+    opacity: 0.4,
+  },
+  secondaryAction: {
+    minHeight: 44,
+    minWidth: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+  },
+  secondaryActionText: {
+    ...typography.secondary,
+    fontWeight: '600',
   },
   prompt: {
     ...typography.cardHeading,
@@ -866,9 +1020,9 @@ const styles = StyleSheet.create({
   },
   transcript: {
     ...typography.cardHeading,
+    lineHeight: 28,
     color: colors.textPrimary,
     textAlign: 'center',
-    marginTop: spacing.lg,
   },
   processingTranscript: {
     ...typography.secondary,
