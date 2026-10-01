@@ -15,10 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActivityLevel, Sex, UserProfile } from '../../types';
 import { getUserProfile, saveUserProfile, logWeight } from '../../services/storageService';
 import { ACTIVITY_LEVEL_LABELS } from '../../services/calorieTarget';
-import { useTheme } from '../../contexts/ThemeContext';
-import { colors, spacing } from '../../constants/theme';
+import { useTheme, useThemedStyles, useColors } from '../../contexts/ThemeContext';
+import { spacing, ThemeColors } from '../../constants/theme';
 import { SettingsGroup, SettingsRow } from '../../components/SettingsList';
-import { editSheetStyles as sheet } from '../../components/editSheetStyles';
+import { makeEditSheetStyles } from '../../components/editSheetStyles';
 import ScreenHeader from '../../components/ScreenHeader';
 
 type NumericProfileField = 'birthYear' | 'heightCm' | 'weightKg';
@@ -46,6 +46,9 @@ const PROFILE_DISCLAIMER =
   'We’ll use this information to suggest your starting calorie and nutrition targets. This isn’t medical advice, and you can skip it if you prefer.';
 
 export default function ProfileScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
+  const sheet = useThemedStyles(makeEditSheetStyles);
   const { accentColor } = useTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [editingNumericField, setEditingNumericField] = useState<NumericProfileField | null>(null);
@@ -287,15 +290,16 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: spacing.lg,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingBottom: spacing.lg,
+    },
+  });

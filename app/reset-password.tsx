@@ -11,8 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { updatePassword } from '../services/authService';
+import { ThemeColors } from '../constants/theme';
+import { useColors, useThemedStyles } from '../contexts/ThemeContext';
 
 export default function ResetPasswordScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -58,7 +62,7 @@ export default function ResetPasswordScreen() {
           <TextInput
             style={styles.input}
             placeholder="New password"
-            placeholderTextColor="#999999"
+            placeholderTextColor={colors.textMuted}
             secureTextEntry
             autoComplete="password-new"
             value={password}
@@ -80,30 +84,31 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  flex: { flex: 1 },
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
-  title: { fontSize: 32, fontWeight: '700', color: '#000000', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#666666', marginBottom: 32 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#000000',
-    marginBottom: 12,
-  },
-  error: { color: '#FF3B30', fontSize: 14, marginBottom: 12 },
-  button: {
-    backgroundColor: '#000000',
-    borderRadius: 30,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    flex: { flex: 1 },
+    content: { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
+    title: { fontSize: 32, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 },
+    subtitle: { fontSize: 16, color: colors.textSecondary, marginBottom: 32 },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.divider,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontSize: 16,
+      color: colors.textPrimary,
+      marginBottom: 12,
+    },
+    error: { color: colors.danger, fontSize: 14, marginBottom: 12 },
+    button: {
+      backgroundColor: colors.inverseBackground,
+      borderRadius: 30,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonDisabled: { opacity: 0.5 },
+    buttonText: { color: colors.inverseText, fontSize: 16, fontWeight: '600' },
+  });

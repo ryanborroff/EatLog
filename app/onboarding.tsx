@@ -12,12 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, useColors, useThemedStyles } from '../contexts/ThemeContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import ListeningIndicator from '../components/ListeningIndicator';
 import { EXAMPLE_MEAL } from '../constants/examples';
 import { track } from '../services/analytics';
-import { colors, spacing, radii, typography } from '../constants/theme';
+import { spacing, radii, typography, ThemeColors } from '../constants/theme';
 
 const PAGE_COUNT = 3;
 const LAST_PAGE = PAGE_COUNT - 1;
@@ -25,6 +25,8 @@ const LAST_PAGE = PAGE_COUNT - 1;
 const EXAMPLE_CORRECTIONS = ['“make that three eggs”', '“remove the banana”'];
 
 export default function OnboardingScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const { width } = useWindowDimensions();
   const { accentColor } = useTheme();
   const { completeOnboarding } = useOnboarding();
@@ -151,7 +153,7 @@ export default function OnboardingScreen() {
               onPress={handleStartSpeaking}
               accessibilityRole="button"
             >
-              <Ionicons name="mic" size={20} color="#FFFFFF" />
+              <Ionicons name="mic" size={20} color={colors.inverseText} />
               <Text style={styles.primaryButtonText}>Start speaking</Text>
             </TouchableOpacity>
             <Text style={styles.footnote}>EatLog will ask for microphone permission.</Text>
@@ -171,161 +173,163 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  topBar: {
-    height: 44,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  skipText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  pager: {
-    flex: 1,
-  },
-  page: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  visual: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  wordmark: {
-    width: 96,
-    height: 33,
-    alignSelf: 'center',
-  },
-  tagline: {
-    ...typography.secondary,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  title: {
-    ...typography.screenTitle,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  body: {
-    fontSize: 17,
-    lineHeight: 24,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  chipRow: {
-    marginTop: spacing.md,
-    gap: spacing.xs,
-    alignItems: 'center',
-  },
-  chip: {
-    backgroundColor: colors.card,
-    borderRadius: radii.pill,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-  },
-  chipText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  caption: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.xs,
-  },
-  mockInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radii.card,
-    paddingVertical: spacing.xs,
-    paddingLeft: spacing.md,
-    paddingRight: spacing.xs,
-  },
-  mockInputText: {
-    fontSize: 16,
-    color: colors.textMuted,
-  },
-  mockAddButton: {
-    borderRadius: radii.pill,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-  },
-  mockAddText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.onAccent,
-  },
-  exampleCard: {
-    marginTop: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-    padding: spacing.md,
-  },
-  exampleLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  exampleText: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  footer: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    minHeight: 148,
-    justifyContent: 'flex-end',
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.xs / 2,
-    marginBottom: spacing.md,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.divider,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    backgroundColor: '#000000',
-    borderRadius: 30,
-    paddingVertical: 16,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footnoteSpacer: {
-    height: 29,
-  },
-  footnote: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    topBar: {
+      height: 44,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    skipText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    pager: {
+      flex: 1,
+    },
+    page: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    visual: {
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    wordmark: {
+      width: 96,
+      height: 33,
+      alignSelf: 'center',
+    },
+    tagline: {
+      ...typography.secondary,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: spacing.xl,
+    },
+    title: {
+      ...typography.screenTitle,
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: spacing.sm,
+    },
+    body: {
+      fontSize: 17,
+      lineHeight: 24,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    chipRow: {
+      marginTop: spacing.md,
+      gap: spacing.xs,
+      alignItems: 'center',
+    },
+    chip: {
+      backgroundColor: colors.card,
+      borderRadius: radii.pill,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
+    },
+    chipText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    caption: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.xl,
+      marginBottom: spacing.xs,
+    },
+    mockInput: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radii.card,
+      paddingVertical: spacing.xs,
+      paddingLeft: spacing.md,
+      paddingRight: spacing.xs,
+    },
+    mockInputText: {
+      fontSize: 16,
+      color: colors.textMuted,
+    },
+    mockAddButton: {
+      borderRadius: radii.pill,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
+    },
+    mockAddText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.onAccent,
+    },
+    exampleCard: {
+      marginTop: spacing.md,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+      padding: spacing.md,
+    },
+    exampleLabel: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: spacing.xs,
+    },
+    exampleText: {
+      fontSize: 20,
+      lineHeight: 28,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    footer: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+      minHeight: 148,
+      justifyContent: 'flex-end',
+    },
+    dots: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: spacing.xs / 2,
+      marginBottom: spacing.md,
+    },
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.divider,
+    },
+    primaryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      backgroundColor: colors.inverseBackground,
+      borderRadius: 30,
+      paddingVertical: 16,
+    },
+    primaryButtonText: {
+      color: colors.inverseText,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    footnoteSpacer: {
+      height: 29,
+    },
+    footnote: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+  });

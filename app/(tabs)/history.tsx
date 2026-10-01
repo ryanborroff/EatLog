@@ -22,9 +22,9 @@ import {
 import MealCard from '../../components/MealCard';
 import ProgressBar from '../../components/ProgressBar';
 import ScreenHeader from '../../components/ScreenHeader';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, useColors, useThemedStyles } from '../../contexts/ThemeContext';
 import { formatAmount, formatCalories } from '../../utils/formatNumber';
-import { colors, spacing, radii } from '../../constants/theme';
+import { spacing, radii, ThemeColors } from '../../constants/theme';
 import CalendarPicker from '../../components/CalendarPicker';
 
 const MACRO_KEYS: MacroKey[] = ['protein', 'carbohydrate', 'fat'];
@@ -54,6 +54,8 @@ const calorieDelta = (totals: DailyTotals, goals: DailyGoals | null): { text: st
 };
 
 export default function HistoryScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const { accentColor } = useTheme();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -284,181 +286,182 @@ export default function HistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  headerRow: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    lineHeight: 38,
-    color: colors.textPrimary,
-  },
-  dayScrollContent: {
-    paddingBottom: spacing.lg,
-  },
-  summaryCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-  },
-  summaryCalories: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  summaryTarget: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: colors.textSecondary,
-  },
-  summaryBar: {
-    marginTop: spacing.sm,
-  },
-  summaryDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.cardBorder,
-    marginVertical: spacing.md,
-  },
-  emptyDayCard: {
-    marginHorizontal: spacing.lg,
-    padding: spacing.lg,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-  },
-  emptyDayText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  legend: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    marginTop: -spacing.sm,
-    marginBottom: spacing.md,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  legendSwatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 4,
-  },
-  legendText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  dayCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.background,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dayDate: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginRight: spacing.xs,
-  },
-  dayCalories: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  chevron: {
-    marginLeft: spacing.xs,
-  },
-  macroBar: {
-    flexDirection: 'row',
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-    backgroundColor: colors.progressTrack,
-    marginTop: spacing.sm,
-  },
-  dayDelta: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 6,
-  },
-  dayDeltaOver: {
-    color: colors.warning,
-    fontWeight: '600',
-  },
-  dayDetails: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.cardBorder,
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-  },
-  nutrientGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    rowGap: spacing.xs,
-  },
-  nutrientCell: {
-    width: '50%',
-  },
-  dayMacroLabel: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  dayMacroValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginTop: 1,
-  },
-  viewMeals: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    marginTop: spacing.xs,
-    gap: 4,
-  },
-  viewMealsText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 18,
-    color: colors.textSecondary,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    headerRow: {
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: '700',
+      lineHeight: 38,
+      color: colors.textPrimary,
+    },
+    dayScrollContent: {
+      paddingBottom: spacing.lg,
+    },
+    summaryCard: {
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+    },
+    summaryCalories: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    summaryTarget: {
+      fontSize: 16,
+      fontWeight: '400',
+      color: colors.textSecondary,
+    },
+    summaryBar: {
+      marginTop: spacing.sm,
+    },
+    summaryDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.cardBorder,
+      marginVertical: spacing.md,
+    },
+    emptyDayCard: {
+      marginHorizontal: spacing.lg,
+      padding: spacing.lg,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+    },
+    emptyDayText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    legend: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      marginTop: -spacing.sm,
+      marginBottom: spacing.md,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    legendSwatch: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: 4,
+    },
+    legendText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    dayCard: {
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+      padding: spacing.md,
+      backgroundColor: colors.background,
+      borderRadius: radii.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    dayHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    dayDate: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginRight: spacing.xs,
+    },
+    dayCalories: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    chevron: {
+      marginLeft: spacing.xs,
+    },
+    macroBar: {
+      flexDirection: 'row',
+      height: 8,
+      borderRadius: 4,
+      overflow: 'hidden',
+      backgroundColor: colors.progressTrack,
+      marginTop: spacing.sm,
+    },
+    dayDelta: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 6,
+    },
+    dayDeltaOver: {
+      color: colors.warning,
+      fontWeight: '600',
+    },
+    dayDetails: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.cardBorder,
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm,
+    },
+    nutrientGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      rowGap: spacing.xs,
+    },
+    nutrientCell: {
+      width: '50%',
+    },
+    dayMacroLabel: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    dayMacroValue: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginTop: 1,
+    },
+    viewMeals: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      minHeight: 44,
+      marginTop: spacing.xs,
+      gap: 4,
+    },
+    viewMealsText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      fontSize: 18,
+      color: colors.textSecondary,
+    },
+  });

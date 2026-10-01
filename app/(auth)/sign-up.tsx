@@ -12,8 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { signUp, handleAuthRedirectUrl } from '../../services/authService';
+import { ThemeColors } from '../../constants/theme';
+import { useColors, useThemedStyles } from '../../contexts/ThemeContext';
 
 export default function SignUpScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,7 +76,7 @@ export default function SignUpScreen() {
             <TextInput
               style={styles.input}
               placeholder="http://localhost:3000/#access_token=..."
-              placeholderTextColor="#999999"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoComplete="off"
               value={pastedLink}
@@ -101,7 +105,7 @@ export default function SignUpScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#999999"
+            placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
@@ -111,7 +115,7 @@ export default function SignUpScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#999999"
+            placeholderTextColor={colors.textMuted}
             secureTextEntry
             autoComplete="password-new"
             value={password}
@@ -137,39 +141,40 @@ export default function SignUpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  flex: { flex: 1 },
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
-  scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32 },
-  title: { fontSize: 32, fontWeight: '700', color: '#000000', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#666666', marginBottom: 32 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#000000',
-    marginBottom: 12,
-  },
-  error: { color: '#FF3B30', fontSize: 14, marginBottom: 12 },
-  button: {
-    backgroundColor: '#000000',
-    borderRadius: 30,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  link: { color: '#000000', fontSize: 14, textAlign: 'center', marginTop: 24 },
-  devBypass: {
-    marginTop: 40,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  devBypassLabel: { fontSize: 12, color: '#6B6B6B', marginBottom: 8 },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    flex: { flex: 1 },
+    content: { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
+    scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32 },
+    title: { fontSize: 32, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 },
+    subtitle: { fontSize: 16, color: colors.textSecondary, marginBottom: 32 },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.divider,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontSize: 16,
+      color: colors.textPrimary,
+      marginBottom: 12,
+    },
+    error: { color: colors.danger, fontSize: 14, marginBottom: 12 },
+    button: {
+      backgroundColor: colors.inverseBackground,
+      borderRadius: 30,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonDisabled: { opacity: 0.5 },
+    buttonText: { color: colors.inverseText, fontSize: 16, fontWeight: '600' },
+    link: { color: colors.textPrimary, fontSize: 14, textAlign: 'center', marginTop: 24 },
+    devBypass: {
+      marginTop: 40,
+      paddingTop: 24,
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+    },
+    devBypassLabel: { fontSize: 12, color: colors.textSecondary, marginBottom: 8 },
+  });

@@ -49,6 +49,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanned, onClose }) =
   );
 };
 
+// Fixed black and white rather than themed: everything here sits on the live
+// camera feed, which looks the same in light and dark mode.
 const styles = StyleSheet.create({
   container: {
     flex: 1,

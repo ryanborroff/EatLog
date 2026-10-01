@@ -16,10 +16,10 @@ import { DailyGoals, UserProfile } from '../../types';
 import { getUserGoals, saveUserGoals, getUserProfile } from '../../services/storageService';
 import { estimateMaintenanceCalories } from '../../services/calorieTarget';
 import { getNutrientTargets } from '../../services/nutrientTargets';
-import { useTheme } from '../../contexts/ThemeContext';
-import { colors, spacing } from '../../constants/theme';
+import { useTheme, useThemedStyles, useColors } from '../../contexts/ThemeContext';
+import { spacing, ThemeColors } from '../../constants/theme';
 import { SettingsGroup, SettingsRow } from '../../components/SettingsList';
-import { editSheetStyles as sheet } from '../../components/editSheetStyles';
+import { makeEditSheetStyles } from '../../components/editSheetStyles';
 import ScreenHeader from '../../components/ScreenHeader';
 
 type MacroKey = 'calories' | 'protein' | 'carbohydrate' | 'fat' | 'fibre';
@@ -52,6 +52,9 @@ const TARGETS_DISCLAIMER =
   'These are general guidelines, not medical advice. Recommended daily calorie needs vary by age, sex, weight, height, and activity level – consult a doctor or registered dietitian before changing your target, especially if you have a health condition.';
 
 export default function TargetsScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
+  const sheet = useThemedStyles(makeEditSheetStyles);
   const { accentColor, accentTextColor } = useTheme();
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -276,18 +279,19 @@ export default function TargetsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: spacing.lg,
-  },
-  linkLabel: {
-    fontWeight: '600',
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingBottom: spacing.lg,
+    },
+    linkLabel: {
+      fontWeight: '600',
+    },
+  });

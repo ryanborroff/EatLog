@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-nativ
 import { lookupBarcode, BarcodeProduct } from '../services/barcodeLookup';
 import { ReferenceNutrition } from '../services/nutritionCalculator';
 import { track } from '../services/analytics';
-import { useTheme } from '../contexts/ThemeContext';
-import { colors, spacing, radii, typography } from '../constants/theme';
+import { useTheme, useThemedStyles } from '../contexts/ThemeContext';
+import { spacing, radii, typography, ThemeColors } from '../constants/theme';
 import BarcodeScanner from './BarcodeScanner';
 
 type FlowState = 'scanning' | 'not_found' | 'result';
@@ -23,6 +23,7 @@ interface Props {
  * decide what to do with it (log a new meal vs. append to an existing one).
  */
 const BarcodeScanFlow: React.FC<Props> = ({ onResolved, onCancel }) => {
+  const styles = useThemedStyles(makeStyles);
   const { accentColor } = useTheme();
   const [state, setState] = useState<FlowState>('scanning');
   const [scannedProduct, setScannedProduct] = useState<BarcodeProduct | null>(null);
@@ -91,54 +92,57 @@ const BarcodeScanFlow: React.FC<Props> = ({ onResolved, onCancel }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  content: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    width: '100%',
-  },
-  message: {
-    ...typography.body,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  subPrompt: {
-    ...typography.secondary,
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  textInput: {
-    width: '100%',
-    minHeight: 60,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radii.card,
-    padding: spacing.md,
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-    textAlignVertical: 'top',
-  },
-  primaryButton: {
-    borderRadius: radii.pill,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  primaryButtonText: {
-    color: colors.onAccent,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkText: {
-    ...typography.secondary,
-    marginTop: spacing.md,
-    textDecorationLine: 'underline',
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    content: {
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.xl,
+      width: '100%',
+    },
+    message: {
+      ...typography.body,
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: spacing.sm,
+    },
+    subPrompt: {
+      ...typography.secondary,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    textInput: {
+      width: '100%',
+      minHeight: 60,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radii.card,
+      padding: spacing.md,
+      fontSize: 16,
+      color: colors.textPrimary,
+      marginTop: spacing.md,
+      marginBottom: spacing.md,
+      textAlignVertical: 'top',
+    },
+    primaryButton: {
+      borderRadius: radii.pill,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    primaryButtonText: {
+      color: colors.onAccent,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    linkText: {
+      ...typography.secondary,
+      color: colors.textSecondary,
+      marginTop: spacing.md,
+      textDecorationLine: 'underline',
+    },
+  });
 
 export default BarcodeScanFlow;

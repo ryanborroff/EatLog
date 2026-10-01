@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/theme';
+import { ThemeColors } from '../constants/theme';
+import { useColors, useThemedStyles } from '../contexts/ThemeContext';
 
 interface ListeningIndicatorProps {
   /** Whether the mic is actively capturing — drives the breathing animation. */
@@ -38,6 +39,8 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
   thinking = false,
   level,
 }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const breathe = useRef(new Animated.Value(0)).current;
   const ring = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
@@ -239,22 +242,23 @@ const ListeningIndicator: React.FC<ListeningIndicatorProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  halo: {
-    position: 'absolute',
-  },
-  ring: {
-    position: 'absolute',
-    borderWidth: 1.5,
-  },
-  core: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    halo: {
+      position: 'absolute',
+    },
+    ring: {
+      position: 'absolute',
+      borderWidth: 1.5,
+    },
+    core: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
 
 export default ListeningIndicator;

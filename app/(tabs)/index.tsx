@@ -26,17 +26,19 @@ import {
   requestReminderPermission,
   shouldOfferReminders,
 } from '../../services/reminderService';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, useColors, useThemedStyles } from '../../contexts/ThemeContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { formatAmount, formatCalories } from '../../utils/formatNumber';
 import { formatLoggedTime } from '../../utils/formatTime';
-import { colors, spacing, radii, typography } from '../../constants/theme';
+import { spacing, radii, typography, ThemeColors } from '../../constants/theme';
 import { EXAMPLE_MEAL } from '../../constants/examples';
 import { DEFAULT_WATER_ML, getCalorieMetric, getChartMetrics, getTargetStatus } from '../../services/intakeChart';
 import ProgressBar from '../../components/ProgressBar';
 import MealCard from '../../components/MealCard';
 
 export default function TodayScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const { accentColor, accentTextColor } = useTheme();
   const { launchVoiceLogPending, clearLaunchVoiceLog } = useOnboarding();
@@ -301,7 +303,7 @@ export default function TodayScreen() {
                 accessibilityLabel={`Delete ${formatMealType(meal.type)}`}
                 accessibilityRole="button"
               >
-                <Ionicons name="trash" size={22} color="#FFFFFF" />
+                <Ionicons name="trash" size={22} color={colors.onDestructive} />
               </TouchableOpacity>
             )}
           >
@@ -326,186 +328,187 @@ export default function TodayScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: spacing.md,
-    paddingBottom: 96,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  date: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    flexShrink: 1,
-  },
-  totalsCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-  },
-  calorieValue: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  calorieTarget: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: colors.textSecondary,
-  },
-  calorieBar: {
-    marginTop: spacing.sm,
-  },
-  remainingSummary: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  overText: {
-    color: colors.warning,
-    fontWeight: '600',
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.cardBorder,
-    marginVertical: spacing.md,
-  },
-  macroGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    rowGap: spacing.sm,
-  },
-  macroCell: {
-    width: '50%',
-    paddingRight: spacing.md,
-  },
-  macroLabel: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  macroValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginTop: 2,
-  },
-  macroGoal: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: colors.textSecondary,
-  },
-  macroBar: {
-    marginTop: 6,
-  },
-  waterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  waterText: {
-    flex: 1,
-  },
-  waterLastLogged: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  waterButtonRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  waterButton: {
-    minWidth: 72,
-    minHeight: 44,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  waterButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.onAccent,
-  },
-  waterBar: {
-    marginTop: spacing.sm,
-  },
-  emptyState: {
-    alignItems: 'center',
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.cardBorder,
-  },
-  emptyIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  emptyExample: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  deleteAction: {
-    marginBottom: spacing.sm,
-    marginRight: spacing.lg,
-    width: 72,
-    borderRadius: radii.card,
-    backgroundColor: '#D64545',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: spacing.lg,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 18,
-    color: colors.textSecondary,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingTop: spacing.md,
+      paddingBottom: 96,
+    },
+    header: {
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    date: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      flexShrink: 1,
+    },
+    totalsCard: {
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+      padding: spacing.md,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+    },
+    calorieValue: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    calorieTarget: {
+      fontSize: 16,
+      fontWeight: '400',
+      color: colors.textSecondary,
+    },
+    calorieBar: {
+      marginTop: spacing.sm,
+    },
+    remainingSummary: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+    },
+    overText: {
+      color: colors.warning,
+      fontWeight: '600',
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.cardBorder,
+      marginVertical: spacing.md,
+    },
+    macroGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      rowGap: spacing.sm,
+    },
+    macroCell: {
+      width: '50%',
+      paddingRight: spacing.md,
+    },
+    macroLabel: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    macroValue: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginTop: 2,
+    },
+    macroGoal: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.textSecondary,
+    },
+    macroBar: {
+      marginTop: 6,
+    },
+    waterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    waterText: {
+      flex: 1,
+    },
+    waterLastLogged: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    waterButtonRow: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+    },
+    waterButton: {
+      minWidth: 72,
+      minHeight: 44,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    waterButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.onAccent,
+    },
+    waterBar: {
+      marginTop: spacing.sm,
+    },
+    emptyState: {
+      alignItems: 'center',
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.lg,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      borderRadius: radii.card,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.cardBorder,
+    },
+    emptyIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.sm,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    emptyExample: {
+      ...typography.body,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+    },
+    deleteAction: {
+      marginBottom: spacing.sm,
+      marginRight: spacing.lg,
+      width: 72,
+      borderRadius: radii.card,
+      backgroundColor: colors.destructive,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fab: {
+      position: 'absolute',
+      right: spacing.lg,
+      bottom: spacing.lg,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      fontSize: 18,
+      color: colors.textSecondary,
+    },
+  });

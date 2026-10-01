@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, spacing } from '../constants/theme';
+import { spacing, ThemeColors } from '../constants/theme';
+import { useThemedStyles } from '../contexts/ThemeContext';
 
 interface ScreenHeaderProps {
   title: string;
@@ -13,6 +14,7 @@ interface ScreenHeaderProps {
 
 /** Back button and large title for screens pushed on top of a tab, e.g. the Settings sub-screens. */
 export default function ScreenHeader({ title, backLabel = 'Settings', onBack }: ScreenHeaderProps) {
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   return (
     <View style={styles.header}>
@@ -32,26 +34,27 @@ export default function ScreenHeader({ title, backLabel = 'Settings', onBack }: 
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  backButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    lineHeight: 38,
-    color: colors.textPrimary,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    header: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    backButton: {
+      minHeight: 44,
+      justifyContent: 'center',
+      alignSelf: 'flex-start',
+    },
+    backButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: '700',
+      lineHeight: 38,
+      color: colors.textPrimary,
+    },
+  });
