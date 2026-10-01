@@ -11,6 +11,7 @@ const mockAliases: Record<string, object> = {
   'black coffee': mockFood('Coffee, infusion, average', 'g', 2),
   toast: mockFood('Bread, white, toasted', 'g', 250),
   beer: mockFood('Beer, bitter, average (<4% ABV)', 'ml', 30),
+  guinness: mockFood('Stout, Guinness', 'ml', 37),
   strawberry: mockFood('Strawberries, raw', 'g', 30),
   brownie: mockFood('Brownies, chocolate, homemade', 'g', 506),
   oats: mockFood('Porridge oats, unfortified', 'g', 381),
@@ -435,5 +436,17 @@ describe('resolveFoodItems dry-or-cooked options', () => {
   it("doesn't ask without a weight", async () => {
     const [pasta] = await resolveFoodItems([parsed({ description: 'Pasta', quantity: 1, unit: 'bowl', grams_per_unit: 250 })]);
     expect(pasta.cookingOptions).toBeUndefined();
+  });
+});
+
+describe('resolveFoodItems drinks', () => {
+  it('counts a pint of Guinness as the regular stout (~210 kcal), not an alcohol-free version', async () => {
+    const [guinness] = await resolveFoodItems([
+      parsed({ description: 'Guinness', brand: 'Guinness', quantity: 1, unit: 'pint' }),
+    ]);
+    expect(guinness.calories).toBeCloseTo(210.3, 0);
+    expect(guinness.source).toBe('reference');
+    // Found by name, so nothing goes to match-food (and its branded products).
+    expect(mockMatchFoods).toHaveBeenCalledWith([]);
   });
 });

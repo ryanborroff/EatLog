@@ -14,7 +14,7 @@ const MAX_ATWATER_MISMATCH = 0.25;
 // Small absolute differences don't count (a 12 kcal vs 8 kcal cup of tea).
 const MIN_ATWATER_MISMATCH_KCAL = 20;
 // Alcohol adds 7 kcal/g that protein/carbs/fat don't account for.
-const ALCOHOL = /\b(beer|lager|ale|stout|cider|wine|prosecco|champagne|gin|vodka|whisky|whiskey|rum|brandy|tequila|spirits?|cocktail|margarita|mojito|sangria|port|sherry|liqueur|pint)\b/i;
+const ALCOHOL = /\b(beer|lager|ale|ipa|stout|porter|guinness|shandy|cider|wine|prosecco|champagne|cava|spritz|gin|vodka|whisky|whiskey|rum|brandy|tequila|sake|spirits?|cocktail|margarita|mojito|sangria|port|sherry|liqueur|pint)\b/i;
 
 export type EstimateVerdict = 'ok' | 'inconsistent' | 'impossible';
 

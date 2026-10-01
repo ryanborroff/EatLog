@@ -47,6 +47,7 @@ describe('checkEstimate', () => {
     const pint = estimate({ serving_size: 568, serving_unit: 'ml', calories: 240, protein: 2, carbohydrate: 20, fat: 0 });
     expect(checkEstimate(pint, 'Pint of lager')).toBe('ok');
     expect(checkEstimate(pint, 'Apple juice')).toBe('inconsistent');
+    expect(checkEstimate(pint, 'Guinness')).toBe('ok');
   });
 
   it('checks per-gram limits only when the serving is a weight or volume', () => {
