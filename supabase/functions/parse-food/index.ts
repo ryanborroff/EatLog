@@ -17,14 +17,17 @@ const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
 // The larger model by default: its nutrition estimates are the last resort
 // for foods no database knows, so recall matters more than the speed saved.
 const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'openai/gpt-oss-120b';
-// Used for the retry.
-const GROQ_FALLBACK_MODEL = Deno.env.get('GROQ_FALLBACK_MODEL') ?? 'openai/gpt-oss-120b';
+// Used for the retry. Groq rate-limits each model separately, so a different
+// model can still answer when the main one is over its tokens-per-minute limit.
+const GROQ_FALLBACK_MODEL = Deno.env.get('GROQ_FALLBACK_MODEL') ?? 'openai/gpt-oss-20b';
 
 // Room for a clarification answer, which is sent together with the original
 // description and the question it answers.
 const MAX_TRANSCRIPT_LENGTH = 1000;
 const RATE_LIMIT_PER_MINUTE = 10;
 const MAX_ATTEMPTS = 2;
+// Longest we'll wait out a rate limit before retrying on the same model.
+const MAX_RATE_LIMIT_WAIT_MS = 10_000;
 
 const JSON_SHAPE_DESCRIPTION = `Respond with a single JSON object, no prose, matching exactly this shape:
 {
@@ -144,6 +147,12 @@ Deno.serve(async (req: Request) => {
   let failure: ParseFailure | null = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const model = attempt === 1 ? GROQ_MODEL : GROQ_FALLBACK_MODEL;
+    // Retrying a rate-limited model straight away fails again, so wait out a
+    // short limit first. A different model has its own limit and needn't wait.
+    if (failure?.upstreamStatus === 429 && model === GROQ_MODEL && failure.retryAfterMs !== undefined) {
+      if (failure.retryAfterMs > MAX_RATE_LIMIT_WAIT_MS) break;
+      await new Promise((resolve) => setTimeout(resolve, failure!.retryAfterMs));
+    }
     // A 400 other than json_validate_failed means Groq rejected the strict
     // schema request itself, so fall back to plain JSON mode for the retry.
     const schemaRejected =
@@ -162,8 +171,9 @@ Deno.serve(async (req: Request) => {
     await recordFailure(user.id, attempt, model, strict, outcome);
   }
 
+  // Passed on as a 429 so the app can tell the user to wait rather than rephrase.
   return new Response(JSON.stringify({ error: failure!.error }), {
-    status: failure!.status,
+    status: failure!.upstreamStatus === 429 ? 429 : failure!.status,
     headers: { 'Content-Type': 'application/json' },
   });
 });
@@ -175,6 +185,8 @@ interface ParseFailure {
   upstreamStatus?: number;
   /** Groq's error type/code/message — describes the failure, never the diary content. */
   upstreamError?: { type?: string; code?: string; message?: string };
+  /** How long Groq asked us to wait before retrying, when it rate-limited the request. */
+  retryAfterMs?: number;
   /** Shape of the output that failed (lengths, error positions) — never its content. */
   generation?: { length: number; validJson: boolean; parseErrorPosition: number | null; validationError: string | null };
 }
@@ -246,6 +258,17 @@ function parseModelOutput(raw: string): { result: ParsedFoodResult } | { generat
   }
 }
 
+/**
+ * Groq's suggested wait on a 429: its message is more precise ("try again in
+ * 269.99ms") than the whole-second retry-after header, so prefer that.
+ */
+function retryAfterMs(response: Response, message: string | undefined): number | undefined {
+  const match = /try again in ([\d.]+)(ms|s)/.exec(message ?? '');
+  if (match) return Math.ceil(Number(match[1]) * (match[2] === 's' ? 1000 : 1));
+  const header = Number(response.headers.get('retry-after'));
+  return Number.isFinite(header) && header > 0 ? header * 1000 : undefined;
+}
+
 async function attemptParse(
   userMessage: string,
   model: string,
@@ -304,6 +327,7 @@ async function attemptParse(
       detail: body.slice(0, 2000),
       upstreamStatus: groqResponse.status,
       upstreamError,
+      retryAfterMs: groqResponse.status === 429 ? retryAfterMs(groqResponse, upstreamError?.message) : undefined,
       generation,
     };
   }
