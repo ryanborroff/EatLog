@@ -36,6 +36,7 @@ import {
 } from '../../services/intakeChart';
 import IntakeChart from '../../components/IntakeChart';
 import BarPlot from '../../components/BarPlot';
+import ProgressBar from '../../components/ProgressBar';
 import WeightChartPanel from '../../components/WeightChartPanel';
 import {
   buildWeightBuckets,
@@ -255,6 +256,7 @@ export default function InsightsScreen() {
   const showTrend = period !== 'day';
 
   const calorieMetric = getCalorieMetric(goals);
+  const proteinColor = getChartMetrics(goals).find((metric) => metric.key === 'protein')!.color;
   const avgCalories = average((entry) => entry.totals.calories);
   const calorieStatus = getTargetStatus(calorieMetric, avgCalories);
   const caloriePercent = goals.calories > 0 ? Math.round((avgCalories / goals.calories) * 100) : 0;
@@ -332,17 +334,12 @@ export default function InsightsScreen() {
                 style={styles.heroChart}
               />
             ) : (
-              <View style={[styles.progressTrack, styles.heroProgress]}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${Math.min(caloriePercent, 100)}%`,
-                      backgroundColor: calorieStatus === 'above' ? colors.warning : accentColor,
-                    },
-                  ]}
-                />
-              </View>
+              <ProgressBar
+                ratio={goals.calories > 0 ? avgCalories / goals.calories : 0}
+                color={calorieStatus === 'above' ? colors.warning : accentColor}
+                height={10}
+                style={styles.heroProgress}
+              />
             )}
           </View>
         </View>
@@ -354,28 +351,14 @@ export default function InsightsScreen() {
             <Text style={styles.insightValue}>
               {daysWithinCalorieTarget} / {periodHistory.length}
             </Text>
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${Math.round(calorieProgressRatio * 100)}%` },
-                ]}
-              />
-            </View>
+            <ProgressBar ratio={calorieProgressRatio} color={accentColor} style={styles.targetProgress} />
           </View>
           <View style={[styles.insightCard, styles.insightCardLast]}>
             <Text style={styles.insightLabel}>Days hitting protein target</Text>
             <Text style={styles.insightValue}>
               {daysHittingProteinTarget} / {periodHistory.length}
             </Text>
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${Math.round(proteinProgressRatio * 100)}%` },
-                ]}
-              />
-            </View>
+            <ProgressBar ratio={proteinProgressRatio} color={proteinColor} style={styles.targetProgress} />
           </View>
         </View>
 
@@ -416,17 +399,11 @@ export default function InsightsScreen() {
                       style={styles.sparkline}
                     />
                   ) : (
-                    <View style={[styles.progressTrack, styles.nutrientProgress]}>
-                      <View
-                        style={[
-                          styles.progressFill,
-                          {
-                            width: `${Math.min(percent, 100)}%`,
-                            backgroundColor: status === 'onTrack' ? metric.color : colors.warning,
-                          },
-                        ]}
-                      />
-                    </View>
+                    <ProgressBar
+                      ratio={metric.target > 0 ? value / metric.target : 0}
+                      color={status === 'onTrack' ? metric.color : colors.warning}
+                      style={styles.nutrientProgress}
+                    />
                   )}
                 </TouchableOpacity>
               );
@@ -758,17 +735,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.progressTrack,
+  targetProgress: {
     marginTop: spacing.sm,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.textPrimary,
   },
   observationCard: {
     marginHorizontal: spacing.lg,

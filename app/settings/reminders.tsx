@@ -88,7 +88,7 @@ function TimeStepper({ label, value, step, min, max, onChange }: StepperProps) {
 }
 
 export default function RemindersScreen() {
-  const { accentColor } = useTheme();
+  const { accentColor, accentTextColor } = useTheme();
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
   const [permission, setPermission] = useState<ReminderPermission>('undetermined');
 
@@ -159,7 +159,7 @@ export default function RemindersScreen() {
               Notifications are turned off for EatLog, so reminders can’t be delivered.
             </Text>
             <TouchableOpacity onPress={() => Linking.openSettings()} accessibilityRole="button">
-              <Text style={styles.noticeLink}>Open Settings</Text>
+              <Text style={[styles.noticeLink, { color: accentTextColor }]}>Open Settings</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
   },
   noticeText: { fontSize: 15, color: theme.textPrimary, lineHeight: 21 },
-  noticeLink: { fontSize: 15, fontWeight: '600', color: '#007AFF', marginTop: spacing.xs },
+  noticeLink: { fontSize: 15, fontWeight: '600', marginTop: spacing.xs },
   stepper: { flexDirection: 'row', alignItems: 'center' },
   stepperButton: {
     width: 44,

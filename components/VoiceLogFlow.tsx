@@ -981,11 +981,11 @@ const styles = StyleSheet.create({
   },
   portionChipDetail: {
     ...typography.small,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   portionChipTextSelected: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   skippedNotice: {
     ...typography.secondary,
