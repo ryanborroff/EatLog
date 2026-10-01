@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Meal } from '../types';
-import { spacing, radii, ThemeColors } from '../constants/theme';
+import { spacing, radii, typography, ThemeColors } from '../constants/theme';
 import { useThemedStyles } from '../contexts/ThemeContext';
 import { formatCalories } from '../utils/formatNumber';
 import { formatLoggedTime } from '../utils/formatTime';
@@ -33,11 +33,11 @@ export default function MealCard({ meal, onPress }: MealCardProps) {
         </View>
         <Text style={styles.calories}>{formatCalories(meal.totalCalories)} kcal</Text>
       </View>
-      {meal.items.map((item) => (
-        <View key={item.id} style={styles.item}>
-          <FoodItemLine item={item} style={styles.description} />
-        </View>
-      ))}
+      <View style={styles.items}>
+        {meal.items.map((item) => (
+          <FoodItemLine key={item.id} item={item} style={styles.description} />
+        ))}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -73,14 +73,14 @@ const makeStyles = (colors: ThemeColors) =>
       fontSize: 16,
       color: colors.textSecondary,
     },
-    // A small gap between items and a fixed line height, so the space between
-    // two items is only slightly bigger than a wrapped line within one.
-    item: {
-      marginBottom: 4,
+    // Body line height for wrapped lines, and a clearly bigger gap between
+    // items, so a long item that wraps doesn't read as several items. A gap
+    // (not a margin) leaves no extra space under the last item.
+    items: {
+      gap: spacing.xs,
     },
     description: {
-      fontSize: 16,
-      lineHeight: 24,
+      ...typography.body,
       color: colors.textPrimary,
     },
   });
