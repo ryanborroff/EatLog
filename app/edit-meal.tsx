@@ -25,8 +25,8 @@ import { searchFoods, foodRowToItem, FoodRow } from '../services/foodResolver';
 import { calculateNutrition, ReferenceNutrition } from '../services/nutritionCalculator';
 import FoodItemLine from '../components/FoodItemLine';
 import { formatCalories } from '../utils/formatNumber';
-import { useTheme } from '../contexts/ThemeContext';
-import { colors, spacing, radii, typography } from '../constants/theme';
+import { useTheme, useColors, useThemedStyles } from '../contexts/ThemeContext';
+import { spacing, radii, typography, ThemeColors } from '../constants/theme';
 import BarcodeScanFlow from '../components/BarcodeScanFlow';
 
 const MEAL_TYPES: Meal['type'][] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -34,6 +34,8 @@ const MEAL_TYPES: Meal['type'][] = ['breakfast', 'lunch', 'dinner', 'snack'];
 const formatMealType = (type: string): string => type.charAt(0).toUpperCase() + type.slice(1);
 
 export default function EditMealScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const { accentColor, accentTextColor } = useTheme();
   const { date, mealId } = useLocalSearchParams<{ date: string; mealId: string }>();
@@ -426,187 +428,188 @@ export default function EditMealScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  title: {
-    ...typography.cardHeading,
-    color: colors.textPrimary,
-  },
-  cancelText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  doneText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-    marginTop: spacing.md,
-  },
-  mealTypeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  mealTypeChip: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: colors.card,
-  },
-  mealTypeChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  mealTypeChipTextSelected: {
-    color: colors.onAccent,
-  },
-  itemsCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-    padding: spacing.md,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  itemTextWrap: {
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  itemDescription: {
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  itemCalories: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  itemSpinner: {
-    alignSelf: 'flex-start',
-    marginTop: 2,
-  },
-  itemEditWrap: {
-    flex: 1,
-    marginRight: spacing.sm,
-    gap: spacing.xs,
-  },
-  itemEditRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  itemEditInput: {
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radii.card,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  itemEditQuantity: {
-    width: 60,
-  },
-  itemEditUnit: {
-    flex: 1,
-  },
-  addFoodHint: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  addFreeTextButton: {
-    borderRadius: radii.card,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addFreeTextButtonDisabled: {
-    opacity: 0.4,
-  },
-  addFreeTextButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.onAccent,
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radii.card,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  searchInputFlex: {
-    flex: 1,
-  },
-  scanButton: {
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radii.card,
-    padding: spacing.sm,
-  },
-  searchSpinner: {
-    marginTop: spacing.sm,
-  },
-  searchResultRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    title: {
+      ...typography.cardHeading,
+      color: colors.textPrimary,
+    },
+    cancelText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    doneText: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    sectionLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+      marginTop: spacing.md,
+    },
+    mealTypeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs,
+    },
+    mealTypeChip: {
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.pill,
+      backgroundColor: colors.card,
+    },
+    mealTypeChipText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    mealTypeChipTextSelected: {
+      color: colors.onAccent,
+    },
+    itemsCard: {
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+      padding: spacing.md,
+    },
+    emptyText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    itemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+    },
+    itemTextWrap: {
+      flex: 1,
+      marginRight: spacing.sm,
+    },
+    itemDescription: {
+      fontSize: 16,
+      color: colors.textPrimary,
+    },
+    itemCalories: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    itemSpinner: {
+      alignSelf: 'flex-start',
+      marginTop: 2,
+    },
+    itemEditWrap: {
+      flex: 1,
+      marginRight: spacing.sm,
+      gap: spacing.xs,
+    },
+    itemEditRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    itemEditInput: {
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radii.card,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      fontSize: 14,
+      color: colors.textPrimary,
+    },
+    itemEditQuantity: {
+      width: 60,
+    },
+    itemEditUnit: {
+      flex: 1,
+    },
+    addFoodHint: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+    },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    addFreeTextButton: {
+      borderRadius: radii.card,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addFreeTextButtonDisabled: {
+      opacity: 0.4,
+    },
+    addFreeTextButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.onAccent,
+    },
+    searchInput: {
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radii.card,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      fontSize: 16,
+      color: colors.textPrimary,
+    },
+    searchInputFlex: {
+      flex: 1,
+    },
+    scanButton: {
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radii.card,
+      padding: spacing.sm,
+    },
+    searchSpinner: {
+      marginTop: spacing.sm,
+    },
+    searchResultRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    loadingText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+  });

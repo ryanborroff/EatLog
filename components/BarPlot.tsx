@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { colors } from '../constants/theme';
+import { ThemeColors } from '../constants/theme';
+import { useColors, useThemedStyles } from '../contexts/ThemeContext';
 import { TargetKind } from '../services/intakeChart';
 
 interface BarPlotProps {
@@ -26,6 +27,8 @@ const OVER_TOLERANCE = 1.1;
 
 /** Bars against a target line, scaled to the target. Drawn with plain Views so no chart library is needed. */
 export default function BarPlot({ values, labels, target, color, kind = 'min', style }: BarPlotProps) {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const peak = Math.max(...values, 0);
   const scaleMax = Math.max(target * TARGET_HEADROOM, peak, 1);
   const targetRatio = target / scaleMax;
@@ -69,43 +72,44 @@ export default function BarPlot({ values, labels, target, color, kind = 'min', s
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  plot: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.cardBorder,
-  },
-  targetLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    borderTopWidth: 1,
-    borderColor: colors.textMuted,
-  },
-  barSlot: {
-    flex: 1,
-    height: '100%',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 1,
-  },
-  bar: {
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 2,
-  },
-  axis: {
-    height: 14,
-    marginTop: 4,
-  },
-  // Absolutely positioned so labels can spill past bars narrower than the text.
-  axisLabel: {
-    position: 'absolute',
-    top: 0,
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    plot: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.cardBorder,
+    },
+    targetLine: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      borderTopWidth: 1,
+      borderColor: colors.textMuted,
+    },
+    barSlot: {
+      flex: 1,
+      height: '100%',
+      justifyContent: 'flex-end',
+      paddingHorizontal: 1,
+    },
+    bar: {
+      borderTopLeftRadius: 2,
+      borderTopRightRadius: 2,
+    },
+    axis: {
+      height: 14,
+      marginTop: 4,
+    },
+    // Absolutely positioned so labels can spill past bars narrower than the text.
+    axisLabel: {
+      position: 'absolute',
+      top: 0,
+      fontSize: 10,
+      color: colors.textMuted,
+    },
+  });

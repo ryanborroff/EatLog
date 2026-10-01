@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, useThemedStyles } from '../contexts/ThemeContext';
+import { ThemeColors } from '../constants/theme';
 
 interface CalendarPickerProps {
   visible: boolean;
@@ -14,6 +15,7 @@ const WEEKDAY_LABELS_STARTING_SUNDAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const toDateString = (date: Date): string => date.toISOString().split('T')[0];
 
 const CalendarPicker: React.FC<CalendarPickerProps> = ({ visible, selectedDate, onSelect, onClose }) => {
+  const styles = useThemedStyles(makeStyles);
   const { weekStartsOn } = useTheme();
   const weekStartOffset = weekStartsOn === 'monday' ? 1 : 0;
   const weekdayLabels = [
@@ -164,85 +166,86 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({ visible, selectedDate, 
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  sheet: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  navArrow: {
-    fontSize: 24,
-    color: '#000000',
-    paddingHorizontal: 8,
-  },
-  monthLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
-  },
-  weekdayRow: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  weekdayLabel: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#6B6B6B',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  cell: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayCircle: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayCircleSelected: {
-    backgroundColor: '#000000',
-  },
-  cellText: {
-    fontSize: 15,
-    color: '#000000',
-  },
-  cellTextDisabled: {
-    color: '#DDDDDD',
-  },
-  cellTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  cellTextToday: {
-    fontWeight: '700',
-  },
-  todayButton: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  todayButtonText: {
-    fontSize: 15,
-    color: '#666666',
-    textDecorationLine: 'underline',
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    sheet: {
+      width: '100%',
+      maxWidth: 360,
+      backgroundColor: colors.sheet,
+      borderRadius: 16,
+      padding: 20,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    navArrow: {
+      fontSize: 24,
+      color: colors.textPrimary,
+      paddingHorizontal: 8,
+    },
+    monthLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    weekdayRow: {
+      flexDirection: 'row',
+      marginBottom: 4,
+    },
+    weekdayLabel: {
+      flex: 1,
+      textAlign: 'center',
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    cell: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    dayCircle: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    dayCircleSelected: {
+      backgroundColor: colors.inverseBackground,
+    },
+    cellText: {
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    cellTextDisabled: {
+      color: colors.textDisabled,
+    },
+    cellTextSelected: {
+      color: colors.inverseText,
+      fontWeight: '600',
+    },
+    cellTextToday: {
+      fontWeight: '700',
+    },
+    todayButton: {
+      marginTop: 16,
+      alignItems: 'center',
+    },
+    todayButtonText: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      textDecorationLine: 'underline',
+    },
+  });
 
 export default CalendarPicker;

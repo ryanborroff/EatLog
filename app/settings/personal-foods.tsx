@@ -9,7 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radii, spacing } from '../../constants/theme';
+import { radii, spacing, ThemeColors } from '../../constants/theme';
+import { useColors, useThemedStyles } from '../../contexts/ThemeContext';
 import ScreenHeader from '../../components/ScreenHeader';
 import { PersonalFood } from '../../types';
 import { getUserFoods, createUserFood, deleteUserFood } from '../../services/storageService';
@@ -29,6 +30,8 @@ const emptyForm = {
 };
 
 export default function PersonalFoodsScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const [foods, setFoods] = useState<PersonalFood[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -239,64 +242,65 @@ export default function PersonalFoodsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollView: { flex: 1 },
-  card: {
-    marginHorizontal: spacing.lg,
-    marginBottom: 12,
-    padding: 16,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-  },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
-  cardSubtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
-  emptyText: { textAlign: 'center', color: colors.textSecondary, marginTop: 20, marginBottom: 20 },
-  form: { paddingHorizontal: spacing.lg, marginTop: 12 },
-  row: { flexDirection: 'row', gap: 12 },
-  inputHalf: { flex: 1 },
-  label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radii.card,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginBottom: 12,
-  },
-  saveButton: {
-    backgroundColor: '#000000',
-    borderRadius: 30,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  saveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  cancelText: { textAlign: 'center', color: colors.textSecondary, marginTop: 16, marginBottom: 24 },
-  addButtonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginHorizontal: spacing.lg,
-    marginTop: 8,
-    marginBottom: 40,
-  },
-  addButtonFlex: {
-    flex: 1,
-    marginHorizontal: 0,
-    marginTop: 0,
-    marginBottom: 0,
-  },
-  addButton: {
-    marginHorizontal: spacing.lg,
-    marginTop: 8,
-    marginBottom: 40,
-    paddingVertical: 16,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: colors.textPrimary,
-    alignItems: 'center',
-  },
-  addButtonText: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scrollView: { flex: 1 },
+    card: {
+      marginHorizontal: spacing.lg,
+      marginBottom: 12,
+      padding: 16,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+    },
+    cardTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+    cardSubtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
+    emptyText: { textAlign: 'center', color: colors.textSecondary, marginTop: 20, marginBottom: 20 },
+    form: { paddingHorizontal: spacing.lg, marginTop: 12 },
+    row: { flexDirection: 'row', gap: 12 },
+    inputHalf: { flex: 1 },
+    label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radii.card,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: colors.textPrimary,
+      marginBottom: 12,
+    },
+    saveButton: {
+      backgroundColor: colors.inverseBackground,
+      borderRadius: 30,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 4,
+    },
+    saveButtonText: { color: colors.inverseText, fontSize: 16, fontWeight: '600' },
+    cancelText: { textAlign: 'center', color: colors.textSecondary, marginTop: 16, marginBottom: 24 },
+    addButtonRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginHorizontal: spacing.lg,
+      marginTop: 8,
+      marginBottom: 40,
+    },
+    addButtonFlex: {
+      flex: 1,
+      marginHorizontal: 0,
+      marginTop: 0,
+      marginBottom: 0,
+    },
+    addButton: {
+      marginHorizontal: spacing.lg,
+      marginTop: 8,
+      marginBottom: 40,
+      paddingVertical: 16,
+      borderRadius: 30,
+      borderWidth: 1,
+      borderColor: colors.textPrimary,
+      alignItems: 'center',
+    },
+    addButtonText: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  });

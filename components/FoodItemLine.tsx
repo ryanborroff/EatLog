@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleProp, StyleSheet, Text, TextStyle } from 'react-native';
-import { colors } from '../constants/theme';
+import { ThemeColors } from '../constants/theme';
+import { useThemedStyles } from '../contexts/ThemeContext';
 import { FoodItem } from '../types';
 import { formatFoodItemLine } from '../utils/formatFoodItem';
 
@@ -24,6 +25,7 @@ const caveat = (item: FoodItemLineProps['item']): string | null => {
  * check (tapping the meal lets them fix it).
  */
 const FoodItemLine: React.FC<FoodItemLineProps> = ({ item, style }) => {
+  const styles = useThemedStyles(makeStyles);
   const note = caveat(item);
   return (
     <Text style={style}>
@@ -33,13 +35,14 @@ const FoodItemLine: React.FC<FoodItemLineProps> = ({ item, style }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  // textSecondary, not textMuted: this is information the user should act on,
-  // so it needs AA contrast (4.5:1), which the muted grey doesn't reach.
-  guessed: {
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    // textSecondary, not textMuted: this is information the user should act on,
+    // so it needs AA contrast (4.5:1), which the muted grey doesn't reach.
+    guessed: {
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+    },
+  });
 
 export default FoodItemLine;

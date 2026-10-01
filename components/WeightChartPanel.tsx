@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { WeightBucket, formatKg, formatKgChange } from '../services/weightInsights';
-import { colors, spacing, radii } from '../constants/theme';
+import { spacing, radii, ThemeColors } from '../constants/theme';
+import { useThemedStyles } from '../contexts/ThemeContext';
 
 interface WeightChartPanelProps {
   buckets: WeightBucket[];
@@ -19,6 +20,7 @@ const MIN_RANGE_KG = 2;
  * scaled to the period's own min/max (weight has no daily target to scale against).
  */
 export default function WeightChartPanel({ buckets, change }: WeightChartPanelProps) {
+  const styles = useThemedStyles(makeStyles);
   const weights = buckets.map((b) => b.weightKg).filter((w): w is number => w !== null);
   if (weights.length === 0) return null;
 
@@ -83,66 +85,67 @@ export default function WeightChartPanel({ buckets, change }: WeightChartPanelPr
 const DOT_SIZE = 7;
 
 // Mirrors IntakeChart's panel styling so the weight panel sits in the same row.
-const styles = StyleSheet.create({
-  panel: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-    padding: spacing.sm,
-  },
-  panelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  swatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 6,
-  },
-  panelLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  panelValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: 2,
-  },
-  panelTarget: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  plot: {
-    flex: 1,
-    flexDirection: 'row',
-    marginTop: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.cardBorder,
-  },
-  dotSlot: {
-    flex: 1,
-    height: '100%',
-    alignItems: 'center',
-  },
-  dot: {
-    position: 'absolute',
-    width: DOT_SIZE,
-    height: DOT_SIZE,
-    borderRadius: DOT_SIZE / 2,
-    marginBottom: -DOT_SIZE / 2,
-    backgroundColor: WEIGHT_COLOR,
-  },
-  axis: {
-    height: 14,
-    marginTop: 4,
-  },
-  axisLabel: {
-    position: 'absolute',
-    top: 0,
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    panel: {
+      flex: 1,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+      padding: spacing.sm,
+    },
+    panelHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    swatch: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: 6,
+    },
+    panelLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    panelValue: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginTop: 2,
+    },
+    panelTarget: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    plot: {
+      flex: 1,
+      flexDirection: 'row',
+      marginTop: spacing.xs,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.cardBorder,
+    },
+    dotSlot: {
+      flex: 1,
+      height: '100%',
+      alignItems: 'center',
+    },
+    dot: {
+      position: 'absolute',
+      width: DOT_SIZE,
+      height: DOT_SIZE,
+      borderRadius: DOT_SIZE / 2,
+      marginBottom: -DOT_SIZE / 2,
+      backgroundColor: WEIGHT_COLOR,
+    },
+    axis: {
+      height: 14,
+      marginTop: 4,
+    },
+    axisLabel: {
+      position: 'absolute',
+      top: 0,
+      fontSize: 10,
+      color: colors.textMuted,
+    },
+  });

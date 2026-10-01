@@ -18,8 +18,8 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { DayEntry, DailyGoals, WeightEntry } from '../../types';
 import { getHistory, getUserGoals, getWeightEntries, logWeight } from '../../services/storageService';
 import { track } from '../../services/analytics';
-import { useTheme } from '../../contexts/ThemeContext';
-import { colors, spacing, radii } from '../../constants/theme';
+import { useTheme, useColors, useThemedStyles } from '../../contexts/ThemeContext';
+import { spacing, radii, ThemeColors } from '../../constants/theme';
 import { generateObservations } from '../../utils/insightsObservations';
 import { formatAmount, formatCalories } from '../../utils/formatNumber';
 import { useIntakeChartMode } from '../../utils/useIntakeChartMode';
@@ -97,6 +97,8 @@ const PERIOD_OPTIONS: { id: Period; label: string; days: number; sectionTitle: s
 ];
 
 export default function InsightsScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const { accentColor } = useTheme();
   const [history, setHistory] = useState<DayEntry[]>([]);
   const [goals, setGoals] = useState<DailyGoals | null>(null);
@@ -435,7 +437,7 @@ export default function InsightsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Log weight"
             >
-              <Ionicons name="add" size={18} color="#000000" />
+              <Ionicons name="add" size={18} color={colors.onAccent} />
               <Text style={styles.weightButtonText}>Log weight</Text>
             </TouchableOpacity>
           </View>
@@ -494,7 +496,7 @@ export default function InsightsScreen() {
                 onPress={handleSaveWeight}
                 disabled={savingWeight}
               >
-                <Text style={styles.modalButtonText}>{savingWeight ? 'Saving...' : 'Save'}</Text>
+                <Text style={styles.modalButtonPrimaryText}>{savingWeight ? 'Saving...' : 'Save'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -504,335 +506,342 @@ export default function InsightsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    lineHeight: 38,
-    color: colors.textPrimary,
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-    padding: 4,
-  },
-  segmentedControlCompact: {
-    marginHorizontal: 0,
-    marginBottom: 0,
-    width: 360,
-  },
-  segment: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 2,
-    borderRadius: radii.card - 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentCompact: {
-    paddingVertical: 6,
-  },
-  segmentText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  segmentTextActive: {
-    color: colors.onAccent,
-  },
-  rotateHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: spacing.lg,
-    marginTop: -spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  rotateHintText: {
-    flex: 1,
-    marginLeft: 6,
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  chartScreen: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  chartTitleBlock: {
-    flexShrink: 1,
-    marginRight: spacing.md,
-  },
-  chartTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  chartSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionLast: {
-    marginBottom: 0,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    lineHeight: 30,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-    marginHorizontal: spacing.lg,
-  },
-  insightCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-    minHeight: 110,
-    justifyContent: 'center',
-  },
-  insightCardLast: {
-    marginBottom: 0,
-  },
-  sectionCaption: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginHorizontal: spacing.lg,
-    marginTop: -spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  heroCard: {
-    marginHorizontal: spacing.lg,
-    padding: spacing.lg,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-  },
-  heroLabel: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  heroValue: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: 2,
-  },
-  heroTarget: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  heroChart: {
-    height: 150,
-    flex: 0,
-    marginTop: spacing.md,
-  },
-  chartEmpty: {
-    fontSize: 15,
-    lineHeight: 21,
-    color: colors.textSecondary,
-    marginTop: spacing.md,
-  },
-  heroProgress: {
-    height: 10,
-    borderRadius: 5,
-    marginTop: spacing.md,
-  },
-  statusText: {
-    color: colors.warning,
-    fontWeight: '600',
-  },
-  groupedCard: {
-    marginHorizontal: spacing.lg,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-  },
-  nutrientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    minHeight: 64,
-  },
-  nutrientRowDivider: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.cardBorder,
-  },
-  nutrientText: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  nutrientLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  swatch: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  nutrientLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  nutrientValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: 2,
-  },
-  nutrientTarget: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  sparkline: {
-    flex: 0,
-    width: 96,
-    height: 36,
-  },
-  nutrientProgress: {
-    width: 96,
-    marginTop: 0,
-  },
-  insightLabel: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  insightValue: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  targetProgress: {
-    marginTop: spacing.sm,
-  },
-  observationCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    padding: spacing.lg,
-    backgroundColor: colors.observationTint,
-    borderRadius: radii.card,
-  },
-  observationCardLast: {
-    marginBottom: 0,
-  },
-  observationText: {
-    fontSize: 16,
-    color: colors.textPrimary,
-    lineHeight: 23,
-  },
-  weightDetail: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  weightButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginTop: spacing.md,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  // Black, not white, on the accent colour for contrast (as in Settings).
-  weightButtonText: {
-    marginLeft: 4,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#000000',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-  },
-  modalContent: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radii.card,
-    borderTopRightRadius: radii.card,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: colors.divider,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  modalNote: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: spacing.md,
-    lineHeight: 20,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalButtonSecondary: {
-    backgroundColor: '#F2F2F2',
-  },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 18,
-    color: colors.textSecondary,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    header: {
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: '700',
+      lineHeight: 38,
+      color: colors.textPrimary,
+    },
+    segmentedControl: {
+      flexDirection: 'row',
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+      padding: 4,
+    },
+    segmentedControlCompact: {
+      marginHorizontal: 0,
+      marginBottom: 0,
+      width: 360,
+    },
+    segment: {
+      flex: 1,
+      paddingVertical: 10,
+      paddingHorizontal: 2,
+      borderRadius: radii.card - 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    segmentCompact: {
+      paddingVertical: 6,
+    },
+    segmentText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    segmentTextActive: {
+      color: colors.onAccent,
+    },
+    rotateHint: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: spacing.lg,
+      marginTop: -spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    rotateHintText: {
+      flex: 1,
+      marginLeft: 6,
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    chartScreen: {
+      flex: 1,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    chartHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    chartTitleBlock: {
+      flexShrink: 1,
+      marginRight: spacing.md,
+    },
+    chartTitle: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    chartSubtitle: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    section: {
+      marginBottom: spacing.xl,
+    },
+    sectionLast: {
+      marginBottom: 0,
+    },
+    sectionTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      lineHeight: 30,
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+      marginHorizontal: spacing.lg,
+    },
+    insightCard: {
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+      minHeight: 110,
+      justifyContent: 'center',
+    },
+    insightCardLast: {
+      marginBottom: 0,
+    },
+    sectionCaption: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginHorizontal: spacing.lg,
+      marginTop: -spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    heroCard: {
+      marginHorizontal: spacing.lg,
+      padding: spacing.lg,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+    },
+    heroLabel: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    heroValue: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginTop: 2,
+    },
+    heroTarget: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    heroChart: {
+      height: 150,
+      flex: 0,
+      marginTop: spacing.md,
+    },
+    chartEmpty: {
+      fontSize: 15,
+      lineHeight: 21,
+      color: colors.textSecondary,
+      marginTop: spacing.md,
+    },
+    heroProgress: {
+      height: 10,
+      borderRadius: 5,
+      marginTop: spacing.md,
+    },
+    statusText: {
+      color: colors.warning,
+      fontWeight: '600',
+    },
+    groupedCard: {
+      marginHorizontal: spacing.lg,
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+    },
+    nutrientRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      minHeight: 64,
+    },
+    nutrientRowDivider: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.cardBorder,
+    },
+    nutrientText: {
+      flex: 1,
+      marginRight: spacing.md,
+    },
+    nutrientLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    swatch: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: 6,
+    },
+    nutrientLabel: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    nutrientValue: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginTop: 2,
+    },
+    nutrientTarget: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    sparkline: {
+      flex: 0,
+      width: 96,
+      height: 36,
+    },
+    nutrientProgress: {
+      width: 96,
+      marginTop: 0,
+    },
+    insightLabel: {
+      fontSize: 16,
+      fontWeight: '400',
+      color: colors.textSecondary,
+      marginBottom: 4,
+    },
+    insightValue: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    targetProgress: {
+      marginTop: spacing.sm,
+    },
+    observationCard: {
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+      padding: spacing.lg,
+      backgroundColor: colors.observationTint,
+      borderRadius: radii.card,
+    },
+    observationCardLast: {
+      marginBottom: 0,
+    },
+    observationText: {
+      fontSize: 16,
+      color: colors.textPrimary,
+      lineHeight: 23,
+    },
+    weightDetail: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    weightButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      marginTop: spacing.md,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+    },
+    // Black, not white, on the accent colour for contrast (as in Settings).
+    weightButtonText: {
+      marginLeft: 4,
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.onAccent,
+    },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: colors.overlay,
+    },
+    modalContent: {
+      backgroundColor: colors.sheet,
+      borderTopLeftRadius: radii.card,
+      borderTopRightRadius: radii.card,
+      padding: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+    },
+    modalInput: {
+      borderWidth: 1,
+      borderColor: colors.divider,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: colors.textPrimary,
+    },
+    modalNote: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: spacing.md,
+      lineHeight: 20,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      marginTop: spacing.lg,
+      gap: spacing.sm,
+    },
+    modalButton: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    modalButtonSecondary: {
+      backgroundColor: colors.fill,
+    },
+    modalButtonText: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.textPrimary,
+    },
+    // Black, not white, on the accent colour for contrast (as in Settings).
+    modalButtonPrimaryText: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.onAccent,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      fontSize: 18,
+      color: colors.textSecondary,
+    },
+  });

@@ -11,10 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, useThemedStyles } from '../../contexts/ThemeContext';
 import ScreenHeader from '../../components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '../../components/SettingsList';
-import { colors as theme, spacing, radii } from '../../constants/theme';
+import { spacing, radii, ThemeColors } from '../../constants/theme';
 import {
   ReminderPermission,
   getReminderPermission,
@@ -57,6 +57,7 @@ interface StepperProps {
 }
 
 function TimeStepper({ label, value, step, min, max, onChange }: StepperProps) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <SettingsRow
       label={label}
@@ -90,6 +91,7 @@ function TimeStepper({ label, value, step, min, max, onChange }: StepperProps) {
 }
 
 export default function RemindersScreen() {
+  const styles = useThemedStyles(makeStyles);
   const { accentColor, accentTextColor } = useTheme();
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
   const [permission, setPermission] = useState<ReminderPermission>('undetermined');
@@ -232,7 +234,7 @@ export default function RemindersScreen() {
                       accessibilityState={{ selected }}
                       accessibilityLabel={`Every ${formatInterval(minutes)}`}
                     >
-                      <Text style={styles.chipText}>{formatInterval(minutes)}</Text>
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{formatInterval(minutes)}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -265,46 +267,49 @@ export default function RemindersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
-  scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: spacing.xl },
-  notice: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    padding: spacing.md,
-    backgroundColor: theme.card,
-    borderRadius: radii.card,
-  },
-  noticeText: { fontSize: 15, color: theme.textPrimary, lineHeight: 21 },
-  noticeLink: { fontSize: 15, fontWeight: '600', marginTop: spacing.xs },
-  stepper: { flexDirection: 'row', alignItems: 'center' },
-  stepperButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperButtonText: { fontSize: 24, fontWeight: '500', color: theme.textPrimary },
-  stepperButtonDisabled: { color: theme.divider },
-  stepperValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.textPrimary,
-    minWidth: 56,
-    textAlign: 'center',
-    fontVariant: ['tabular-nums'],
-  },
-  intervalRow: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm },
-  intervalLabel: { fontSize: 16, color: theme.textPrimary },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  chip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: theme.cardBorder,
-  },
-  // Black in both states: selected chips are filled with the accent colour, where white fails WCAG AA.
-  chipText: { fontSize: 14, fontWeight: '600', color: theme.textPrimary },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scrollView: { flex: 1 },
+    scrollContent: { paddingBottom: spacing.xl },
+    notice: {
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+      padding: spacing.md,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+    },
+    noticeText: { fontSize: 15, color: colors.textPrimary, lineHeight: 21 },
+    noticeLink: { fontSize: 15, fontWeight: '600', marginTop: spacing.xs },
+    stepper: { flexDirection: 'row', alignItems: 'center' },
+    stepperButton: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepperButtonText: { fontSize: 24, fontWeight: '500', color: colors.textPrimary },
+    stepperButtonDisabled: { color: colors.textDisabled },
+    stepperValue: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      minWidth: 56,
+      textAlign: 'center',
+      fontVariant: ['tabular-nums'],
+    },
+    intervalRow: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm },
+    intervalLabel: { fontSize: 16, color: colors.textPrimary },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+    chip: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    // Black in both states: selected chips are filled with the accent colour, where white fails WCAG AA.
+    chipText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+    // On the accent fill, so black in both schemes.
+    chipTextSelected: { color: colors.onAccent },
+  });

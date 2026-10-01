@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ChartBucket, ChartMetric } from '../services/intakeChart';
-import { colors, spacing, radii } from '../constants/theme';
+import { spacing, radii, ThemeColors } from '../constants/theme';
+import { useThemedStyles } from '../contexts/ThemeContext';
 import { formatAmount } from '../utils/formatNumber';
 import BarPlot from './BarPlot';
 
@@ -20,6 +21,7 @@ const formatValue = (metric: ChartMetric, value: number): string =>
  * its own target so grams and millilitres can sit next to each other.
  */
 export default function IntakeChart({ metrics, buckets, children }: IntakeChartProps) {
+  const styles = useThemedStyles(makeStyles);
   const loggedBuckets = buckets.filter((bucket) => bucket.hasData);
 
   return (
@@ -64,44 +66,45 @@ export default function IntakeChart({ metrics, buckets, children }: IntakeChartP
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  panel: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-    padding: spacing.sm,
-  },
-  panelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  swatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 6,
-  },
-  panelLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  panelValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: 2,
-  },
-  panelTarget: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  plot: {
-    marginTop: spacing.xs,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    row: {
+      flex: 1,
+      flexDirection: 'row',
+      gap: spacing.xs,
+    },
+    panel: {
+      flex: 1,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+      padding: spacing.sm,
+    },
+    panelHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    swatch: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: 6,
+    },
+    panelLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    panelValue: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginTop: 2,
+    },
+    panelTarget: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    plot: {
+      marginTop: spacing.xs,
+    },
+  });

@@ -32,8 +32,8 @@ import { formatFoodItemLine } from '../utils/formatFoodItem';
 import { ReferenceNutrition } from '../services/nutritionCalculator';
 import { track } from '../services/analytics';
 import { CookingChoice, Meal } from '../types';
-import { useTheme } from '../contexts/ThemeContext';
-import { colors, spacing, radii, typography } from '../constants/theme';
+import { useTheme, useColors, useThemedStyles } from '../contexts/ThemeContext';
+import { spacing, radii, typography, ThemeColors } from '../constants/theme';
 import { formatAmount, formatCalories } from '../utils/formatNumber';
 import CalendarPicker from './CalendarPicker';
 import BarcodeScanFlow from './BarcodeScanFlow';
@@ -55,6 +55,7 @@ const PROCESSING_COPY = ['Reading your meal…', 'Looking up nutrition…', 'Add
 const PROCESSING_STEP_MS = 1800;
 
 const ProcessingStatus: React.FC = () => {
+  const styles = useThemedStyles(makeStyles);
   const [index, setIndex] = useState(0);
   const opacity = useRef(new Animated.Value(1)).current;
 
@@ -159,6 +160,8 @@ interface VoiceLogFlowProps {
 }
 
 const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const { accentColor } = useTheme();
   const [state, setState] = useState<FlowState>(initialTranscript ? 'processing' : 'listening');
@@ -895,309 +898,316 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-  },
-  closeTarget: {
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  closeButton: {
-    fontSize: 22,
-    color: colors.textPrimary,
-  },
-  dateSelector: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    backgroundColor: colors.card,
-    borderRadius: radii.pill,
-  },
-  dateSelectorText: {
-    ...typography.small,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  body: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    alignSelf: 'stretch',
-  },
-  stage: {
-    flex: 1,
-    alignSelf: 'stretch',
-  },
-  transcriptArea: {
-    flex: 1,
-  },
-  transcriptAreaContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  // Fixed height, so the transcript area is the same size while listening
-  // and reviewing and the mic never shifts as text arrives.
-  controls: {
-    height: 300,
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  // Sized to content while typing, so the keyboard leaves room for the text.
-  controlsEditing: {
-    height: undefined,
-    paddingBottom: spacing.md,
-  },
-  listeningPrompt: {
-    ...typography.cardHeading,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  clarificationContext: {
-    ...typography.secondary,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  reviewLabel: {
-    ...typography.secondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.md,
-  },
-  logButton: {
-    alignSelf: 'stretch',
-    minHeight: 50,
-    justifyContent: 'center',
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  secondaryAction: {
-    minHeight: 44,
-    minWidth: 88,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.xs,
-  },
-  secondaryActionText: {
-    ...typography.secondary,
-    fontWeight: '600',
-  },
-  prompt: {
-    ...typography.cardHeading,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginTop: spacing.lg,
-  },
-  subPrompt: {
-    ...typography.secondary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  exampleHint: {
-    ...typography.small,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.lg,
-  },
-  rememberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    alignSelf: 'stretch',
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.sm,
-  },
-  rememberLabel: {
-    ...typography.secondary,
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  tapToFinishHint: {
-    ...typography.small,
-    color: colors.textMuted,
-    marginTop: spacing.md,
-  },
-  transcript: {
-    ...typography.cardHeading,
-    lineHeight: 28,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  processingTranscript: {
-    ...typography.secondary,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  textInput: {
-    alignSelf: 'stretch',
-    minHeight: 60,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radii.card,
-    padding: spacing.md,
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-    textAlignVertical: 'top',
-  },
-  primaryButton: {
-    borderRadius: radii.pill,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  primaryButtonText: {
-    color: colors.onAccent,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkText: {
-    ...typography.secondary,
-    marginTop: spacing.md,
-    textDecorationLine: 'underline',
-  },
-  errorMessage: {
-    ...typography.body,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  retryLabel: {
-    ...typography.small,
-    color: colors.textSecondary,
-    // Pulls the label up into the indicator's padding (it's sized for rings the idle mic doesn't show).
-    marginTop: -spacing.md,
-    marginBottom: spacing.sm,
-  },
-  resultMealType: {
-    ...typography.sectionHeading,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  resultItem: {
-    ...typography.body,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  resultSummary: {
-    ...typography.cardHeading,
-    color: colors.textPrimary,
-    marginTop: spacing.md,
-    textAlign: 'center',
-  },
-  optionList: {
-    alignSelf: 'stretch',
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-  },
-  optionChip: {
-    borderWidth: 1,
-    borderRadius: radii.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-  },
-  optionText: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  portionQuestion: {
-    alignSelf: 'stretch',
-    marginTop: spacing.md,
-  },
-  portionItem: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  portionOptions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  portionChip: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: radii.card,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    alignItems: 'center',
-  },
-  portionChipLabel: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  portionChipDetail: {
-    ...typography.small,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  portionChipTextSelected: {
-    color: colors.onAccent,
-  },
-  skippedNotice: {
-    ...typography.secondary,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  resultLayout: {
-    flex: 1,
-    alignSelf: 'stretch',
-  },
-  resultBody: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  resultFooter: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  // The accent colour, like "Log it" on the review step: the sheet's main
-  // action looks the same at every stage.
-  doneButton: {
-    minHeight: 52,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doneButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.onAccent,
-  },
-  followUpHint: {
-    ...typography.small,
-    color: colors.textSecondary,
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+    },
+    closeTarget: {
+      minWidth: 44,
+      minHeight: 44,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+    },
+    closeButton: {
+      fontSize: 22,
+      color: colors.textPrimary,
+    },
+    dateSelector: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+      backgroundColor: colors.card,
+      borderRadius: radii.pill,
+    },
+    dateSelectorText: {
+      ...typography.small,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    body: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    content: {
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+      alignSelf: 'stretch',
+    },
+    stage: {
+      flex: 1,
+      alignSelf: 'stretch',
+    },
+    transcriptArea: {
+      flex: 1,
+    },
+    transcriptAreaContent: {
+      flexGrow: 1,
+      justifyContent: 'flex-end',
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.md,
+    },
+    // Fixed height, so the transcript area is the same size while listening
+    // and reviewing and the mic never shifts as text arrives.
+    controls: {
+      height: 300,
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    // Sized to content while typing, so the keyboard leaves room for the text.
+    controlsEditing: {
+      height: undefined,
+      paddingBottom: spacing.md,
+    },
+    listeningPrompt: {
+      ...typography.cardHeading,
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+    },
+    clarificationContext: {
+      ...typography.secondary,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: spacing.sm,
+    },
+    reviewLabel: {
+      ...typography.secondary,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.xl,
+      marginBottom: spacing.md,
+    },
+    logButton: {
+      alignSelf: 'stretch',
+      minHeight: 50,
+      justifyContent: 'center',
+    },
+    disabled: {
+      opacity: 0.4,
+    },
+    secondaryAction: {
+      minHeight: 44,
+      minWidth: 88,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: spacing.xs,
+    },
+    secondaryActionText: {
+      ...typography.secondary,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+    prompt: {
+      ...typography.cardHeading,
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginTop: spacing.lg,
+    },
+    subPrompt: {
+      ...typography.secondary,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    exampleHint: {
+      ...typography.small,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+      paddingHorizontal: spacing.lg,
+    },
+    rememberRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      alignSelf: 'stretch',
+      marginTop: spacing.sm,
+      marginBottom: spacing.md,
+      paddingHorizontal: spacing.sm,
+    },
+    rememberLabel: {
+      ...typography.secondary,
+      color: colors.textSecondary,
+      flex: 1,
+      marginRight: spacing.sm,
+    },
+    tapToFinishHint: {
+      ...typography.small,
+      color: colors.textMuted,
+      marginTop: spacing.md,
+    },
+    transcript: {
+      ...typography.cardHeading,
+      lineHeight: 28,
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    processingTranscript: {
+      ...typography.secondary,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+    textInput: {
+      alignSelf: 'stretch',
+      minHeight: 60,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radii.card,
+      padding: spacing.md,
+      fontSize: 16,
+      color: colors.textPrimary,
+      marginTop: spacing.md,
+      marginBottom: spacing.md,
+      textAlignVertical: 'top',
+    },
+    primaryButton: {
+      borderRadius: radii.pill,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    primaryButtonText: {
+      color: colors.onAccent,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    linkText: {
+      ...typography.secondary,
+      color: colors.textSecondary,
+      marginTop: spacing.md,
+      textDecorationLine: 'underline',
+    },
+    errorMessage: {
+      ...typography.body,
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: spacing.xs,
+    },
+    retryLabel: {
+      ...typography.small,
+      color: colors.textSecondary,
+      // Pulls the label up into the indicator's padding (it's sized for rings the idle mic doesn't show).
+      marginTop: -spacing.md,
+      marginBottom: spacing.sm,
+    },
+    resultMealType: {
+      ...typography.sectionHeading,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    resultItem: {
+      ...typography.body,
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    resultSummary: {
+      ...typography.cardHeading,
+      color: colors.textPrimary,
+      marginTop: spacing.md,
+      textAlign: 'center',
+    },
+    optionList: {
+      alignSelf: 'stretch',
+      marginTop: spacing.lg,
+      gap: spacing.sm,
+    },
+    optionChip: {
+      borderWidth: 1,
+      borderRadius: radii.pill,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      alignItems: 'center',
+    },
+    optionText: {
+      ...typography.body,
+      color: colors.textPrimary,
+    },
+    portionQuestion: {
+      alignSelf: 'stretch',
+      marginTop: spacing.md,
+    },
+    portionItem: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: spacing.sm,
+    },
+    portionOptions: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    portionChip: {
+      flex: 1,
+      borderWidth: 1,
+      borderRadius: radii.card,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.xs,
+      alignItems: 'center',
+    },
+    portionChipLabel: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    portionChipDetail: {
+      ...typography.small,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    portionChipTextSelected: {
+      color: colors.onAccent,
+    },
+    skippedNotice: {
+      ...typography.secondary,
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+    resultLayout: {
+      flex: 1,
+      alignSelf: 'stretch',
+    },
+    resultBody: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    resultFooter: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    // The accent colour, like "Log it" on the review step: the sheet's main
+    // action looks the same at every stage.
+    doneButton: {
+      minHeight: 52,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    doneButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.onAccent,
+    },
+    followUpHint: {
+      ...typography.small,
+      color: colors.textSecondary,
+      marginTop: spacing.xl,
+      marginBottom: spacing.sm,
+    },
+  });
 
 export default VoiceLogFlow;

@@ -9,7 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radii, spacing } from '../../constants/theme';
+import { radii, spacing, ThemeColors } from '../../constants/theme';
+import { useColors, useThemedStyles } from '../../contexts/ThemeContext';
 import ScreenHeader from '../../components/ScreenHeader';
 import { PersonalFood, UserDefault } from '../../types';
 import {
@@ -28,6 +29,8 @@ interface DraftItem {
 }
 
 export default function UsualFoodsScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const [defaults, setDefaults] = useState<UserDefault[]>([]);
   const [personalFoods, setPersonalFoods] = useState<PersonalFood[]>([]);
   const [loading, setLoading] = useState(true);
@@ -244,61 +247,62 @@ export default function UsualFoodsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollView: { flex: 1 },
-  card: {
-    marginHorizontal: spacing.lg,
-    marginBottom: 12,
-    padding: 16,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-  },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
-  cardSubtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
-  emptyText: { textAlign: 'center', color: colors.textSecondary, marginTop: 20, marginBottom: 20 },
-  hintText: { textAlign: 'center', color: colors.textSecondary, marginHorizontal: spacing.lg, marginTop: 20 },
-  modeButtons: { paddingHorizontal: spacing.lg, gap: 12, marginTop: 8, marginBottom: 40 },
-  form: { paddingHorizontal: spacing.lg, marginTop: 12 },
-  sectionLabel: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, marginTop: 4 },
-  foodOption: {
-    padding: 14,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-    marginBottom: 8,
-  },
-  foodOptionSelected: { backgroundColor: '#000000' },
-  foodOptionText: { fontSize: 15, color: colors.textPrimary },
-  foodOptionTextSelected: { color: '#FFFFFF' },
-  mealItemRow: { paddingVertical: 8 },
-  mealItemText: { fontSize: 15, color: colors.textPrimary },
-  row: { flexDirection: 'row', gap: 12 },
-  inputHalf: { flex: 1 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radii.card,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginBottom: 12,
-  },
-  saveButton: {
-    backgroundColor: '#000000',
-    borderRadius: 30,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  saveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  cancelText: { textAlign: 'center', color: colors.textSecondary, marginTop: 16, marginBottom: 24 },
-  addButton: {
-    paddingVertical: 16,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: colors.textPrimary,
-    alignItems: 'center',
-  },
-  addButtonText: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scrollView: { flex: 1 },
+    card: {
+      marginHorizontal: spacing.lg,
+      marginBottom: 12,
+      padding: 16,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+    },
+    cardTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+    cardSubtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
+    emptyText: { textAlign: 'center', color: colors.textSecondary, marginTop: 20, marginBottom: 20 },
+    hintText: { textAlign: 'center', color: colors.textSecondary, marginHorizontal: spacing.lg, marginTop: 20 },
+    modeButtons: { paddingHorizontal: spacing.lg, gap: 12, marginTop: 8, marginBottom: 40 },
+    form: { paddingHorizontal: spacing.lg, marginTop: 12 },
+    sectionLabel: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, marginTop: 4 },
+    foodOption: {
+      padding: 14,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+      marginBottom: 8,
+    },
+    foodOptionSelected: { backgroundColor: colors.inverseBackground },
+    foodOptionText: { fontSize: 15, color: colors.textPrimary },
+    foodOptionTextSelected: { color: colors.inverseText },
+    mealItemRow: { paddingVertical: 8 },
+    mealItemText: { fontSize: 15, color: colors.textPrimary },
+    row: { flexDirection: 'row', gap: 12 },
+    inputHalf: { flex: 1 },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radii.card,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: colors.textPrimary,
+      marginBottom: 12,
+    },
+    saveButton: {
+      backgroundColor: colors.inverseBackground,
+      borderRadius: 30,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    saveButtonText: { color: colors.inverseText, fontSize: 16, fontWeight: '600' },
+    cancelText: { textAlign: 'center', color: colors.textSecondary, marginTop: 16, marginBottom: 24 },
+    addButton: {
+      paddingVertical: 16,
+      borderRadius: 30,
+      borderWidth: 1,
+      borderColor: colors.textPrimary,
+      alignItems: 'center',
+    },
+    addButtonText: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  });

@@ -15,13 +15,19 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { DailyGoals, UserProfile } from '../../types';
 import { getUserGoals, getUserProfile } from '../../services/storageService';
 import { signOut } from '../../services/authService';
-import { ACCENT_COLORS, WeekStartDay, useTheme } from '../../contexts/ThemeContext';
-import { colors as theme, spacing, radii } from '../../constants/theme';
+import { ACCENT_COLORS, ColorSchemePreference, WeekStartDay, useTheme, useThemedStyles } from '../../contexts/ThemeContext';
+import { spacing, radii, ThemeColors } from '../../constants/theme';
 import { getAppleHealthSyncEnabled, setAppleHealthSyncEnabled } from '../../services/healthSyncPreference';
 import { requestHealthKitAuthorization } from '../../services/healthKitService';
-import { SettingsGroup, SettingsRow, settingsFooterTextStyle } from '../../components/SettingsList';
+import { SettingsGroup, SettingsRow, useSettingsFooterTextStyle } from '../../components/SettingsList';
 
 const OGL_URL = 'https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/';
+
+const COLOR_SCHEME_OPTIONS: { value: ColorSchemePreference; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
 
 const WEEK_START_OPTIONS: { value: WeekStartDay; label: string }[] = [
   { value: 'sunday', label: 'Sunday' },
@@ -41,8 +47,19 @@ const profileSummary = (profile: UserProfile | null): string => {
 };
 
 export default function SettingsScreen() {
+  const styles = useThemedStyles(makeStyles);
+  const settingsFooterTextStyle = useSettingsFooterTextStyle();
   const router = useRouter();
-  const { accentColor, accentTextColor, accentColorId, setAccentColorId, weekStartsOn, setWeekStartsOn } = useTheme();
+  const {
+    accentColor,
+    accentTextColor,
+    accentColorId,
+    setAccentColorId,
+    weekStartsOn,
+    setWeekStartsOn,
+    colorSchemePreference,
+    setColorSchemePreference,
+  } = useTheme();
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -165,6 +182,26 @@ export default function SettingsScreen() {
 
         <SettingsGroup title="Appearance">
           <View style={styles.appearanceRow}>
+            <Text style={styles.appearanceLabel}>Theme</Text>
+            <View style={styles.chipRow}>
+              {COLOR_SCHEME_OPTIONS.map((option) => {
+                const selected = option.value === colorSchemePreference;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.chip, selected && { backgroundColor: accentColor, borderColor: accentColor }]}
+                    onPress={() => setColorSchemePreference(option.value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${option.label} theme`}
+                    accessibilityState={{ selected }}
+                  >
+                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+          <View style={styles.appearanceRow}>
             <Text style={styles.appearanceLabel}>Accent colour</Text>
             <View style={styles.colorSwatchRow}>
               {ACCENT_COLORS.map((color) => {
@@ -189,18 +226,18 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.appearanceRow}>
             <Text style={styles.appearanceLabel}>Week begins on</Text>
-            <View style={styles.weekStartRow}>
+            <View style={styles.chipRow}>
               {WEEK_START_OPTIONS.map((option) => {
                 const selected = option.value === weekStartsOn;
                 return (
                   <TouchableOpacity
                     key={option.value}
-                    style={[styles.weekStartChip, selected && { backgroundColor: accentColor, borderColor: accentColor }]}
+                    style={[styles.chip, selected && { backgroundColor: accentColor, borderColor: accentColor }]}
                     onPress={() => setWeekStartsOn(option.value)}
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
                   >
-                    <Text style={styles.weekStartChipText}>{option.label}</Text>
+                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -242,101 +279,106 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    lineHeight: 38,
-    color: theme.textPrimary,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 18,
-    color: theme.textSecondary,
-  },
-  footerLink: {
-    textDecorationLine: 'underline',
-  },
-  appearanceRow: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  appearanceLabel: {
-    fontSize: 16,
-    color: theme.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  colorSwatchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  colorSwatchWrapper: {
-    alignItems: 'center',
-    minWidth: 44,
-  },
-  colorSwatch: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  colorSwatchSelected: {
-    borderColor: theme.textPrimary,
-  },
-  colorSwatchLabel: {
-    fontSize: 12,
-    color: theme.textSecondary,
-    marginTop: 6,
-  },
-  weekStartRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  weekStartChip: {
-    minHeight: 36,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.pill,
-    backgroundColor: theme.background,
-    borderWidth: 1.5,
-    borderColor: theme.cardBorder,
-  },
-  // Black in both states: when selected the chip is filled with the accent
-  // colour, where white text fails WCAG AA.
-  weekStartChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.textPrimary,
-  },
-  signOut: {
-    alignSelf: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-  },
-  signOutText: {
-    fontSize: 15,
-    color: theme.textSecondary,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    header: {
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: '700',
+      lineHeight: 38,
+      color: colors.textPrimary,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      fontSize: 18,
+      color: colors.textSecondary,
+    },
+    footerLink: {
+      textDecorationLine: 'underline',
+    },
+    appearanceRow: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+    },
+    appearanceLabel: {
+      fontSize: 16,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    colorSwatchRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    colorSwatchWrapper: {
+      alignItems: 'center',
+      minWidth: 44,
+    },
+    colorSwatch: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    colorSwatchSelected: {
+      borderColor: colors.textPrimary,
+    },
+    colorSwatchLabel: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 6,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+    },
+    chip: {
+      minHeight: 36,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.pill,
+      backgroundColor: colors.background,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+    },
+    // Black in both states: when selected the chip is filled with the accent
+    // colour, where white text fails WCAG AA.
+    chipText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    // On the accent fill, so black in both schemes.
+    chipTextSelected: {
+      color: colors.onAccent,
+    },
+    signOut: {
+      alignSelf: 'center',
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+      marginTop: spacing.sm,
+    },
+    signOutText: {
+      fontSize: 15,
+      color: colors.textSecondary,
+    },
+  });

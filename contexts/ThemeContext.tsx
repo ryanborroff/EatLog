@@ -1,34 +1,38 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Appearance, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ACCENT_COLORS, AccentColorId, palettes, ThemeColors } from '../constants/theme';
 
-export type AccentColorId = 'sage' | 'terracotta' | 'sky' | 'lavender' | 'honey';
-
-// `value` is the light swatch used for backgrounds (buttons, tab icons,
-// selection dots) — those only need ~3:1 contrast against white as UI
-// components, which all five already clear. `textOnLight` is a darkened
-// variant of the same hue for when the color is used AS text on a white
-// background (links, active tab label) — those need WCAG AA's 4.5:1 for
-// normal text, which none of the light swatches reach on their own.
-export const ACCENT_COLORS: { id: AccentColorId; label: string; value: string; textOnLight: string }[] = [
-  { id: 'sage', label: 'Sage', value: '#7A9B7E', textOnLight: '#4F7154' },
-  { id: 'terracotta', label: 'Terracotta', value: '#C97B5E', textOnLight: '#A85436' },
-  { id: 'sky', label: 'Sky', value: '#6E9CC4', textOnLight: '#3D6D9E' },
-  { id: 'lavender', label: 'Lavender', value: '#9884B8', textOnLight: '#6F5A94' },
-  { id: 'honey', label: 'Honey', value: '#D4A24C', textOnLight: '#8C6318' },
-];
+export { ACCENT_COLORS };
+export type { AccentColorId };
 
 export type WeekStartDay = 'sunday' | 'monday';
+
+/** The user's choice; 'system' follows the device setting. */
+export type ColorSchemePreference = 'system' | 'light' | 'dark';
+export type ResolvedColorScheme = 'light' | 'dark';
 
 const DEFAULT_ACCENT: AccentColorId = 'sage';
 const DEFAULT_WEEK_START: WeekStartDay = 'sunday';
 const STORAGE_KEY = 'eatlog.accentColor';
 const WEEK_START_STORAGE_KEY = 'eatlog.weekStartsOn';
+const COLOR_SCHEME_STORAGE_KEY = 'eatlog.colorScheme';
+
+// Applied natively too, so the keyboard, alerts, switches and pickers match
+// the app rather than the device setting.
+const applyColorSchemePreference = (preference: ColorSchemePreference) => {
+  Appearance.setColorScheme(preference === 'system' ? 'unspecified' : preference);
+};
 
 interface ThemeContextValue {
   accentColorId: AccentColorId;
   accentColor: string;
-  /** Darkened accent variant for text-on-white use (meets WCAG AA 4.5:1); use `accentColor` for backgrounds instead. */
+  /** Accent variant safe to use as text on the current background (meets WCAG AA 4.5:1); use `accentColor` for backgrounds instead. */
   accentTextColor: string;
+  colorScheme: ResolvedColorScheme;
+  colors: ThemeColors;
+  colorSchemePreference: ColorSchemePreference;
+  setColorSchemePreference: (preference: ColorSchemePreference) => void;
   setAccentColorId: (id: AccentColorId) => void;
   weekStartsOn: WeekStartDay;
   setWeekStartsOn: (day: WeekStartDay) => void;
@@ -39,6 +43,10 @@ const ThemeContext = createContext<ThemeContextValue>({
   accentColor: ACCENT_COLORS.find((c) => c.id === DEFAULT_ACCENT)!.value,
   accentTextColor: ACCENT_COLORS.find((c) => c.id === DEFAULT_ACCENT)!.textOnLight,
   setAccentColorId: () => {},
+  colorScheme: 'light',
+  colors: palettes.light,
+  colorSchemePreference: 'system',
+  setColorSchemePreference: () => {},
   weekStartsOn: DEFAULT_WEEK_START,
   setWeekStartsOn: () => {},
 });
@@ -46,6 +54,9 @@ const ThemeContext = createContext<ThemeContextValue>({
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [accentColorId, setAccentColorIdState] = useState<AccentColorId>(DEFAULT_ACCENT);
   const [weekStartsOn, setWeekStartsOnState] = useState<WeekStartDay>(DEFAULT_WEEK_START);
+  const [colorSchemePreference, setColorSchemePreferenceState] = useState<ColorSchemePreference>('system');
+  const [colorSchemeLoaded, setColorSchemeLoaded] = useState(false);
+  const colorScheme: ResolvedColorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
@@ -58,7 +69,23 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         setWeekStartsOnState(stored);
       }
     });
+    AsyncStorage.getItem(COLOR_SCHEME_STORAGE_KEY)
+      .then((stored) => {
+        if (stored === 'light' || stored === 'dark') {
+          setColorSchemePreferenceState(stored);
+          applyColorSchemePreference(stored);
+        }
+      })
+      .finally(() => setColorSchemeLoaded(true));
   }, []);
+
+  const setColorSchemePreference = (preference: ColorSchemePreference) => {
+    setColorSchemePreferenceState(preference);
+    applyColorSchemePreference(preference);
+    AsyncStorage.setItem(COLOR_SCHEME_STORAGE_KEY, preference).catch((error) => {
+      console.error('Error saving color scheme:', error);
+    });
+  };
 
   const setAccentColorId = (id: AccentColorId) => {
     setAccentColorIdState(id);
@@ -76,7 +103,12 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
   const accent = ACCENT_COLORS.find((c) => c.id === accentColorId)!;
   const accentColor = accent.value;
-  const accentTextColor = accent.textOnLight;
+  const accentTextColor = colorScheme === 'dark' ? accent.value : accent.textOnLight;
+  const colors = palettes[colorScheme];
+
+  // Hold the first render until a saved override is applied, so a dark-mode
+  // user doesn't see one light frame on launch (or vice versa).
+  if (!colorSchemeLoaded) return null;
 
   return (
     <ThemeContext.Provider
@@ -85,6 +117,10 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         accentColor,
         accentTextColor,
         setAccentColorId,
+        colorScheme,
+        colors,
+        colorSchemePreference,
+        setColorSchemePreference,
         weekStartsOn,
         setWeekStartsOn,
       }}
@@ -95,3 +131,18 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 };
 
 export const useTheme = () => useContext(ThemeContext);
+
+/** The palette for the active color scheme. */
+export const useColors = () => useContext(ThemeContext).colors;
+
+/**
+ * Builds a component's styles from the active palette. Pass a factory defined
+ * at module scope (not inline) so styles are only rebuilt when the scheme changes:
+ *
+ *   const makeStyles = (colors: ThemeColors) => StyleSheet.create({ ... });
+ *   const styles = useThemedStyles(makeStyles);
+ */
+export function useThemedStyles<T>(factory: (colors: ThemeColors) => T): T {
+  const colors = useColors();
+  return useMemo(() => factory(colors), [factory, colors]);
+}

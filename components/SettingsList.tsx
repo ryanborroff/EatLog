@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StyleProp, TextStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii } from '../constants/theme';
+import { spacing, radii, ThemeColors } from '../constants/theme';
+import { useColors, useThemedStyles } from '../contexts/ThemeContext';
 
 interface SettingsGroupProps {
   title?: string;
@@ -12,6 +13,7 @@ interface SettingsGroupProps {
 
 /** An inset rounded card of rows, iOS "inset grouped" style, with hairline dividers between rows. */
 export function SettingsGroup({ title, footer, children }: SettingsGroupProps) {
+  const styles = useThemedStyles(makeStyles);
   const rows = React.Children.toArray(children).filter(Boolean);
   return (
     <View style={styles.group}>
@@ -54,6 +56,8 @@ export function SettingsRow({
   accessory,
   accessibilityHint,
 }: SettingsRowProps) {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const content = (
     <>
       <Text style={[styles.label, labelStyle]}>{label}</Text>
@@ -82,57 +86,58 @@ export function SettingsRow({
   );
 }
 
-const styles = StyleSheet.create({
-  group: {
-    marginBottom: spacing.lg,
-  },
-  groupTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginHorizontal: spacing.lg + spacing.md,
-    marginBottom: spacing.xs,
-  },
-  card: {
-    marginHorizontal: spacing.lg,
-    backgroundColor: colors.card,
-    borderRadius: radii.card,
-    overflow: 'hidden',
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.cardBorder,
-    marginLeft: spacing.md,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 52,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  label: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginRight: spacing.sm,
-  },
-  value: {
-    flexShrink: 1,
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  chevron: {
-    marginLeft: 4,
-  },
-  footer: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textSecondary,
-    marginHorizontal: spacing.lg + spacing.md,
-    marginTop: spacing.xs,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    group: {
+      marginBottom: spacing.lg,
+    },
+    groupTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginHorizontal: spacing.lg + spacing.md,
+      marginBottom: spacing.xs,
+    },
+    card: {
+      marginHorizontal: spacing.lg,
+      backgroundColor: colors.card,
+      borderRadius: radii.card,
+      overflow: 'hidden',
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.cardBorder,
+      marginLeft: spacing.md,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 52,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    label: {
+      flex: 1,
+      fontSize: 16,
+      color: colors.textPrimary,
+      marginRight: spacing.sm,
+    },
+    value: {
+      flexShrink: 1,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    chevron: {
+      marginLeft: 4,
+    },
+    footer: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: colors.textSecondary,
+      marginHorizontal: spacing.lg + spacing.md,
+      marginTop: spacing.xs,
+    },
+  });
 
 /** SettingsGroup's footer text style, for footers built from several pieces (e.g. with a link). */
-export const settingsFooterTextStyle = styles.footer;
+export const useSettingsFooterTextStyle = () => useThemedStyles(makeStyles).footer;

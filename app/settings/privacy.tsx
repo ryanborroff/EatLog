@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radii, spacing } from '../../constants/theme';
+import { radii, spacing, ThemeColors } from '../../constants/theme';
+import { useColors, useThemedStyles } from '../../contexts/ThemeContext';
 import ScreenHeader from '../../components/ScreenHeader';
 import { deleteAccount } from '../../services/authService';
 
 export default function PrivacyScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const [deleting, setDeleting] = useState(false);
 
   const handleDeleteAccount = () => {
@@ -85,7 +88,7 @@ export default function PrivacyScreen() {
             accessibilityLabel="Delete my account"
           >
             {deleting ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.onDestructive} />
             ) : (
               <Text style={styles.deleteButtonText}>Delete my account</Text>
             )}
@@ -96,19 +99,20 @@ export default function PrivacyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollView: { flex: 1 },
-  section: { paddingHorizontal: spacing.lg, marginBottom: 32 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },
-  paragraph: { fontSize: 15, color: colors.textPrimary, lineHeight: 22, marginBottom: 12 },
-  deleteButton: {
-    backgroundColor: '#D64545',
-    borderRadius: radii.card,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  deleteButtonDisabled: { opacity: 0.6 },
-  deleteButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scrollView: { flex: 1 },
+    section: { paddingHorizontal: spacing.lg, marginBottom: 32 },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },
+    paragraph: { fontSize: 15, color: colors.textPrimary, lineHeight: 22, marginBottom: 12 },
+    deleteButton: {
+      backgroundColor: colors.destructive,
+      borderRadius: radii.card,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    deleteButtonDisabled: { opacity: 0.6 },
+    deleteButtonText: { color: colors.onDestructive, fontSize: 16, fontWeight: '600' },
+  });

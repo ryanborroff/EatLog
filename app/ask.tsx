@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { askDiary, DiaryAssistantError } from '../services/diaryAssistant';
+import { ThemeColors } from '../constants/theme';
+import { useColors, useThemedStyles } from '../contexts/ThemeContext';
 
 interface Bubble {
   id: string;
@@ -20,6 +22,8 @@ interface Bubble {
 }
 
 export default function AskScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const [input, setInput] = useState('');
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
@@ -88,7 +92,7 @@ export default function AskScreen() {
           <TextInput
             style={styles.input}
             placeholder="Ask about your diary"
-            placeholderTextColor="#999999"
+            placeholderTextColor={colors.textMuted}
             value={input}
             onChangeText={setInput}
             onSubmitEditing={handleAsk}
@@ -103,65 +107,65 @@ export default function AskScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  flex: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  title: { fontSize: 20, fontWeight: '700', color: '#000000' },
-  closeButton: { fontSize: 22, color: '#000000' },
-  scrollView: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 12 },
-  // #6B6B6B (not #999999) meets WCAG AA 4.5:1 contrast against white.
-  emptyText: { color: '#6B6B6B', fontSize: 15, textAlign: 'center', marginTop: 40 },
-  bubble: {
-    maxWidth: '85%',
-    padding: 14,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  questionBubble: {
-    backgroundColor: '#000000',
-    alignSelf: 'flex-end',
-  },
-  answerBubble: {
-    backgroundColor: '#F5F5F5',
-    alignSelf: 'flex-start',
-  },
-  errorBubble: {
-    backgroundColor: '#FFF0EF',
-  },
-  questionText: { color: '#FFFFFF', fontSize: 15 },
-  answerText: { color: '#000000', fontSize: 15, lineHeight: 21 },
-  thinkingText: { color: '#6B6B6B', fontSize: 14, marginTop: 4 },
-  inputRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 24,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#000000',
-  },
-  sendButton: {
-    backgroundColor: '#000000',
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-  },
-  sendButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    flex: { flex: 1 },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+    },
+    title: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
+    closeButton: { fontSize: 22, color: colors.textPrimary },
+    scrollView: { flex: 1 },
+    scrollContent: { padding: 20, paddingBottom: 12 },
+    emptyText: { color: colors.textSecondary, fontSize: 15, textAlign: 'center', marginTop: 40 },
+    bubble: {
+      maxWidth: '85%',
+      padding: 14,
+      borderRadius: 16,
+      marginBottom: 12,
+    },
+    questionBubble: {
+      backgroundColor: colors.inverseBackground,
+      alignSelf: 'flex-end',
+    },
+    answerBubble: {
+      backgroundColor: colors.card,
+      alignSelf: 'flex-start',
+    },
+    errorBubble: {
+      backgroundColor: colors.dangerTint,
+    },
+    questionText: { color: colors.inverseText, fontSize: 15 },
+    answerText: { color: colors.textPrimary, fontSize: 15, lineHeight: 21 },
+    thinkingText: { color: colors.textSecondary, fontSize: 14, marginTop: 4 },
+    inputRow: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      gap: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+    },
+    input: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: colors.divider,
+      borderRadius: 24,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: colors.textPrimary,
+    },
+    sendButton: {
+      backgroundColor: colors.inverseBackground,
+      borderRadius: 24,
+      paddingHorizontal: 20,
+      justifyContent: 'center',
+    },
+    sendButtonText: { color: colors.inverseText, fontSize: 16, fontWeight: '600' },
+  });
