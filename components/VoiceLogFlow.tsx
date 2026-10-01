@@ -830,7 +830,11 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
               </TouchableOpacity>
             </View>
             <View style={styles.resultFooter}>
-              <TouchableOpacity style={styles.doneButton} onPress={handleClose} accessibilityRole="button">
+              <TouchableOpacity
+                style={[styles.doneButton, { backgroundColor: accentColor }]}
+                onPress={handleClose}
+                accessibilityRole="button"
+              >
                 <Text style={styles.doneButtonText}>Done</Text>
               </TouchableOpacity>
             </View>
@@ -1175,18 +1179,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
   },
-  // Black, like the app's other main buttons (onboarding, sign-in).
+  // The accent colour, like "Log it" on the review step: the sheet's main
+  // action looks the same at every stage.
   doneButton: {
     minHeight: 52,
     borderRadius: radii.pill,
-    backgroundColor: colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   doneButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.background,
+    color: colors.onAccent,
   },
   followUpHint: {
     ...typography.small,

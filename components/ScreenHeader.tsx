@@ -7,15 +7,17 @@ interface ScreenHeaderProps {
   title: string;
   /** Names the screen the back button returns to. */
   backLabel?: string;
+  /** Overrides going back a route, for screens that swap views in place (e.g. a History day). */
+  onBack?: () => void;
 }
 
 /** Back button and large title for screens pushed on top of a tab, e.g. the Settings sub-screens. */
-export default function ScreenHeader({ title, backLabel = 'Settings' }: ScreenHeaderProps) {
+export default function ScreenHeader({ title, backLabel = 'Settings', onBack }: ScreenHeaderProps) {
   const router = useRouter();
   return (
     <View style={styles.header}>
       <TouchableOpacity
-        onPress={() => router.back()}
+        onPress={onBack ?? (() => router.back())}
         style={styles.backButton}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         accessibilityRole="button"

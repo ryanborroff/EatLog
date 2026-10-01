@@ -28,13 +28,13 @@ import {
 } from '../../services/reminderService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
-import FoodItemLine from '../../components/FoodItemLine';
 import { formatAmount, formatCalories } from '../../utils/formatNumber';
 import { formatLoggedTime } from '../../utils/formatTime';
 import { colors, spacing, radii, typography } from '../../constants/theme';
 import { EXAMPLE_MEAL } from '../../constants/examples';
 import { DEFAULT_WATER_ML, getCalorieMetric, getChartMetrics, getTargetStatus } from '../../services/intakeChart';
 import ProgressBar from '../../components/ProgressBar';
+import MealCard from '../../components/MealCard';
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -305,26 +305,10 @@ export default function TodayScreen() {
               </TouchableOpacity>
             )}
           >
-            <TouchableOpacity
-              style={styles.mealCard}
-              activeOpacity={0.7}
+            <MealCard
+              meal={meal}
               onPress={() => router.push({ pathname: '/edit-meal', params: { date: todayDate, mealId: meal.id } })}
-              accessibilityLabel={`Edit ${formatMealType(meal.type)}`}
-              accessibilityRole="button"
-            >
-              <View style={styles.mealHeader}>
-                <View>
-                  <Text style={styles.mealType}>{formatMealType(meal.type)}</Text>
-                  <Text style={styles.mealTime}>{formatLoggedTime(meal.loggedAt)}</Text>
-                </View>
-                <Text style={styles.mealCalories}>{formatCalories(meal.totalCalories)} kcal</Text>
-              </View>
-              {meal.items.map((item) => (
-                <View key={item.id} style={styles.foodItem}>
-                  <FoodItemLine item={item} style={styles.foodDescription} />
-                </View>
-              ))}
-            </TouchableOpacity>
+            />
           </Swipeable>
         ))}
       </ScrollView>
@@ -491,15 +475,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
   },
-  mealCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
   deleteAction: {
     marginBottom: spacing.sm,
     marginRight: spacing.lg,
@@ -508,36 +483,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#D64545',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  mealHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  mealType: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  mealTime: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  mealCalories: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  // A small gap between items and a fixed line height, so the space between
-  // two items is only slightly bigger than a wrapped line within one.
-  foodItem: {
-    marginBottom: 4,
-  },
-  foodDescription: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.textPrimary,
   },
   fab: {
     position: 'absolute',
