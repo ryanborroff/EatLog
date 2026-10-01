@@ -529,11 +529,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
   },
+  // A small gap between items and a fixed line height, so the space between
+  // two items is only slightly bigger than a wrapped line within one.
   foodItem: {
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   foodDescription: {
     fontSize: 16,
+    lineHeight: 24,
     color: colors.textPrimary,
   },
   fab: {
