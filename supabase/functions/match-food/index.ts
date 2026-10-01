@@ -92,6 +92,8 @@ const isQuery = (value: unknown): value is Query => {
 
 interface Candidate {
   label: string;
+  /** Shown to the model so it can weigh crowd-sourced products against reference data. */
+  kind: 'reference' | 'branded product';
   name: string;
   kcalPer100: number;
   pick: () => Match['food'];
@@ -106,7 +108,8 @@ Rules:
 - When the preparation isn't stated, prefer the way the food is normally eaten (cooked meat and fish, boiled rice and pasta, raw fruit), not raw ingredients.
 - A dish and its main ingredient are different foods: "chicken curry" is not "Chicken, breast, grilled"; "apple pie" is not "Apples, raw".
 - A close variant is fine when nothing better is listed (e.g. "Lasagne, homemade" for "beef lasagne"; "Curry, chicken, homemade" for "chicken jalfrezi").
-- When a brand was named and a candidate is that brand's product of that food, choose it over a generic entry.
+- When a brand was named and a candidate is that brand's product of that food, choose it over a generic reference entry — unless their kcal per 100 g disagree a lot: branded products are crowd-sourced and sometimes mislabelled, so then prefer the reference entry.
+- Never choose an alcohol-free, low-alcohol, diet, zero-sugar, light or low-fat version unless the description says so ("Guinness" is the regular stout, not Guinness 0.0) — and never the regular version when the description names one of those.
 - If no candidate is a fair stand-in, choose null. A wrong match is worse than none.
 
 Respond with JSON only: {"matches": [{"query": "<query id>", "choice": "<candidate number>" | null}]} with one entry per query.`;
@@ -143,7 +146,7 @@ async function choose(queries: { id: string; query: Query; candidates: Candidate
     .map(
       ({ id, query, candidates }) =>
         `Query ${id}: ${describe(query)}\n` +
-        candidates.map((c) => `  ${c.label}. ${c.name} (${Math.round(c.kcalPer100)} kcal/100 g)`).join('\n')
+        candidates.map((c) => `  ${c.label}. ${c.name} (${c.kind}, ${Math.round(c.kcalPer100)} kcal/100 g)`).join('\n')
     )
     .join('\n\n');
 
@@ -207,6 +210,7 @@ Deno.serve(async (req: Request) => {
     const asked = queries.map((query, i) => {
       const products: Candidate[] = branded[i].map((product) => ({
         label: '',
+        kind: 'branded product' as const,
         name: product.name,
         kcalPer100: product.calories,
         pick: () => ({
@@ -227,7 +231,13 @@ Deno.serve(async (req: Request) => {
       const generic: Candidate[] = shortlist(index, `${query.preparation ?? ''} ${query.description}`, SHORTLIST_SIZE).map(
         (entry) => {
           const row = rows.get(entry.id)!;
-          return { label: '', name: row.name, kcalPer100: row.calories, pick: () => ({ ...row, source: 'cofid' as const }) };
+          return {
+            label: '',
+            kind: 'reference' as const,
+            name: row.name,
+            kcalPer100: row.calories,
+            pick: () => ({ ...row, source: 'cofid' as const }),
+          };
         }
       );
       const candidates = [...products, ...generic].map((c, n) => ({ ...c, label: String(n + 1) }));

@@ -274,4 +274,5 @@ ALIASES = {
     "Wine, rose, medium": ["rose wine", "rosé"],
     "Wine, white, sparkling": ["prosecco", "champagne", "sparkling wine"],
     "Cider, dry": ["cider"],
+    "Stout, Guinness": ["guinness", "stout", "guinness draught"],
 }

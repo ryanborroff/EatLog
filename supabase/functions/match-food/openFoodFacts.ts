@@ -63,9 +63,17 @@ export const toNutrition = (product: OffProduct): ProductNutrition | null => {
   if ([calories, protein, carbohydrate, fat].some((v) => v < 0)) return null;
   if (calories > 920 || protein + carbohydrate + fat > 105) return null;
 
-  const fromMacros = protein * 4 + carbohydrate * 4 + fat * 9;
-  const alcoholic = /\b(beer|lager|ale|cider|wine|gin|vodka|whisky|rum|spirit|liqueur)\b/i.test(name);
-  if (!alcoholic && Math.abs(calories - fromMacros) > Math.max(20, 0.35 * Math.max(calories, fromMacros))) return null;
+  // Alcohol is 7 kcal/g on top of protein/carbs/fat; records give it as % vol.
+  const alcoholGrams = (num(n['alcohol_100g']) ?? 0) * 0.789;
+  const fromMacros = protein * 4 + carbohydrate * 4 + fat * 9 + alcoholGrams * 7;
+  const surplus = calories - fromMacros;
+  // Fewer calories than the macros allow means a wrong record.
+  if (-surplus > Math.max(20, 0.35 * fromMacros)) return null;
+  // More is usually alcohol the record doesn't list (Guinness: ~35 kcal, but
+  // only ~14 from its macros) — up to a strong wine's worth for any drink,
+  // and without limit for spirits and liqueurs.
+  const spirit = /\b(gin|vodka|whisky|whiskey|rum|brandy|tequila|spirit|liqueur)\b/i.test(name);
+  if (!spirit && surplus > 90) return null;
 
   const sodiumGrams = num(n['sodium_100g']);
   return {
