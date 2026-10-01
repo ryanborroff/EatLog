@@ -142,6 +142,7 @@ export default function PersonalFoodsScreen() {
 
         {showForm ? (
           <View style={styles.form}>
+            <Text style={styles.label}>Food name</Text>
             <TextInput
               style={styles.input}
               placeholder="Food name (e.g. My Greek yoghurt)"
@@ -149,6 +150,7 @@ export default function PersonalFoodsScreen() {
               value={form.name}
               onChangeText={(v) => setForm({ ...form, name: v })}
             />
+            <Text style={styles.label}>Nickname – what you'll call it when logging</Text>
             <TextInput
               style={styles.input}
               placeholder="Nickname (e.g. my yoghurt)"
@@ -157,22 +159,29 @@ export default function PersonalFoodsScreen() {
               onChangeText={(v) => setForm({ ...form, nickname: v })}
             />
             <View style={styles.row}>
-              <TextInput
-                style={[styles.input, styles.inputHalf]}
-                placeholder="Serving size"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                value={form.servingSize}
-                onChangeText={(v) => setForm({ ...form, servingSize: v })}
-              />
-              <TextInput
-                style={[styles.input, styles.inputHalf]}
-                placeholder="Unit (g, ml...)"
-                placeholderTextColor={colors.textMuted}
-                value={form.servingUnit}
-                onChangeText={(v) => setForm({ ...form, servingUnit: v })}
-              />
+              <View style={styles.inputHalf}>
+                <Text style={styles.label}>Serving size</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. 100"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.servingSize}
+                  onChangeText={(v) => setForm({ ...form, servingSize: v })}
+                />
+              </View>
+              <View style={styles.inputHalf}>
+                <Text style={styles.label}>Unit</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="g, ml…"
+                  placeholderTextColor={colors.textMuted}
+                  value={form.servingUnit}
+                  onChangeText={(v) => setForm({ ...form, servingUnit: v })}
+                />
+              </View>
             </View>
+            <Text style={styles.label}>Calories (kcal)</Text>
             <TextInput
               style={styles.input}
               placeholder="Calories"
@@ -181,6 +190,7 @@ export default function PersonalFoodsScreen() {
               value={form.calories}
               onChangeText={(v) => setForm({ ...form, calories: v })}
             />
+            <Text style={styles.label}>Protein (g)</Text>
             <TextInput
               style={styles.input}
               placeholder="Protein (g)"
@@ -189,6 +199,7 @@ export default function PersonalFoodsScreen() {
               value={form.protein}
               onChangeText={(v) => setForm({ ...form, protein: v })}
             />
+            <Text style={styles.label}>Carbohydrate (g)</Text>
             <TextInput
               style={styles.input}
               placeholder="Carbohydrate (g)"
@@ -197,6 +208,7 @@ export default function PersonalFoodsScreen() {
               value={form.carbohydrate}
               onChangeText={(v) => setForm({ ...form, carbohydrate: v })}
             />
+            <Text style={styles.label}>Fat (g)</Text>
             <TextInput
               style={styles.input}
               placeholder="Fat (g)"
@@ -243,6 +255,7 @@ const styles = StyleSheet.create({
   form: { paddingHorizontal: spacing.lg, marginTop: 12 },
   row: { flexDirection: 'row', gap: 12 },
   inputHalf: { flex: 1 },
+  label: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 },
   input: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
