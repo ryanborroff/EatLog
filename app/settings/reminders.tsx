@@ -42,7 +42,7 @@ const LATEST_MINUTE_OF_DAY = 23 * 60 + 30;
 
 const formatInterval = (minutes: number): string => {
   if (minutes < 60) return `${minutes}m`;
-  return minutes % 60 === 0 ? `${minutes / 60}h` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+  return `${minutes / 60}h`;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
