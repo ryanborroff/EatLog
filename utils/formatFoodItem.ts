@@ -7,14 +7,11 @@ import { FoodItem } from '../types';
  * "3 weetabix" from "I had 3 weetabix") — prepending the quantity again in
  * that case produced visible duplicates like "3 3 weetabix".
  */
-// Capitalizes only the first letter after any leading digits/unit (e.g. "2 scrambled eggs"
-// stays "2 scrambled eggs", "slice of toast" becomes "Slice of toast") for sentence case.
-const capitalizeFirstLetter = (line: string): string => {
-  const match = line.match(/[a-zA-Z]/);
-  if (!match || match.index === undefined) return line;
-  const index = match.index;
-  return line.slice(0, index) + line[index].toUpperCase() + line.slice(index + 1);
-};
+// Sentence case: capitalizes the line's first character when it's a letter
+// ("slice of toast" -> "Slice of toast"). A line led by its quantity is left
+// alone ("2 slices of toast", not "2 Slices of toast"), and the description's
+// own casing is kept so brand names like "Special K" survive.
+export const capitalizeFirstLetter = (line: string): string => line.charAt(0).toUpperCase() + line.slice(1);
 
 // Weight/volume units glue directly to the number ("250ml"); measure words
 // like "cup"/"tbsp" read naturally as "2 cups of milk" instead.
