@@ -268,13 +268,14 @@ export default function HistoryScreen() {
           </View>
         ) : (
           <View style={styles.legend} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            {/* Names what the bars measure, ahead of the key, so it doesn't read as a fourth macro. */}
+            <Text style={styles.legendTitle}>Share of Calories</Text>
             {MACRO_KEYS.map((key) => (
               <View key={key} style={styles.legendItem}>
                 <View style={[styles.legendSwatch, { backgroundColor: macroColors[key] }]} />
                 <Text style={styles.legendText}>{MACRO_LABELS[key]}</Text>
               </View>
             ))}
-            <Text style={styles.legendText}>· share of calories</Text>
           </View>
         )}
 
@@ -400,6 +401,12 @@ const makeStyles = (colors: ThemeColors) =>
       height: 10,
       borderRadius: 5,
       marginRight: 4,
+    },
+    legendTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginRight: spacing.xs,
     },
     legendText: {
       fontSize: 13,

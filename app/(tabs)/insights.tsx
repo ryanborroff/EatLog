@@ -366,7 +366,11 @@ export default function InsightsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Nutrients</Text>
-          <Text style={styles.sectionCaption}>Daily averages · tap a row for its target</Text>
+          {/* What the numbers are, then how to use them — two parts, not one run-on caption. */}
+          <View style={styles.sectionCaptionRow}>
+            <Text style={styles.sectionCaptionTitle}>Daily Averages</Text>
+            <Text style={styles.sectionCaption}>Tap a row for its target</Text>
+          </View>
           <View style={styles.groupedCard}>
             {nutrientRows.map(({ metric, value, status }, index) => {
               const percent = metric.target > 0 ? Math.round((value / metric.target) * 100) : 0;
@@ -625,12 +629,23 @@ const makeStyles = (colors: ThemeColors) =>
     insightCardLast: {
       marginBottom: 0,
     },
-    sectionCaption: {
-      fontSize: 14,
-      color: colors.textSecondary,
+    sectionCaptionRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'baseline',
+      columnGap: spacing.xs,
       marginHorizontal: spacing.lg,
       marginTop: -spacing.sm,
       marginBottom: spacing.sm,
+    },
+    sectionCaptionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    sectionCaption: {
+      fontSize: 14,
+      color: colors.textSecondary,
     },
     heroCard: {
       marginHorizontal: spacing.lg,
