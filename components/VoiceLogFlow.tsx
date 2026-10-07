@@ -28,7 +28,7 @@ import {
 } from '../services/foodPipeline';
 import { PortionQuestion, PortionSize } from '../services/portionFollowUp';
 import { CookingQuestion } from '../services/cookingFollowUp';
-import { formatFoodItemLine } from '../utils/formatFoodItem';
+import { capitalizeFirstLetter, formatFoodItemLine } from '../utils/formatFoodItem';
 import { ReferenceNutrition } from '../services/nutritionCalculator';
 import { track } from '../services/analytics';
 import { CookingChoice, Meal } from '../types';
@@ -722,7 +722,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
             {portionQuestions.map((question) =>
               renderChoices(
                 question.itemId,
-                question.item.description,
+                capitalizeFirstLetter(question.item.description),
                 question.options.map((option) => ({
                   key: option.size,
                   label: option.label,
