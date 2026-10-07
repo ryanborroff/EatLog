@@ -50,6 +50,7 @@
       ],
       "expo-asset",
       "./plugins/siri-shortcut",
+      "./plugins/scene-lifecycle",
       [
         "expo-camera",
         {
