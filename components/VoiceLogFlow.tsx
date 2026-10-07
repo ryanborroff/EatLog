@@ -13,6 +13,7 @@ import {
   Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
@@ -865,10 +866,15 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
         <TouchableOpacity
           style={styles.dateSelector}
           onPress={() => setShowCalendar(true)}
-          accessibilityLabel="Change log date"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel={`Logging for ${formatLogDate(targetDate)}`}
+          accessibilityHint="Opens a calendar to log for a different day"
           accessibilityRole="button"
         >
+          {/* Icon and chevron so it reads as a control, not a caption: it's the only way to log a past day. */}
+          <Ionicons name="calendar-outline" size={16} color={colors.textPrimary} />
           <Text style={styles.dateSelectorText}>{formatLogDate(targetDate)}</Text>
+          <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.closeTarget}
@@ -922,9 +928,14 @@ const makeStyles = (colors: ThemeColors) =>
       color: colors.textPrimary,
     },
     dateSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
       paddingHorizontal: spacing.sm,
       paddingVertical: 6,
       backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
       borderRadius: radii.pill,
     },
     dateSelectorText: {
