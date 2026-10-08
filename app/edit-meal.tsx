@@ -206,11 +206,12 @@ export default function EditMealScreen() {
 
     setSaving(true);
     try {
-      const updated = recalculateMealTotals(meal, items, mealType);
-      await updateMeal(date, meal.id, updated);
+      const edited = recalculateMealTotals(meal, items, mealType);
+      // Changing the meal type can merge it into another meal, giving a new id.
+      const updated = { ...edited, id: await updateMeal(date, meal.id, edited) };
       try {
         if (await getAppleHealthSyncEnabled()) {
-          await resyncMealToHealthKit(updated);
+          await resyncMealToHealthKit(updated, meal.id);
         }
       } catch (error) {
         console.error('Error syncing meal to Apple Health:', error);

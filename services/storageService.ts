@@ -218,35 +218,77 @@ export const getMealsForDate = async (date: string): Promise<Meal[]> => withCloc
   return sortMealsForDisplay((data as MealRow[]).map(toMeal));
 });
 
+/** Snacks first logged within this long of each other count as the same snack. */
+const SNACK_MERGE_WINDOW_MS = 60 * 60 * 1000;
+
 /**
- * Saves the meal's items and returns the id of the meal they landed in. A day
- * has one card per meal type, so a second breakfast is added to the first
- * rather than saved as its own meal.
+ * The day's meal that items of this type should join, or null if they need
+ * their own. A day has one breakfast, lunch and dinner card. Snacks eaten at
+ * different times stay separate: a snack only joins one first logged within
+ * `snackWindow`.
+ */
+const findMealToJoin = async (
+  userId: string,
+  date: string,
+  type: Meal['type'],
+  snackWindow: { from: Date; to?: Date },
+  excludeId?: string
+): Promise<string | null> => {
+  let query = supabase.from('meals').select('id').eq('user_id', userId).eq('date', date).eq('meal_type', type);
+  if (excludeId) query = query.neq('id', excludeId);
+  if (type === 'snack') {
+    query = query.gte('created_at', snackWindow.from.toISOString());
+    if (snackWindow.to) query = query.lte('created_at', snackWindow.to.toISOString());
+    query = query.order('created_at', { ascending: false });
+  } else {
+    query = query.order('created_at', { ascending: true });
+  }
+
+  const { data, error } = await query.limit(1).maybeSingle();
+  if (error) throw error;
+  return data?.id ?? null;
+};
+
+const replaceMealItems = async (mealId: string, items: FoodItem[]): Promise<void> => {
+  const { error: deleteError } = await supabase.from('meal_items').delete().eq('meal_id', mealId);
+  if (deleteError) throw deleteError;
+  await insertMealItems(mealId, items);
+};
+
+const insertMealItems = async (mealId: string, items: FoodItem[]): Promise<void> => {
+  const itemRows = items.map((item) => toItemRow(mealId, item));
+  if (itemRows.length > 0) {
+    const { error } = await supabase.from('meal_items').insert(itemRows);
+    if (error) throw error;
+  }
+};
+
+/** Bumps updated_at, which makes the meal the one a correction straight after targets. */
+const touchMeal = async (mealId: string, fields: { meal_type?: Meal['type'] } = {}): Promise<void> => {
+  const { error } = await supabase
+    .from('meals')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', mealId);
+  if (error) throw error;
+};
+
+/**
+ * Saves the meal's items and returns the id of the meal they landed in — an
+ * existing meal of the same type that day when there is one to join (see
+ * findMealToJoin), otherwise a new one. A snack joins one first logged within
+ * the last hour.
  */
 export const saveMealForDate = async (date: string, meal: Meal): Promise<string> => {
   const userId = await getUserId();
 
-  const { data: existingMeal, error: findError } = await supabase
-    .from('meals')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('date', date)
-    .eq('meal_type', meal.type)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (findError) throw findError;
+  const existingMealId = await findMealToJoin(userId, date, meal.type, {
+    from: new Date(Date.now() - SNACK_MERGE_WINDOW_MS),
+  });
 
   let mealId: string;
-  if (existingMeal) {
-    mealId = existingMeal.id;
-    // Marks it as the most recent meal, so a correction straight after targets it.
-    const { error: touchError } = await supabase
-      .from('meals')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', mealId);
-    if (touchError) throw touchError;
+  if (existingMealId) {
+    mealId = existingMealId;
+    await touchMeal(mealId);
   } else {
     const { data: insertedMeal, error: mealError } = await supabase
       .from('meals')
@@ -257,36 +299,46 @@ export const saveMealForDate = async (date: string, meal: Meal): Promise<string>
     mealId = insertedMeal.id;
   }
 
-  const itemRows = meal.items.map((item) => toItemRow(mealId, item));
-
-  if (itemRows.length > 0) {
-    const { error: itemsError } = await supabase.from('meal_items').insert(itemRows);
-    if (itemsError) throw itemsError;
-  }
+  await insertMealItems(mealId, meal.items);
 
   notifyDiaryChanged();
   return mealId;
 };
 
-export const updateMeal = async (date: string, mealId: string, updatedMeal: Meal): Promise<void> => {
-  const { error: mealError } = await supabase
-    .from('meals')
-    .update({ meal_type: updatedMeal.type, updated_at: new Date().toISOString() })
-    .eq('id', mealId);
+/**
+ * Saves an edited meal and returns the id of the meal its items are now in.
+ * When the edit gives it a type the day already has a card for, its items
+ * move into that meal and this one is deleted, so the id differs from
+ * `mealId`. A snack only joins one logged within an hour of this meal.
+ */
+export const updateMeal = async (date: string, mealId: string, updatedMeal: Meal): Promise<string> => {
+  const userId = await getUserId();
+  const eatenAt = new Date(updatedMeal.loggedAt).getTime();
+  const joinId = await findMealToJoin(
+    userId,
+    date,
+    updatedMeal.type,
+    {
+      from: new Date(eatenAt - SNACK_MERGE_WINDOW_MS),
+      to: new Date(eatenAt + SNACK_MERGE_WINDOW_MS),
+    },
+    mealId
+  );
 
-  if (mealError) throw mealError;
-
-  const { error: deleteError } = await supabase.from('meal_items').delete().eq('meal_id', mealId);
-  if (deleteError) throw deleteError;
-
-  const itemRows = updatedMeal.items.map((item) => toItemRow(mealId, item));
-
-  if (itemRows.length > 0) {
-    const { error: itemsError } = await supabase.from('meal_items').insert(itemRows);
-    if (itemsError) throw itemsError;
+  if (joinId) {
+    await insertMealItems(joinId, updatedMeal.items);
+    await touchMeal(joinId);
+    const { error } = await supabase.from('meals').delete().eq('id', mealId);
+    if (error) throw error;
+    notifyDiaryChanged();
+    return joinId;
   }
 
+  await touchMeal(mealId, { meal_type: updatedMeal.type });
+  await replaceMealItems(mealId, updatedMeal.items);
+
   notifyDiaryChanged();
+  return mealId;
 };
 
 export const deleteMeal = async (date: string, mealId: string): Promise<void> => {

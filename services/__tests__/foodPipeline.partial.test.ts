@@ -10,7 +10,7 @@ jest.mock('../storageService', () => ({
   getMostRecentMeal: jest.fn().mockResolvedValue(null),
   saveMealForDate: jest.fn().mockResolvedValue('new-meal-id'),
   saveVoiceLog: jest.fn().mockResolvedValue(undefined),
-  updateMeal: jest.fn().mockResolvedValue(undefined),
+  updateMeal: jest.fn().mockResolvedValue('recent-meal-id'),
 }));
 jest.mock('../usualPortions', () => ({
   ...jest.requireActual('../usualPortions'),
