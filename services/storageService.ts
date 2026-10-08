@@ -218,18 +218,46 @@ export const getMealsForDate = async (date: string): Promise<Meal[]> => withCloc
   return sortMealsForDisplay((data as MealRow[]).map(toMeal));
 });
 
+/**
+ * Saves the meal's items and returns the id of the meal they landed in. A day
+ * has one card per meal type, so a second breakfast is added to the first
+ * rather than saved as its own meal.
+ */
 export const saveMealForDate = async (date: string, meal: Meal): Promise<string> => {
   const userId = await getUserId();
 
-  const { data: insertedMeal, error: mealError } = await supabase
+  const { data: existingMeal, error: findError } = await supabase
     .from('meals')
-    .insert({ user_id: userId, date, meal_type: meal.type })
     .select('id')
-    .single();
+    .eq('user_id', userId)
+    .eq('date', date)
+    .eq('meal_type', meal.type)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
 
-  if (mealError) throw mealError;
+  if (findError) throw findError;
 
-  const itemRows = meal.items.map((item) => toItemRow(insertedMeal.id, item));
+  let mealId: string;
+  if (existingMeal) {
+    mealId = existingMeal.id;
+    // Marks it as the most recent meal, so a correction straight after targets it.
+    const { error: touchError } = await supabase
+      .from('meals')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', mealId);
+    if (touchError) throw touchError;
+  } else {
+    const { data: insertedMeal, error: mealError } = await supabase
+      .from('meals')
+      .insert({ user_id: userId, date, meal_type: meal.type })
+      .select('id')
+      .single();
+    if (mealError) throw mealError;
+    mealId = insertedMeal.id;
+  }
+
+  const itemRows = meal.items.map((item) => toItemRow(mealId, item));
 
   if (itemRows.length > 0) {
     const { error: itemsError } = await supabase.from('meal_items').insert(itemRows);
@@ -237,7 +265,7 @@ export const saveMealForDate = async (date: string, meal: Meal): Promise<string>
   }
 
   notifyDiaryChanged();
-  return insertedMeal.id;
+  return mealId;
 };
 
 export const updateMeal = async (date: string, mealId: string, updatedMeal: Meal): Promise<void> => {
@@ -267,7 +295,7 @@ export const deleteMeal = async (date: string, mealId: string): Promise<void> =>
   notifyDiaryChanged();
 };
 
-/** Most recently logged meal for a date, or null if none — used to target corrections. */
+/** Most recently logged (or added-to) meal for a date, or null if none — used to target corrections. */
 export const getMostRecentMeal = async (date: string): Promise<Meal | null> => withClockSkewRetry(async () => {
   const userId = await getUserId();
   const { data, error } = await supabase
@@ -275,7 +303,7 @@ export const getMostRecentMeal = async (date: string): Promise<Meal | null> => w
     .select('id, meal_type, created_at, meal_items(*)')
     .eq('user_id', userId)
     .eq('date', date)
-    .order('created_at', { ascending: false })
+    .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
