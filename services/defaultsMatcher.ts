@@ -9,7 +9,7 @@ import { getUserDefaults } from './storageService';
 const normalize = (text: string): string => text.trim().toLowerCase();
 
 /** Simple time-of-day fallback when the caller has no explicit meal hint (spec §10). */
-const inferMealTypeFromTime = (): Meal['type'] => {
+export const inferMealTypeFromTime = (): Meal['type'] => {
   const hour = new Date().getHours();
   if (hour < 11) return 'breakfast';
   if (hour < 15) return 'lunch';

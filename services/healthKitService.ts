@@ -73,9 +73,12 @@ export const writeMealToHealthKit = async (meal: Meal): Promise<void> => {
 
 // Deletes any prior samples for this meal, then writes the current totals — the safe
 // path for an edit/correction, where a plain write would double-count in Apple Health.
-export const resyncMealToHealthKit = async (meal: Meal): Promise<void> => {
-  if (meal.id) {
-    await deleteMealFromHealthKit(meal.id);
+// `previousId` is the meal's id before the edit, when the edit merged it into
+// another meal (`meal.id`): that meal's own samples are left alone, and this
+// meal's totals are added to them.
+export const resyncMealToHealthKit = async (meal: Meal, previousId = meal.id): Promise<void> => {
+  if (previousId) {
+    await deleteMealFromHealthKit(previousId);
   }
   await writeMealToHealthKit(meal);
 };

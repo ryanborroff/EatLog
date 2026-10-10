@@ -24,11 +24,11 @@ interface Props {
  */
 const BarcodeScanFlow: React.FC<Props> = ({ onResolved, onCancel }) => {
   const styles = useThemedStyles(makeStyles);
-  const { accentColor } = useTheme();
+  const { colors, accentColor } = useTheme();
   const [state, setState] = useState<FlowState>('scanning');
   const [scannedProduct, setScannedProduct] = useState<BarcodeProduct | null>(null);
   const [nameValue, setNameValue] = useState('');
-  const [gramsValue, setGramsValue] = useState('100');
+  const [gramsValue, setGramsValue] = useState('');
 
   const handleScanned = async (barcode: string) => {
     track('barcode_scanned');
@@ -39,7 +39,7 @@ const BarcodeScanFlow: React.FC<Props> = ({ onResolved, onCancel }) => {
     }
     setScannedProduct(product);
     setNameValue(product.name);
-    setGramsValue(String(product.reference.servingSize));
+    setGramsValue('');
     setState('result');
   };
 
@@ -76,6 +76,8 @@ const BarcodeScanFlow: React.FC<Props> = ({ onResolved, onCancel }) => {
         style={styles.textInput}
         value={gramsValue}
         onChangeText={setGramsValue}
+        placeholder="How many grams?"
+        placeholderTextColor={colors.textMuted}
         keyboardType="numeric"
         autoFocus
       />

@@ -24,7 +24,7 @@ jest.mock('../healthKitService', () => ({
 import { processTranscript } from '../foodPipeline';
 import { matchDefault } from '../defaultsMatcher';
 import { applyCorrections } from '../correctionApplier';
-import { getMostRecentMeal, saveMealForDate } from '../storageService';
+import { getMostRecentMeal, saveMealForDate, updateMeal } from '../storageService';
 import { supabase } from '../supabaseClient';
 import { writeMealToHealthKit, resyncMealToHealthKit } from '../healthKitService';
 
@@ -74,6 +74,7 @@ describe('processTranscript HealthKit sync', () => {
 
     const updatedMeal: Meal = { ...baseMeal, totalCalories: 450 };
     (applyCorrections as jest.Mock).mockResolvedValue(updatedMeal);
+    (updateMeal as jest.Mock).mockResolvedValue('meal-123');
 
     const result = await processTranscript('actually make that a large portion', '2026-09-16');
 
@@ -81,7 +82,29 @@ describe('processTranscript HealthKit sync', () => {
     // The correction path must clear the meal's old samples before writing the corrected
     // totals — a plain write here would leave both the old and new samples in Health.
     expect(resyncMealToHealthKit).toHaveBeenCalledTimes(1);
-    expect(resyncMealToHealthKit).toHaveBeenCalledWith(updatedMeal);
+    expect(resyncMealToHealthKit).toHaveBeenCalledWith(updatedMeal, 'meal-123');
     expect(writeMealToHealthKit).not.toHaveBeenCalled();
+  });
+
+  it('moves the samples to the meal a correction merged into', async () => {
+    (matchDefault as jest.Mock).mockResolvedValue(null);
+    (getMostRecentMeal as jest.Mock).mockResolvedValue(baseMeal);
+
+    const correctionResponse: CorrectionResult = {
+      intent: 'correction',
+      operations: [],
+      needs_clarification: false,
+      clarification_question: null,
+      clarification_options: null,
+    };
+    (supabase.functions.invoke as jest.Mock).mockResolvedValue({ data: correctionResponse, error: null });
+    (applyCorrections as jest.Mock).mockResolvedValue({ ...baseMeal, type: 'lunch' });
+    (updateMeal as jest.Mock).mockResolvedValue('lunch-456');
+
+    const result = await processTranscript('actually that was lunch', '2026-09-16');
+
+    expect(result).toEqual(expect.objectContaining({ status: 'updated', meal: expect.objectContaining({ id: 'lunch-456' }) }));
+    // The old meal's samples go; this meal's totals are written under the meal it joined.
+    expect(resyncMealToHealthKit).toHaveBeenCalledWith(expect.objectContaining({ id: 'lunch-456' }), 'meal-123');
   });
 });

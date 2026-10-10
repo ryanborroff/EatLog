@@ -34,10 +34,10 @@ const syncMealToHealthIfEnabled = async (meal: Meal): Promise<void> => {
 
 // Same as above, but for a correction/edit: clears any samples already written for this
 // meal first so the re-write doesn't double-count calories/macros in Apple Health.
-const resyncMealToHealthIfEnabled = async (meal: Meal): Promise<void> => {
+const resyncMealToHealthIfEnabled = async (meal: Meal, previousId = meal.id): Promise<void> => {
   try {
     if (await getAppleHealthSyncEnabled()) {
-      await resyncMealToHealthKit(meal);
+      await resyncMealToHealthKit(meal, previousId);
     }
   } catch (error) {
     console.error('Error re-syncing meal to Apple Health:', error);
@@ -248,9 +248,10 @@ export const processTranscript = async (
     if (!recentMeal) {
       throw new FoodParseError('Nothing to correct', 'invalid');
     }
-    const updated = await applyCorrections(recentMeal, parsed.operations);
-    await updateMeal(date, recentMeal.id, updated);
-    await resyncMealToHealthIfEnabled(updated);
+    const corrected = await applyCorrections(recentMeal, parsed.operations);
+    // Changing the meal type can merge it into another meal, giving a new id.
+    const updated = { ...corrected, id: await updateMeal(date, recentMeal.id, corrected) };
+    await resyncMealToHealthIfEnabled(updated, recentMeal.id);
     return { status: 'updated', meal: updated };
   }
 

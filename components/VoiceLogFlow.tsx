@@ -31,6 +31,7 @@ import { PortionQuestion, PortionSize } from '../services/portionFollowUp';
 import { CookingQuestion } from '../services/cookingFollowUp';
 import { capitalizeFirstLetter, formatFoodItemLine } from '../utils/formatFoodItem';
 import { ReferenceNutrition } from '../services/nutritionCalculator';
+import { inferMealTypeFromTime } from '../services/defaultsMatcher';
 import { track } from '../services/analytics';
 import { CookingChoice, Meal } from '../types';
 import { useTheme, useColors, useThemedStyles } from '../contexts/ThemeContext';
@@ -210,6 +211,9 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   // Set once the sheet is leaving, so Cancel during the "Logged" beat and
   // the auto-close after it don't both navigate back.
   const closingRef = useRef(false);
+  // Where Cancel in the scanner goes back to: listening again if it was opened
+  // from the mic, otherwise the error screen's fallbacks.
+  const scanReturnRef = useRef<'listening' | 'error'>('error');
 
   const clearSilenceTimer = () => {
     if (silenceTimerRef.current) {
@@ -502,10 +506,28 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
   // doesn't want to wait the full 3.5s pause.
   const handleFinishListening = stopListening;
 
+  // Scanning instead of speaking: drop whatever the mic has heard so far.
+  const openScanner = () => {
+    scanReturnRef.current = state === 'listening' ? 'listening' : 'error';
+    clearSilenceTimer();
+    listeningRef.current = false;
+    ExpoSpeechRecognitionModule.abort();
+    setState('barcode');
+  };
+
+  const handleScanCancel = () => {
+    if (scanReturnRef.current === 'listening') {
+      void startListening(mealHintRef.current);
+    } else {
+      setState('error');
+    }
+  };
+
   const handleBarcodeResolved = async (name: string, reference: ReferenceNutrition, quantity: number) => {
     setTranscript('');
     setState('processing');
-    const meal = await logBarcodeItem(targetDate, 'snack', name, reference, quantity);
+    const mealType = (mealHintRef.current as Meal['type'] | undefined) ?? inferMealTypeFromTime();
+    const meal = await logBarcodeItem(targetDate, mealType, name, reference, quantity);
     track('food_logged', { source: 'barcode', mealType: meal.type, itemCount: meal.items.length });
     setLoggedMeal(meal);
     setWasCorrection(false);
@@ -794,7 +816,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
                 )}
               </>
             ) : null}
-            <TouchableOpacity onPress={() => setState('barcode')} accessibilityRole="button">
+            <TouchableOpacity onPress={openScanner} accessibilityRole="button">
               <Text style={styles.linkText}>Scan barcode instead</Text>
             </TouchableOpacity>
           </View>
@@ -855,7 +877,7 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
     return (
       <BarcodeScanFlow
         onResolved={(name, reference, quantity) => void handleBarcodeResolved(name, reference, quantity)}
-        onCancel={() => setState('error')}
+        onCancel={handleScanCancel}
       />
     );
   }
@@ -876,15 +898,28 @@ const VoiceLogFlow: React.FC<VoiceLogFlowProps> = ({ initialTranscript }) => {
           <Text style={styles.dateSelectorText}>{formatLogDate(targetDate)}</Text>
           <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.closeTarget}
-          onPress={handleClose}
-          accessibilityLabel="Cancel"
-          accessibilityHint="Closes without logging anything"
-          accessibilityRole="button"
-        >
-          <Text style={styles.closeButton}>✕</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {state === 'listening' && (
+            <TouchableOpacity
+              style={styles.scanTarget}
+              onPress={openScanner}
+              accessibilityLabel="Scan a barcode"
+              accessibilityHint="Stops listening and opens the camera to scan a packaged food"
+              accessibilityRole="button"
+            >
+              <Ionicons name="barcode-outline" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.closeTarget}
+            onPress={handleClose}
+            accessibilityLabel="Cancel"
+            accessibilityHint="Closes without logging anything"
+            accessibilityRole="button"
+          >
+            <Text style={styles.closeButton}>✕</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <KeyboardAvoidingView
         style={styles.body}
@@ -916,6 +951,17 @@ const makeStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    scanTarget: {
+      minWidth: 44,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     closeTarget: {
       minWidth: 44,
